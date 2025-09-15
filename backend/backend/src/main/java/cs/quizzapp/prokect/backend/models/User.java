@@ -1,6 +1,7 @@
 package cs.quizzapp.prokect.backend.models;
 
 import jakarta.persistence.*;
+import java.util.Date;
 
 @Entity
 public class User {
@@ -25,6 +26,14 @@ public class User {
     private String firstName; // First name of the user
     private String lastName; // Last name of the user
     private String profilePicture; // Optional profile picture
+
+    // Additional profile fields as required
+    private String phoneNumber; // Phone number
+    private String address; // Address
+    private Date dateOfBirth; // Date of birth
+    private String gender; // Gender
+    private String country; // Country
+    private String bio; // Biography/About me
 
     public User() {}
 
@@ -70,4 +79,23 @@ public class User {
     public void setPasswordResetToken(String passwordResetToken) {
         this.passwordResetToken = passwordResetToken;
     }
+
+    // Additional profile field getters and setters
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public Date getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(Date dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
 }

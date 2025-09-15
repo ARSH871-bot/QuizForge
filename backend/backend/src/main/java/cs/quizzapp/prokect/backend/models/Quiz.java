@@ -19,6 +19,9 @@ public class Quiz {
     private Date startDate;
     private Date endDate;
 
+    // New field: minimum passing score percentage
+    private Double minimumPassingScore;
+
     private int likesCount;
     private Double rating = 0.0;
     private Integer ratingCount = 0;
@@ -40,13 +43,14 @@ public class Quiz {
 
     public Quiz() {}
 
-    public Quiz(Long id, String name, String category, String difficulty, Date startDate, Date endDate, int likesCount, Double rating, Integer ratingCount, List<Question> questions, User user, List<Score> scores, List<Participation> participations) {
+    public Quiz(Long id, String name, String category, String difficulty, Date startDate, Date endDate, Double minimumPassingScore, int likesCount, Double rating, Integer ratingCount, List<Question> questions, User user, List<Score> scores, List<Participation> participations) {
         this.id = id;
         this.name = name;
         this.category = category;
         this.difficulty = difficulty;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.minimumPassingScore = minimumPassingScore;
         this.likesCount = likesCount;
         this.rating = rating;
         this.ratingCount = ratingCount;
@@ -56,6 +60,7 @@ public class Quiz {
         this.participations = participations;
     }
 
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -102,6 +107,14 @@ public class Quiz {
 
     public void setEndDate(Date endDate) {
         this.endDate = endDate;
+    }
+
+    public Double getMinimumPassingScore() {
+        return minimumPassingScore;
+    }
+
+    public void setMinimumPassingScore(Double minimumPassingScore) {
+        this.minimumPassingScore = minimumPassingScore;
     }
 
     public int getLikesCount() {
@@ -160,4 +173,3 @@ public class Quiz {
         this.participations = participations;
     }
 }
-

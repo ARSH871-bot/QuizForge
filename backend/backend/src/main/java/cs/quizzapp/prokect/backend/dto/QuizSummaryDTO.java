@@ -13,6 +13,7 @@ public class QuizSummaryDTO {
     private Double rating;
     private Integer ratingCount;
     private int numberOfQuestions;
+    private Double minimumPassingScore; // New field
 
     public Long getId() {
         return id;
@@ -92,5 +93,13 @@ public class QuizSummaryDTO {
 
     public void setNumberOfQuestions(int numberOfQuestions) {
         this.numberOfQuestions = numberOfQuestions;
+    }
+
+    public Double getMinimumPassingScore() {
+        return minimumPassingScore;
+    }
+
+    public void setMinimumPassingScore(Double minimumPassingScore) {
+        this.minimumPassingScore = minimumPassingScore;
     }
 }

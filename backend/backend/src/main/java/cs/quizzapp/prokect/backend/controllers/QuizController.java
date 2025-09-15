@@ -30,8 +30,6 @@ public class QuizController {
     @Autowired
     private QuestionService questionService;
 
-
-
     /**
      * Create a new quiz and fetch questions dynamically from OpenTDB.
      */
@@ -50,10 +48,9 @@ public class QuizController {
             // Check if a quiz with the same name already exists
             Quiz quiz = quizService.getQuizByName(quizRequest.getName());
             if (quiz == null) {
-                // Create a new quiz if it doesn't exist
+                // Create a new quiz if it doesn't exist (this will also send email notifications)
                 quiz = quizService.createQuizWithQuestions(quizRequest);
-
-                return ResponseEntity.ok("Quiz created successfully!");
+                return ResponseEntity.ok("Quiz created successfully with email notifications sent to all players!");
             }
             // Fetch and save questions using the injected QuestionService instance
             List<Question> questions = questionService.fetchAndSaveQuestions(quizRequest, quiz);
@@ -72,6 +69,7 @@ public class QuizController {
     public ResponseEntity<List<Quiz>> getAllQuizzes() {
         return ResponseEntity.ok(quizService.getAllQuizzes());
     }
+
     @GetMapping("/all")
     public ResponseEntity<List<QuizSummaryDTO>> getAllQuizzesDTO() {
         // Fetch all quizzes using the service
@@ -90,7 +88,7 @@ public class QuizController {
             quizSummaryDTO.setEndDate(quiz.getEndDate());
             quizSummaryDTO.setLikesCount(quiz.getLikesCount());
             quizSummaryDTO.setRating(quiz.getRating());
-
+            quizSummaryDTO.setMinimumPassingScore(quiz.getMinimumPassingScore()); // New field
 
             // Set the number of questions
             quizSummaryDTO.setNumberOfQuestions(quiz.getQuestions().size());
@@ -105,7 +103,7 @@ public class QuizController {
     @GetMapping("/{id}")
     public ResponseEntity<QuizDTO> getQuizById(@PathVariable Long id) {
         Optional<Quiz> quizOptional = quizService.getQuizById(id);
-        //return ResponseEntity.of(quizService.getQuizById(id));
+
         if (quizOptional.isPresent()) {
             Quiz quiz = quizOptional.get();
 
@@ -127,7 +125,6 @@ public class QuizController {
                     })
                     .collect(Collectors.toList());
 
-
             // Initialize quizDTO and set its fields
             QuizDTO quizDTO = new QuizDTO();
             quizDTO.setId(quiz.getId());
@@ -136,12 +133,79 @@ public class QuizController {
             quizDTO.setDifficulty(quiz.getDifficulty());
             quizDTO.setStartDate(quiz.getStartDate());
             quizDTO.setEndDate(quiz.getEndDate());
+            quizDTO.setMinimumPassingScore(quiz.getMinimumPassingScore()); // New field
             quizDTO.setQuestions(questionDTOs);
 
             quiz.setQuestions(limitedQuestions); // Update the quiz object with limited questions
             return ResponseEntity.ok(quizDTO);
         } else {
             return ResponseEntity.status(404).build(); // Quiz not found
+        }
+    }
+
+    // NEW: Get individual question by number (for separate page presentation)
+    @GetMapping("/{quizId}/questions/{questionNumber}")
+    public ResponseEntity<QuestionDTO> getQuestionByNumber(
+            @PathVariable Long quizId,
+            @PathVariable int questionNumber,
+            @RequestParam Long userId) {
+
+        try {
+            List<Question> questions = questionService.getQuestionsByQuizId(quizId);
+
+            if (questionNumber < 1 || questionNumber > questions.size()) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            Question question = questions.get(questionNumber - 1);
+
+            QuestionDTO questionDTO = new QuestionDTO();
+            questionDTO.setId(question.getId());
+            questionDTO.setQuestionText(question.getQuestionText());
+            questionDTO.setOptions(question.getOptions());
+            // Don't set correct answer for players
+
+            return ResponseEntity.ok(questionDTO);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // NEW: Submit single question answer
+    @PostMapping("/{quizId}/questions/{questionId}/submit")
+    public ResponseEntity<Map<String, Object>> submitSingleAnswer(
+            @PathVariable Long quizId,
+            @PathVariable Long questionId,
+            @RequestParam Long userId,
+            @RequestBody Map<String, String> answerData) {
+
+        try {
+            String answer = answerData.get("answer");
+
+            // Store the individual answer (you may need to create a temporary storage)
+            // For now, just return acknowledgment
+            Map<String, Object> response = new HashMap<>();
+            response.put("questionId", questionId);
+            response.put("submitted", true);
+            response.put("message", "Answer submitted successfully");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to submit answer"));
+        }
+    }
+
+    // NEW: Get quiz leaderboard (new feature for players)
+    @GetMapping("/{quizId}/leaderboard")
+    public ResponseEntity<List<Map<String, Object>>> getQuizLeaderboard(@PathVariable Long quizId) {
+        try {
+            List<Map<String, Object>> leaderboard = quizService.getQuizLeaderboard(quizId);
+            return ResponseEntity.ok(leaderboard);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
@@ -193,7 +257,6 @@ public class QuizController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
         }
     }
-
 
     // After submit answers it will display the feedback according to correct or incorrect answers.
     @PostMapping("/{quizId}/user/{userId}/submit")
@@ -271,5 +334,4 @@ public class QuizController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
 }

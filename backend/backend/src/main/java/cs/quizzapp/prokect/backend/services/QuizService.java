@@ -20,6 +20,9 @@ public class QuizService {
     private final ScoreRepository scoreRepository;
     private final QuestionRepository questionRepository;
 
+    @Autowired
+    private EmailService emailService;
+
     public QuizService(ParticipationRepository participationRepository, QuizRepository quizRepository, UserRepository userRepository, QuestionService questionService, ScoreRepository scoreRepository, QuestionRepository questionRepository) {
         this.participationRepository = participationRepository;
         this.quizRepository = quizRepository;
@@ -42,6 +45,7 @@ public class QuizService {
         quiz.setDifficulty(quizRequest.getDifficulty());
         quiz.setStartDate(quizRequest.getStartDate());
         quiz.setEndDate(quizRequest.getEndDate());
+        quiz.setMinimumPassingScore(quizRequest.getMinimumPassingScore()); // New field
 
         // Save the Quiz
         Quiz savedQuiz = saveQuiz(quiz);
@@ -49,7 +53,29 @@ public class QuizService {
         // Fetch and save questions for the quiz using the QuestionService
         questionService.fetchAndSaveQuestions(quizRequest, savedQuiz);
 
+        // Send email notifications to all non-admin users
+        sendNewQuizNotifications(savedQuiz);
+
         return savedQuiz;
+    }
+
+    private void sendNewQuizNotifications(Quiz quiz) {
+        try {
+            // Get all users except admin
+            List<User> allUsers = userRepository.findAll();
+            List<User> nonAdminUsers = allUsers.stream()
+                    .filter(user -> !"ADMIN".equals(user.getRole()))
+                    .toList();
+
+            // Send notification to each non-admin user
+            for (User user : nonAdminUsers) {
+                emailService.sendQuizNotification(user.getEmail(), quiz.getName());
+                System.out.println("Email notification sent to: " + user.getEmail() + " for quiz: " + quiz.getName());
+            }
+        } catch (Exception e) {
+            System.err.println("Error sending email notifications: " + e.getMessage());
+            // Don't fail quiz creation if email sending fails
+        }
     }
 
     private Quiz saveQuiz(Quiz quiz) {
@@ -68,6 +94,9 @@ public class QuizService {
             }
             if (updatedquizRequest.getEndDate() != null) {
                 quiz.setEndDate(updatedquizRequest.getEndDate());
+            }
+            if (updatedquizRequest.getMinimumPassingScore() != null) {
+                quiz.setMinimumPassingScore(updatedquizRequest.getMinimumPassingScore());
             }
             return quizRepository.save(quiz);
 
@@ -177,11 +206,6 @@ public class QuizService {
         }
     }
 
-
-
-
-
-
     //Display feedback according to correct and incorrect answers. Also display the score, no of answers correct.
     public Map<String, Object> submitAnswers(Long quizId, Long userId, Map<Long, String> answers) {
         // Fetch user and quiz from the repositories
@@ -229,6 +253,13 @@ public class QuizService {
         int totalQuestions = quiz.getQuestions().size();
         double score = ((double) correctAnswersCount / totalQuestions) * 10;
 
+        // Check if user passed based on minimum passing score
+        boolean passed = false;
+        if (quiz.getMinimumPassingScore() != null) {
+            double percentage = ((double) correctAnswersCount / totalQuestions) * 100;
+            passed = percentage >= quiz.getMinimumPassingScore();
+        }
+
         // Store the score in the database
         Score quizScore = new Score();
         quizScore.setUser(user);
@@ -241,6 +272,8 @@ public class QuizService {
         response.put("correctAnswers", correctAnswersCount);
         response.put("score", score);  // Returning score out of 10
         response.put("feedback", feedbackBuilder.toString());
+        response.put("passed", passed);
+        response.put("minimumPassingScore", quiz.getMinimumPassingScore());
 
         return response;
     }
@@ -338,7 +371,28 @@ public class QuizService {
         quizRepository.save(quiz);
     }
 
+    // New feature: Get user's quiz history
+    public List<Map<String, Object>> getUserQuizHistory(Long userId) {
+        List<Score> userScores = scoreRepository.findByUserId(userId);
+        return userScores.stream().map(score -> {
+            Map<String, Object> history = new HashMap<>();
+            history.put("quizId", score.getQuiz().getId());
+            history.put("quizName", score.getQuiz().getName());
+            history.put("score", score.getScore());
+            history.put("completedDate", score.getCompletedDate());
+            return history;
+        }).toList();
+    }
 
-
-
+    // New feature: Get leaderboard for a quiz
+    public List<Map<String, Object>> getQuizLeaderboard(Long quizId) {
+        List<Score> scores = scoreRepository.findByQuizIdOrderByScoreDesc(quizId);
+        return scores.stream().limit(10).map(score -> {
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("username", score.getUser().getUsername());
+            entry.put("score", score.getScore());
+            entry.put("completedDate", score.getCompletedDate());
+            return entry;
+        }).toList();
+    }
 }

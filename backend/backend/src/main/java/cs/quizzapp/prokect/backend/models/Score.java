@@ -1,6 +1,7 @@
 package cs.quizzapp.prokect.backend.models;
 
 import jakarta.persistence.*;
+import java.util.Date;
 
 @Entity
 public class Score {
@@ -19,17 +20,22 @@ public class Score {
     @Column(name = "score", nullable = false)
     private double score;
 
+    @Column(name = "completed_date")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date completedDate;
+
     // No-argument constructor required by JPA
-    public Score() {}
+    public Score() {
+        this.completedDate = new Date(); // Set current date when created
+    }
 
     // Parameterized constructor
-
-
     public Score(Long id, User user, Quiz quiz, double score) {
         this.id = id;
         this.user = user;
         this.quiz = quiz;
         this.score = score;
+        this.completedDate = new Date();
     }
 
     // Getters and Setters
@@ -65,6 +71,14 @@ public class Score {
         this.score = score;
     }
 
+    public Date getCompletedDate() {
+        return completedDate;
+    }
+
+    public void setCompletedDate(Date completedDate) {
+        this.completedDate = completedDate;
+    }
+
     @Override
     public String toString() {
         return "Score{" +
@@ -72,6 +86,7 @@ public class Score {
                 ", userId=" + (user != null ? user.getId() : null) +
                 ", quizId=" + (quiz != null ? quiz.getId() : null) +
                 ", score=" + score +
+                ", completedDate=" + completedDate +
                 '}';
     }
 }

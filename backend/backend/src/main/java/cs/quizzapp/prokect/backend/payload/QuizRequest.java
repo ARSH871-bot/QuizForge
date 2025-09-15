@@ -11,6 +11,7 @@ public class QuizRequest {
     private Date startDate;
     private Date endDate;
     private Integer categoryId; // Numeric category ID for OpenTDB
+    private Double minimumPassingScore; // Minimum passing score percentage (0-100)
 
     // Getters and Setters
     public String getName() {
@@ -67,5 +68,13 @@ public class QuizRequest {
 
     public void setCategoryId(Integer categoryId) {
         this.categoryId = categoryId;
+    }
+
+    public Double getMinimumPassingScore() {
+        return minimumPassingScore;
+    }
+
+    public void setMinimumPassingScore(Double minimumPassingScore) {
+        this.minimumPassingScore = minimumPassingScore;
     }
 }

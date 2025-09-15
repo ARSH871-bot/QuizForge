@@ -10,7 +10,7 @@ public class QuizDTO {
     private String difficulty;
     private Date startDate;
     private Date endDate;
-
+    private Double minimumPassingScore; // New field
     private List<QuestionDTO> questions;
 
     public Long getId() {
@@ -59,6 +59,14 @@ public class QuizDTO {
 
     public void setEndDate(Date endDate) {
         this.endDate = endDate;
+    }
+
+    public Double getMinimumPassingScore() {
+        return minimumPassingScore;
+    }
+
+    public void setMinimumPassingScore(Double minimumPassingScore) {
+        this.minimumPassingScore = minimumPassingScore;
     }
 
     public List<QuestionDTO> getQuestions() {

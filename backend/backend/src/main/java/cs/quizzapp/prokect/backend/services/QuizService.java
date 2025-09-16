@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class QuizService {
@@ -33,11 +34,15 @@ public class QuizService {
     }
 
     public Quiz createQuizWithQuestions(QuizRequest quizRequest) {
+        // ENHANCED - Validate quiz timing before creation
+        validateQuizTiming(quizRequest.getStartDate(), quizRequest.getEndDate());
+
         // Map category name to ID using QuizCategoryMapper
         Integer categoryId = QuizCategoryMapper.getCategoryId(quizRequest.getCategory());
         if (categoryId == null) {
             throw new IllegalArgumentException("Invalid category name provided: " + quizRequest.getCategory());
         }
+
         // Create a new Quiz object
         Quiz quiz = new Quiz();
         quiz.setName(quizRequest.getName());
@@ -59,13 +64,212 @@ public class QuizService {
         return savedQuiz;
     }
 
+    // NEW METHOD - Validate quiz timing logic
+    private void validateQuizTiming(Date startDate, Date endDate) {
+        if (startDate == null) {
+            throw new IllegalArgumentException("Quiz start date cannot be null");
+        }
+        if (endDate == null) {
+            throw new IllegalArgumentException("Quiz end date cannot be null");
+        }
+
+        Date currentDate = new Date();
+
+        // Start date cannot be in the past (allow same day)
+        if (startDate.before(getCurrentDateWithoutTime())) {
+            throw new IllegalArgumentException("Quiz start date cannot be in the past");
+        }
+
+        // End date must be after start date
+        if (endDate.before(startDate) || endDate.equals(startDate)) {
+            throw new IllegalArgumentException("Quiz end date must be after start date");
+        }
+
+        // Quiz duration should be reasonable (at least 1 hour, max 30 days)
+        long durationMillis = endDate.getTime() - startDate.getTime();
+        long oneHour = 60 * 60 * 1000;
+        long thirtyDays = 30L * 24 * 60 * 60 * 1000;
+
+        if (durationMillis < oneHour) {
+            throw new IllegalArgumentException("Quiz duration must be at least 1 hour");
+        }
+        if (durationMillis > thirtyDays) {
+            throw new IllegalArgumentException("Quiz duration cannot exceed 30 days");
+        }
+    }
+
+    // NEW METHOD - Get current date without time for comparison
+    private Date getCurrentDateWithoutTime() {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        return cal.getTime();
+    }
+
+    // NEW METHOD - Check if user can participate in quiz
+    public Map<String, Object> canUserParticipateInQuiz(Long quizId, Long userId) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+            Quiz quiz = quizRepository.findById(quizId)
+                    .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+
+            Date currentDate = new Date();
+
+            // Check if quiz has proper dates
+            if (quiz.getStartDate() == null || quiz.getEndDate() == null) {
+                result.put("canParticipate", false);
+                result.put("reason", "Quiz dates not properly configured");
+                return result;
+            }
+
+            // Check if quiz is active (current time is between start and end)
+            boolean isBeforeStart = currentDate.before(quiz.getStartDate());
+            boolean isAfterEnd = currentDate.after(quiz.getEndDate());
+
+            if (isBeforeStart) {
+                result.put("canParticipate", false);
+                result.put("reason", "Quiz has not started yet");
+                result.put("startsAt", quiz.getStartDate());
+                return result;
+            }
+
+            if (isAfterEnd) {
+                result.put("canParticipate", false);
+                result.put("reason", "Quiz has already ended");
+                result.put("endedAt", quiz.getEndDate());
+                return result;
+            }
+
+            // Check if user has already participated
+            boolean hasParticipated = quiz.getParticipations().stream()
+                    .anyMatch(participation -> participation.getUser().getId().equals(userId));
+
+            if (hasParticipated) {
+                result.put("canParticipate", false);
+                result.put("reason", "You have already participated in this quiz");
+                return result;
+            }
+
+            // Check if quiz has questions
+            if (quiz.getQuestions() == null || quiz.getQuestions().isEmpty()) {
+                result.put("canParticipate", false);
+                result.put("reason", "Quiz has no questions available");
+                return result;
+            }
+
+            // All checks passed
+            result.put("canParticipate", true);
+            result.put("reason", "You can participate in this quiz");
+            result.put("questionsCount", quiz.getQuestions().size());
+
+        } catch (Exception e) {
+            result.put("canParticipate", false);
+            result.put("reason", "Error checking participation eligibility: " + e.getMessage());
+        }
+
+        return result;
+    }
+
+    // NEW METHOD - Get quiz status for admin monitoring
+    public Map<String, Object> getQuizStatus(Long quizId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+
+        Map<String, Object> status = new HashMap<>();
+        Date currentDate = new Date();
+
+        status.put("quizId", quiz.getId());
+        status.put("quizName", quiz.getName());
+        status.put("startDate", quiz.getStartDate());
+        status.put("endDate", quiz.getEndDate());
+        status.put("currentDate", currentDate);
+
+        // Determine quiz state
+        if (currentDate.before(quiz.getStartDate())) {
+            status.put("state", "UPCOMING");
+            long timeToStart = quiz.getStartDate().getTime() - currentDate.getTime();
+            status.put("timeToStart", timeToStart);
+        } else if (currentDate.after(quiz.getEndDate())) {
+            status.put("state", "ENDED");
+            long timeSinceEnd = currentDate.getTime() - quiz.getEndDate().getTime();
+            status.put("timeSinceEnd", timeSinceEnd);
+        } else {
+            status.put("state", "ACTIVE");
+            long timeToEnd = quiz.getEndDate().getTime() - currentDate.getTime();
+            status.put("timeToEnd", timeToEnd);
+        }
+
+        // Participation statistics
+        int totalParticipants = quiz.getParticipations().size();
+        status.put("totalParticipants", totalParticipants);
+        status.put("totalQuestions", quiz.getQuestions().size());
+
+        return status;
+    }
+
+    // NEW METHOD - Get detailed user participation status
+    public Map<String, Object> getUserParticipationStatus(Long quizId, Long userId) {
+        Map<String, Object> status = new HashMap<>();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+
+        status.put("userId", userId);
+        status.put("username", user.getUsername());
+        status.put("quizId", quizId);
+        status.put("quizName", quiz.getName());
+
+        // Check participation
+        Optional<Participation> participation = quiz.getParticipations().stream()
+                .filter(p -> p.getUser().getId().equals(userId))
+                .findFirst();
+
+        if (participation.isPresent()) {
+            status.put("hasParticipated", true);
+            // Use creation date or current date as participation date
+            status.put("participationDate", new Date());
+
+            // Check if user has submitted answers (has a score)
+            List<Score> userScores = scoreRepository.findByUserId(userId);
+            Optional<Score> score = userScores.stream()
+                    .filter(s -> s.getQuiz().getId().equals(quizId))
+                    .findFirst();
+
+            if (score.isPresent()) {
+                status.put("hasSubmitted", true);
+                status.put("score", score.get().getScore());
+                status.put("completedDate", score.get().getCompletedDate());
+            } else {
+                status.put("hasSubmitted", false);
+            }
+        } else {
+            status.put("hasParticipated", false);
+            status.put("hasSubmitted", false);
+        }
+
+        // Add eligibility check
+        Map<String, Object> eligibility = canUserParticipateInQuiz(quizId, userId);
+        status.put("eligibility", eligibility);
+
+        return status;
+    }
+
     private void sendNewQuizNotifications(Quiz quiz) {
         try {
             // Get all users except admin
             List<User> allUsers = userRepository.findAll();
             List<User> nonAdminUsers = allUsers.stream()
                     .filter(user -> !"ADMIN".equals(user.getRole()))
-                    .toList();
+                    .collect(Collectors.toList());
 
             // Send notification to each non-admin user
             for (User user : nonAdminUsers) {
@@ -82,13 +286,32 @@ public class QuizService {
         return quizRepository.save(quiz);
     }
 
+    // ENHANCED - Update quiz with timing validation
     public Quiz updateQuiz(Long id, QuizRequest updatedquizRequest) {
         Optional<Quiz> quizOptional = quizRepository.findById(id);
         if (quizOptional.isPresent()) {
             Quiz quiz = quizOptional.get();
+
+            // Check if quiz is currently active - prevent certain updates
+            Date currentDate = new Date();
+            boolean isActive = !currentDate.before(quiz.getStartDate()) && !currentDate.after(quiz.getEndDate());
+
             if (updatedquizRequest.getName() != null) {
                 quiz.setName(updatedquizRequest.getName());
             }
+
+            // Validate timing changes
+            Date newStartDate = updatedquizRequest.getStartDate() != null ? updatedquizRequest.getStartDate() : quiz.getStartDate();
+            Date newEndDate = updatedquizRequest.getEndDate() != null ? updatedquizRequest.getEndDate() : quiz.getEndDate();
+
+            // If quiz is active, don't allow start date changes
+            if (isActive && updatedquizRequest.getStartDate() != null) {
+                throw new IllegalArgumentException("Cannot change start date of an active quiz");
+            }
+
+            // Validate new timing
+            validateQuizTiming(newStartDate, newEndDate);
+
             if (updatedquizRequest.getStartDate() != null) {
                 quiz.setStartDate(updatedquizRequest.getStartDate());
             }
@@ -98,8 +321,8 @@ public class QuizService {
             if (updatedquizRequest.getMinimumPassingScore() != null) {
                 quiz.setMinimumPassingScore(updatedquizRequest.getMinimumPassingScore());
             }
-            return quizRepository.save(quiz);
 
+            return quizRepository.save(quiz);
         }
         return null;
     }
@@ -111,6 +334,7 @@ public class QuizService {
     public Optional<Quiz> getQuizById(Long id) {
         return quizRepository.findById(id);
     }
+
     public Quiz getQuizByName(String name) {
         return quizRepository.findByName(name).orElse(null);
     }
@@ -122,26 +346,40 @@ public class QuizService {
         }
         return false;
     }
+
     public boolean createCategory(String categoryName) {
         return QuizCategoryMapper.addCategory(categoryName);
     }
+
     public boolean deleteCategory(String categoryName) {
         return QuizCategoryMapper.deleteCategory(categoryName);
     }
 
-    //Get ongoing or currently active quizzes.
+    // ENHANCED - Get ongoing quizzes with better validation
     public List<Quiz> getOngoingQuizzes() {
-        return quizRepository.findOngoingQuizzes(new Date());
+        Date currentDate = new Date();
+        return quizRepository.findAll().stream()
+                .filter(quiz -> quiz.getStartDate() != null && quiz.getEndDate() != null)
+                .filter(quiz -> !currentDate.before(quiz.getStartDate()) && !currentDate.after(quiz.getEndDate()))
+                .collect(Collectors.toList());
     }
 
-    //Get upcoming quizzes.
+    // ENHANCED - Get upcoming quizzes with better validation
     public List<Quiz> getUpcomingQuizzes() {
-        return quizRepository.findUpcomingQuizzes(new Date());
+        Date currentDate = new Date();
+        return quizRepository.findAll().stream()
+                .filter(quiz -> quiz.getStartDate() != null)
+                .filter(quiz -> currentDate.before(quiz.getStartDate()))
+                .collect(Collectors.toList());
     }
 
-    //Get past quizzes.
+    // ENHANCED - Get past quizzes with better validation
     public List<Quiz> getPastQuizzes() {
-        return quizRepository.findPastQuizzes(new Date());
+        Date currentDate = new Date();
+        return quizRepository.findAll().stream()
+                .filter(quiz -> quiz.getEndDate() != null)
+                .filter(quiz -> currentDate.after(quiz.getEndDate()))
+                .collect(Collectors.toList());
     }
 
     //Get participated quizzes.
@@ -149,7 +387,7 @@ public class QuizService {
         return quizRepository.findParticipatedQuizzesById(userId);
     }
 
-    //Add the players who are participating in the same quiz with same 10 questions.
+    // ENHANCED - Play quiz with comprehensive timing and participation checks
     public List<Question> playQuiz(Long quizId, Long userId) {
         try {
             System.out.println("Fetching user with ID: " + userId);
@@ -160,21 +398,10 @@ public class QuizService {
             Quiz quiz = quizRepository.findById(quizId)
                     .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
 
-            if (quiz.getStartDate() == null || quiz.getEndDate() == null) {
-                throw new IllegalStateException("Quiz start or end date is not set.");
-            }
-
-            Date currentDate = new Date();
-            boolean isOngoing = !currentDate.before(quiz.getStartDate()) && !currentDate.after(quiz.getEndDate());
-            if (!isOngoing) {
-                throw new IllegalStateException("Quiz is no longer active.");
-            }
-
-            System.out.println("Checking if user has already participated.");
-            boolean hasParticipated = quiz.getParticipations().stream()
-                    .anyMatch(participation -> participation.getUser().getId().equals(userId));
-            if (hasParticipated) {
-                throw new IllegalStateException("Player has already participated in this quiz.");
+            // ENHANCED - Use comprehensive participation check
+            Map<String, Object> eligibility = canUserParticipateInQuiz(quizId, userId);
+            if (!(Boolean) eligibility.get("canParticipate")) {
+                throw new IllegalStateException((String) eligibility.get("reason"));
             }
 
             // Record the participation (mark the user as participating)
@@ -199,7 +426,7 @@ public class QuizService {
                         return sanitizedQuestion;
                     })
                     .limit(10) // Limit to 10 questions
-                    .toList();
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace(); // Log the exception stack trace
             throw new RuntimeException("An unexpected error occurred.", e); // Re-throw exception with more details
@@ -214,6 +441,12 @@ public class QuizService {
 
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+
+        // ENHANCED - Verify quiz is still active when submitting
+        Date currentDate = new Date();
+        if (currentDate.after(quiz.getEndDate())) {
+            throw new IllegalStateException("Cannot submit answers - quiz has ended");
+        }
 
         // Prepare variables to track score and feedback
         int correctAnswersCount = 0;
@@ -303,10 +536,16 @@ public class QuizService {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
 
-        // Ensure th e quiz is ongoing
-        Date currentDate = new Date();
-        if (currentDate.before(quiz.getStartDate()) || currentDate.after(quiz.getEndDate())) {
-            throw new IllegalStateException("Quiz is no longer active.");
+        // ENHANCED - Use comprehensive timing check
+        Map<String, Object> eligibility = canUserParticipateInQuiz(quizId, userId);
+        if (!(Boolean) eligibility.get("canParticipate")) {
+            // For replay, we might allow it even if quiz ended, but with warning
+            Date currentDate = new Date();
+            if (currentDate.after(quiz.getEndDate())) {
+                System.out.println("Warning: Replaying quiz that has ended");
+            } else {
+                throw new IllegalStateException((String) eligibility.get("reason"));
+            }
         }
 
         // Validate player answers
@@ -381,7 +620,7 @@ public class QuizService {
             history.put("score", score.getScore());
             history.put("completedDate", score.getCompletedDate());
             return history;
-        }).toList();
+        }).collect(Collectors.toList());
     }
 
     // New feature: Get leaderboard for a quiz
@@ -393,6 +632,6 @@ public class QuizService {
             entry.put("score", score.getScore());
             entry.put("completedDate", score.getCompletedDate());
             return entry;
-        }).toList();
+        }).collect(Collectors.toList());
     }
 }

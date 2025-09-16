@@ -18,22 +18,28 @@ public class User {
 
     @Column
     private String passwordResetToken;
+
     @Column(nullable = false)
     private String password;
 
     private String role;
 
-    private String firstName; // First name of the user
-    private String lastName; // Last name of the user
-    private String profilePicture; // Optional profile picture
+    private String firstName;
+    private String lastName;
+    private String profilePicture;
 
-    // Additional profile fields as required
-    private String phoneNumber; // Phone number
-    private String address; // Address
-    private Date dateOfBirth; // Date of birth
-    private String gender; // Gender
-    private String country; // Country
-    private String bio; // Biography/About me
+    // REQUIRED: Three additional profile fields as per requirements
+    private String phoneNumber;
+    private String city; // New field 1
+    private String occupation; // New field 2
+    private String preferredLanguage; // New field 3
+
+    // Optional additional profile fields
+    private String address;
+    private Date dateOfBirth;
+    private String gender;
+    private String country;
+    private String bio;
 
     public User() {}
 
@@ -79,6 +85,16 @@ public class User {
     public void setPasswordResetToken(String passwordResetToken) {
         this.passwordResetToken = passwordResetToken;
     }
+
+    // NEW REQUIRED FIELDS - Getters and Setters
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    public String getOccupation() { return occupation; }
+    public void setOccupation(String occupation) { this.occupation = occupation; }
+
+    public String getPreferredLanguage() { return preferredLanguage; }
+    public void setPreferredLanguage(String preferredLanguage) { this.preferredLanguage = preferredLanguage; }
 
     // Additional profile field getters and setters
     public String getPhoneNumber() { return phoneNumber; }

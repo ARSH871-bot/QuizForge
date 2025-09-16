@@ -106,6 +106,133 @@ public class UserService implements UserDetailsService {
         return savedUser;
     }
 
+    // **NEW METHOD** - Admin Registration with enhanced validation
+    public User registerAdmin(User adminUser) {
+        if (userRepository.findByUsername(adminUser.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+        if (userRepository.findByEmail(adminUser.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+
+        // Validate admin-specific requirements
+        if (adminUser.getFirstName() == null || adminUser.getFirstName().trim().isEmpty()) {
+            throw new IllegalArgumentException("First name is required for admin users");
+        }
+        if (adminUser.getLastName() == null || adminUser.getLastName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Last name is required for admin users");
+        }
+        if (adminUser.getPassword() == null || adminUser.getPassword().length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters long");
+        }
+
+        adminUser.setPassword(passwordEncoder.encode(adminUser.getPassword()));
+        adminUser.setRole("ADMIN"); // Force admin role
+
+        User savedAdmin = userRepository.save(adminUser);
+
+        // Send admin welcome email
+        try {
+            emailService.sendAdminWelcomeEmail(savedAdmin.getEmail(), savedAdmin.getUsername());
+            System.out.println("Admin welcome email sent to: " + savedAdmin.getEmail());
+        } catch (Exception e) {
+            System.err.println("Failed to send admin welcome email: " + e.getMessage());
+        }
+
+        return savedAdmin;
+    }
+
+    // **NEW METHOD** - Get users by role
+    public List<User> getUsersByRole(String role) {
+        return userRepository.findByRole(role);
+    }
+
+    // **NEW METHOD** - Get all players
+    public List<User> getAllPlayers() {
+        return getUsersByRole("PLAYER");
+    }
+
+    // **NEW METHOD** - Get all admins
+    public List<User> getAllAdmins() {
+        return getUsersByRole("ADMIN");
+    }
+
+    // **NEW METHOD** - Check if user exists by username
+    public boolean existsByUsername(String username) {
+        return userRepository.findByUsername(username).isPresent();
+    }
+
+    // **NEW METHOD** - Check if user exists by email
+    public boolean existsByEmail(String email) {
+        return userRepository.findByEmail(email).isPresent();
+    }
+
+    // **NEW METHOD** - Find user by username
+    public Optional<User> findByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+
+    // **NEW METHOD** - Find user by email
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    // **NEW METHOD** - Count users by role
+    public long countUsersByRole(String role) {
+        return getUsersByRole(role).size();
+    }
+
+    // **NEW METHOD** - Update user role (admin function)
+    public Optional<User> updateUserRole(Long userId, String newRole) {
+        return userRepository.findById(userId).map(user -> {
+            // Validate role
+            if (!newRole.equals("ADMIN") && !newRole.equals("PLAYER")) {
+                throw new IllegalArgumentException("Invalid role. Must be ADMIN or PLAYER");
+            }
+
+            user.setRole(newRole);
+            User updatedUser = userRepository.save(user);
+
+            // Send role change notification
+            try {
+                emailService.sendRoleChangeNotification(user.getEmail(), user.getUsername(), newRole);
+                System.out.println("Role change notification sent to: " + user.getEmail());
+            } catch (Exception e) {
+                System.err.println("Failed to send role change notification: " + e.getMessage());
+            }
+
+            return updatedUser;
+        });
+    }
+
+    // **ENHANCED METHOD** - Delete user with validation
+    public boolean deleteUser(Long id) {
+        Optional<User> userOptional = userRepository.findById(id);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+
+            // Check if this is the last admin - prevent deletion if so
+            if ("ADMIN".equals(user.getRole())) {
+                long adminCount = countUsersByRole("ADMIN");
+                if (adminCount <= 1) {
+                    throw new IllegalArgumentException("Cannot delete the last admin user");
+                }
+            }
+
+            // Send account deletion notification
+            try {
+                emailService.sendAccountDeletionNotification(user.getEmail(), user.getUsername());
+                System.out.println("Account deletion notification sent to: " + user.getEmail());
+            } catch (Exception e) {
+                System.err.println("Failed to send deletion notification: " + e.getMessage());
+            }
+
+            userRepository.deleteById(id);
+            return true;
+        }
+        return false;
+    }
+
     // Fetch a user by ID
     public Optional<User> findUserById(Long id) {
         return userRepository.findById(id);
@@ -136,15 +263,6 @@ public class UserService implements UserDetailsService {
             }
             return userRepository.save(existingUser);
         });
-    }
-
-    // Delete a user by ID
-    public boolean deleteUser(Long id) {
-        if (userRepository.existsById(id)) {
-            userRepository.deleteById(id);
-            return true;
-        }
-        return false;
     }
 
     // Implementation for UserDetailsService

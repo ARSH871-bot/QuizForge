@@ -53,6 +53,42 @@ public class EmailService {
         }
     }
 
+    // **FIXED** - This method was empty and causing the issue
+    public void sendSimpleEmail(String to, String subject, String text) {
+        System.out.println("🔍 sendSimpleEmail called - TO: " + to + ", SUBJECT: " + subject);
+
+        try {
+            if (testMode) {
+                System.out.println("=== EMAIL TEST MODE (sendSimpleEmail) ===");
+                System.out.println("TO: " + to);
+                System.out.println("SUBJECT: " + subject);
+                System.out.println("BODY: " + text);
+                System.out.println("=========================================");
+                return;
+            }
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(to);
+            message.setSubject(subject);
+            message.setText(text);
+            message.setFrom(fromAddress);
+            message.setSentDate(new Date());
+
+            System.out.println("📧 Attempting to send email via JavaMailSender...");
+            mailSender.send(message);
+            System.out.println("✅ Email sent successfully to " + to + " at " + new Date());
+
+        } catch (MailException e) {
+            System.err.println("❌ MailException sending email to " + to + ": " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
+        } catch (Exception e) {
+            System.err.println("❌ Unexpected error sending email: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Unexpected email error: " + e.getMessage(), e);
+        }
+    }
+
     // **NEW METHOD** - Test email configuration
     public boolean testEmailConfiguration() {
         try {
@@ -90,7 +126,7 @@ public class EmailService {
                 "Best regards,\n" +
                 "Quiz Tournament Team";
 
-        sendSimpleMessage(to, subject, text);
+        sendSimpleEmail(to, subject, text);
     }
 
     public void sendQuizNotification(String to, String quizName) {
@@ -229,21 +265,21 @@ public class EmailService {
     public void sendQuizCompletionEmail(String to, String username, String quizName, double score, boolean passed) {
         String subject = "Quiz Completed: " + quizName;
         String passMessage = passed ?
-                "🎉 Congratulations! You passed the quiz!" :
-                "📚 Keep practicing! You can retake the quiz to improve your score.";
+                "Congratulations! You passed the quiz!" :
+                "Keep practicing! You can retake the quiz to improve your score.";
 
         String text = "Hello " + username + ",\n\n" +
                 "You have completed the quiz: " + quizName + "\n\n" +
                 "Your Results:\n" +
                 "- Score: " + String.format("%.1f", score) + " out of 10\n" +
                 "- Percentage: " + String.format("%.1f", (score/10)*100) + "%\n" +
-                "- Status: " + (passed ? "✅ PASSED" : "❌ NEEDS IMPROVEMENT") + "\n" +
+                "- Status: " + (passed ? "PASSED" : "NEEDS IMPROVEMENT") + "\n" +
                 "- Completed: " + new Date() + "\n\n" +
                 passMessage + "\n\n" +
                 "Performance Tips:\n";
 
         if (score >= 8) {
-            text += "- Excellent performance! You're a quiz master! 🏆\n";
+            text += "- Excellent performance! You're a quiz master!\n";
         } else if (score >= 6) {
             text += "- Good job! Review the topics you missed for improvement.\n";
         } else {
@@ -315,5 +351,25 @@ public class EmailService {
         }
 
         return status;
+    }
+
+    // **NEW METHOD** - Enhanced user update notification
+    public void sendUserUpdateNotification(String to, String username, java.util.List<String> changes) {
+        String subject = "Account Information Updated - Quiz Tournament";
+
+        StringBuilder changesList = new StringBuilder();
+        for (String change : changes) {
+            changesList.append("• ").append(change).append("\n");
+        }
+
+        String text = "Hello " + username + ",\n\n" +
+                "Your account information has been updated by an administrator.\n\n" +
+                "Changes made:\n" + changesList.toString() + "\n" +
+                "Updated: " + new Date() + "\n\n" +
+                "If you have any questions about these changes, please contact our support team.\n\n" +
+                "Best regards,\n" +
+                "Quiz Tournament Team";
+
+        sendSimpleEmail(to, subject, text);
     }
 }

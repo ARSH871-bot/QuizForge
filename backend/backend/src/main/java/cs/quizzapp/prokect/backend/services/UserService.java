@@ -29,6 +29,11 @@ public class UserService implements UserDetailsService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    // **NEW METHOD** - Save user to database (required by UserController)
+    public User save(User user) {
+        return userRepository.save(user);
+    }
+
     // Request password reset by generating a token using username
     public String requestPasswordReset(String username) {
         Optional<User> userOptional = userRepository.findByUsername(username);
@@ -243,26 +248,116 @@ public class UserService implements UserDetailsService {
         return userRepository.findAll();
     }
 
-    // Update an existing user with enhanced profile fields
+    // **ENHANCED METHOD** - Update an existing user with better validation and error handling
     public Optional<User> updateUser(Long id, User user) {
         return userRepository.findById(id).map(existingUser -> {
-            existingUser.setUsername(user.getUsername() != null ? user.getUsername() : existingUser.getUsername());
-            existingUser.setEmail(user.getEmail() != null ? user.getEmail() : existingUser.getEmail());
-            existingUser.setFirstName(user.getFirstName() != null ? user.getFirstName() : existingUser.getFirstName());
-            existingUser.setLastName(user.getLastName() != null ? user.getLastName() : existingUser.getLastName());
-            existingUser.setPhoneNumber(user.getPhoneNumber() != null ? user.getPhoneNumber() : existingUser.getPhoneNumber());
-            existingUser.setAddress(user.getAddress() != null ? user.getAddress() : existingUser.getAddress());
-            existingUser.setDateOfBirth(user.getDateOfBirth() != null ? user.getDateOfBirth() : existingUser.getDateOfBirth());
-            existingUser.setGender(user.getGender() != null ? user.getGender() : existingUser.getGender());
-            existingUser.setCountry(user.getCountry() != null ? user.getCountry() : existingUser.getCountry());
-            existingUser.setBio(user.getBio() != null ? user.getBio() : existingUser.getBio());
-            existingUser.setProfilePicture(user.getProfilePicture() != null ? user.getProfilePicture() : existingUser.getProfilePicture());
+            // Validate username uniqueness if changing
+            if (user.getUsername() != null && !user.getUsername().equals(existingUser.getUsername())) {
+                if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+                    throw new IllegalArgumentException("Username already exists");
+                }
+                existingUser.setUsername(user.getUsername());
+            }
 
+            // Validate email uniqueness if changing
+            if (user.getEmail() != null && !user.getEmail().equals(existingUser.getEmail())) {
+                if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+                    throw new IllegalArgumentException("Email already exists");
+                }
+                existingUser.setEmail(user.getEmail());
+            }
+
+            // Update other fields safely
+            if (user.getFirstName() != null) {
+                existingUser.setFirstName(user.getFirstName());
+            }
+            if (user.getLastName() != null) {
+                existingUser.setLastName(user.getLastName());
+            }
+            if (user.getPhoneNumber() != null) {
+                existingUser.setPhoneNumber(user.getPhoneNumber());
+            }
+            if (user.getAddress() != null) {
+                existingUser.setAddress(user.getAddress());
+            }
+            if (user.getDateOfBirth() != null) {
+                existingUser.setDateOfBirth(user.getDateOfBirth());
+            }
+            if (user.getGender() != null) {
+                existingUser.setGender(user.getGender());
+            }
+            if (user.getCountry() != null) {
+                existingUser.setCountry(user.getCountry());
+            }
+            if (user.getBio() != null) {
+                existingUser.setBio(user.getBio());
+            }
+            if (user.getProfilePicture() != null) {
+                existingUser.setProfilePicture(user.getProfilePicture());
+            }
+
+            // Handle password updates securely
             if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+                if (user.getPassword().length() < 6) {
+                    throw new IllegalArgumentException("Password must be at least 6 characters long");
+                }
                 existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
             }
+
             return userRepository.save(existingUser);
         });
+    }
+
+    // **NEW METHOD** - Validate user data before save
+    public void validateUserData(User user, boolean isNewUser) {
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        if (isNewUser && (user.getPassword() == null || user.getPassword().length() < 6)) {
+            throw new IllegalArgumentException("Password must be at least 6 characters long");
+        }
+
+        // Email format validation
+        String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
+        if (!user.getEmail().matches(emailRegex)) {
+            throw new IllegalArgumentException("Invalid email format");
+        }
+
+        // Username validation (alphanumeric and underscores only)
+        String usernameRegex = "^[a-zA-Z0-9_]{3,20}$";
+        if (!user.getUsername().matches(usernameRegex)) {
+            throw new IllegalArgumentException("Username must be 3-20 characters and contain only letters, numbers, and underscores");
+        }
+    }
+
+    // **NEW METHOD** - Get user statistics for admin dashboard
+    public UserStatistics getUserStatistics() {
+        List<User> allUsers = getAllUsers();
+        long totalUsers = allUsers.size();
+        long adminCount = allUsers.stream().filter(u -> "ADMIN".equals(u.getRole())).count();
+        long playerCount = allUsers.stream().filter(u -> "PLAYER".equals(u.getRole())).count();
+
+        return new UserStatistics(totalUsers, adminCount, playerCount);
+    }
+
+    // **NEW METHOD** - Find users by partial username or email (for search functionality)
+    public List<User> searchUsers(String searchTerm) {
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            return getAllUsers();
+        }
+
+        String lowerSearchTerm = searchTerm.toLowerCase();
+        return getAllUsers().stream()
+                .filter(user ->
+                        user.getUsername().toLowerCase().contains(lowerSearchTerm) ||
+                                user.getEmail().toLowerCase().contains(lowerSearchTerm) ||
+                                (user.getFirstName() != null && user.getFirstName().toLowerCase().contains(lowerSearchTerm)) ||
+                                (user.getLastName() != null && user.getLastName().toLowerCase().contains(lowerSearchTerm))
+                )
+                .toList();
     }
 
     // Implementation for UserDetailsService
@@ -278,5 +373,30 @@ public class UserService implements UserDetailsService {
         builder.roles(user.getRole());
 
         return builder.build();
+    }
+
+    // **NEW INNER CLASS** - User Statistics DTO
+    public static class UserStatistics {
+        private final long totalUsers;
+        private final long adminCount;
+        private final long playerCount;
+
+        public UserStatistics(long totalUsers, long adminCount, long playerCount) {
+            this.totalUsers = totalUsers;
+            this.adminCount = adminCount;
+            this.playerCount = playerCount;
+        }
+
+        public long getTotalUsers() {
+            return totalUsers;
+        }
+
+        public long getAdminCount() {
+            return adminCount;
+        }
+
+        public long getPlayerCount() {
+            return playerCount;
+        }
     }
 }

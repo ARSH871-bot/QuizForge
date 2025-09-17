@@ -7,72 +7,280 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = "http://localhost:3000")
 public class AuthController {
 
     @Autowired
     private UserService userService;
 
-    // Login
+    // Login - Enhanced with proper validation
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
-        String password = body.get("password");
-
         try {
-            userService.authenticate(username, password); // Authenticate the user
-            return ResponseEntity.ok("Login successful. You can now access the quiz.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials. Please try again.");
-        }
-    }
+            String usernameOrEmail = body.get("username");
+            String password = body.get("password");
 
-    // Register
-    @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody User user) {
-        try {
-            userService.registerUser(user); // Register the user
-            return ResponseEntity.ok("User registered successfully. Please log in.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
-    }
+            // Input validation
+            if (usernameOrEmail == null || usernameOrEmail.trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Username or email is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
 
-    // Password reset request
-    @PostMapping("/request-password-reset")
-    public ResponseEntity<String> requestPasswordReset(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
+            if (password == null || password.trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Password is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
 
-        try {
-            String resetToken = userService.requestPasswordReset(username); // Generate and return the reset token using username
-            return ResponseEntity.ok("Password reset requested for user: " + username + ". Use this token to reset your password: " + resetToken);
+            // Authenticate user
+            User user = userService.authenticateUser(usernameOrEmail, password);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Login successful");
+            response.put("user", createUserResponse(user));
+
+            return ResponseEntity.ok(response);
+
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: " + e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "An unexpected error occurred during login");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
-    // Reset password
+    // Register Player - Enhanced validation
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody User user) {
+        try {
+            // Input validation
+            if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Username is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Email is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (user.getFirstName() == null || user.getFirstName().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "First name is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (user.getLastName() == null || user.getLastName().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Last name is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (user.getPassword() == null || user.getPassword().length() < 6) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Password must be at least 6 characters long");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            // Set default role to PLAYER
+            user.setRole("PLAYER");
+
+            User registeredUser = userService.registerUser(user);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "User registered successfully. Please log in.");
+            response.put("user", createUserResponse(registeredUser));
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "An unexpected error occurred during registration");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Register Admin - NEW ENDPOINT
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> registerAdmin(@RequestBody User adminUser) {
+        try {
+            // Input validation
+            if (adminUser.getUsername() == null || adminUser.getUsername().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Username is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (adminUser.getEmail() == null || adminUser.getEmail().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Email is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (adminUser.getFirstName() == null || adminUser.getFirstName().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "First name is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (adminUser.getLastName() == null || adminUser.getLastName().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Last name is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (adminUser.getPassword() == null || adminUser.getPassword().length() < 6) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Password must be at least 6 characters long");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            User registeredAdmin = userService.registerAdmin(adminUser);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Admin user created successfully");
+            response.put("user", createUserResponse(registeredAdmin));
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "An unexpected error occurred during admin creation");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Password reset request - Enhanced validation
+    @PostMapping("/request-password-reset")
+    public ResponseEntity<?> requestPasswordReset(@RequestBody Map<String, String> body) {
+        try {
+            String email = body.get("email");
+
+            if (email == null || email.trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Email is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            String resetToken = userService.requestPasswordResetByEmail(email);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Password reset instructions sent to email: " + email);
+            response.put("token", resetToken); // For testing purposes
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "An unexpected error occurred during password reset request");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Reset password - Enhanced validation
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
-        String token = body.get("token");
-        String newPassword = body.get("newPassword");
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        try {
+            String email = body.get("email");
+            String token = body.get("token");
+            String newPassword = body.get("newPassword");
 
-        boolean isReset = userService.resetPasswordWithUsername(username, token, newPassword);
-        if (isReset) {
-            return ResponseEntity.ok("Password reset successfully for user: " + username + ". You can now log in with your new password.");
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid token or token expired for user: " + username + ". Please request a new password reset.");
+            // Input validation
+            if (email == null || email.trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Email is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (token == null || token.trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Reset token is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            if (newPassword == null || newPassword.length() < 6) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "New password must be at least 6 characters long");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            boolean isReset = userService.resetPasswordWithEmail(email, token, newPassword);
+
+            if (isReset) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Password reset successfully. You can now log in with your new password.");
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Invalid token or token expired. Please request a new password reset.");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "An unexpected error occurred during password reset");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
-    // Logout
+    // Logout - Enhanced
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
-        return ResponseEntity.ok("Logout successful for user: " + username + ". You have been logged out of the application.");
+    public ResponseEntity<?> logout(@RequestBody Map<String, String> body) {
+        try {
+            String username = body.get("username");
+
+            Map<String, String> response = new HashMap<>();
+            if (username != null && !username.trim().isEmpty()) {
+                response.put("message", "Logout successful for user: " + username);
+            } else {
+                response.put("message", "Logout successful");
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "An unexpected error occurred during logout");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Helper method to create user response without sensitive data
+    private Map<String, Object> createUserResponse(User user) {
+        Map<String, Object> userResponse = new HashMap<>();
+        userResponse.put("id", user.getId());
+        userResponse.put("username", user.getUsername());
+        userResponse.put("email", user.getEmail());
+        userResponse.put("firstName", user.getFirstName());
+        userResponse.put("lastName", user.getLastName());
+        userResponse.put("role", user.getRole());
+        userResponse.put("profilePicture", user.getProfilePicture());
+        userResponse.put("city", user.getCity());
+        userResponse.put("occupation", user.getOccupation());
+        userResponse.put("preferredLanguage", user.getPreferredLanguage());
+        return userResponse;
     }
 }

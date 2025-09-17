@@ -34,6 +34,33 @@ public class UserService implements UserDetailsService {
         return userRepository.save(user);
     }
 
+    // === Enhanced Authentication ===
+    public User authenticateUser(String usernameOrEmail, String password) {
+        User user = null;
+
+        // Try to find by username first
+        Optional<User> userByUsername = userRepository.findByUsername(usernameOrEmail);
+        if (userByUsername.isPresent()) {
+            user = userByUsername.get();
+        } else {
+            // Try to find by email
+            Optional<User> userByEmail = userRepository.findByEmail(usernameOrEmail);
+            if (userByEmail.isPresent()) {
+                user = userByEmail.get();
+            }
+        }
+
+        if (user == null) {
+            throw new IllegalArgumentException("User not found with provided username or email");
+        }
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new IllegalArgumentException("Invalid password");
+        }
+
+        return user;
+    }
+
     // === Password Reset ===
     public String requestPasswordReset(String username) {
         Optional<User> userOptional = userRepository.findByUsername(username);
@@ -53,6 +80,25 @@ public class UserService implements UserDetailsService {
         throw new IllegalArgumentException("User with the given username not found.");
     }
 
+    // NEW: Password reset by email
+    public String requestPasswordResetByEmail(String email) {
+        Optional<User> userOptional = userRepository.findByEmail(email);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            String resetToken = UUID.randomUUID().toString();
+            user.setPasswordResetToken(resetToken);
+            userRepository.save(user);
+
+            try {
+                emailService.sendPasswordResetEmail(user.getEmail(), user.getUsername(), resetToken);
+            } catch (Exception e) {
+                System.err.println("Failed to send password reset email: " + e.getMessage());
+            }
+            return resetToken;
+        }
+        throw new IllegalArgumentException("User with the given email not found.");
+    }
+
     public boolean resetPasswordWithUsername(String username, String token, String newPassword) {
         Optional<User> userOptional = userRepository.findByUsername(username);
         if (userOptional.isPresent()) {
@@ -67,7 +113,22 @@ public class UserService implements UserDetailsService {
         return false;
     }
 
-    // === Authentication ===
+    // NEW: Reset password by email
+    public boolean resetPasswordWithEmail(String email, String token, String newPassword) {
+        Optional<User> userOptional = userRepository.findByEmail(email);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            if (user.getPasswordResetToken() != null && user.getPasswordResetToken().equals(token)) {
+                user.setPassword(passwordEncoder.encode(newPassword));
+                user.setPasswordResetToken(null);
+                userRepository.save(user);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // === Authentication (Legacy) ===
     public boolean authenticate(String username, String password) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
@@ -80,6 +141,9 @@ public class UserService implements UserDetailsService {
 
     // === Registration ===
     public User registerUser(User user) {
+        // Validate input
+        validateUserData(user, true);
+
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -104,6 +168,9 @@ public class UserService implements UserDetailsService {
     }
 
     public User registerAdmin(User adminUser) {
+        // Validate input
+        validateUserData(adminUser, true);
+
         if (userRepository.findByUsername(adminUser.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -241,13 +308,13 @@ public class UserService implements UserDetailsService {
             if (user.getLastName() != null) existingUser.setLastName(user.getLastName());
             if (user.getProfilePicture() != null) existingUser.setProfilePicture(user.getProfilePicture());
 
-            // ✅ Required rubric fields
+            // Required rubric fields
             if (user.getPhoneNumber() != null) existingUser.setPhoneNumber(user.getPhoneNumber());
             if (user.getCity() != null) existingUser.setCity(user.getCity());
             if (user.getOccupation() != null) existingUser.setOccupation(user.getOccupation());
             if (user.getPreferredLanguage() != null) existingUser.setPreferredLanguage(user.getPreferredLanguage());
 
-            // ✅ Optional profile fields
+            // Optional profile fields
             if (user.getAddress() != null) existingUser.setAddress(user.getAddress());
             if (user.getDateOfBirth() != null) existingUser.setDateOfBirth(user.getDateOfBirth());
             if (user.getGender() != null) existingUser.setGender(user.getGender());

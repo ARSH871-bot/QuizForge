@@ -1,7 +1,13 @@
 package cs.quizzapp.prokect.backend.controllers;
 
 import cs.quizzapp.prokect.backend.services.OpenTDBService;
+import cs.quizzapp.prokect.backend.services.QuizService;
+import cs.quizzapp.prokect.backend.services.UserService;
+import cs.quizzapp.prokect.backend.models.Quiz;
+import cs.quizzapp.prokect.backend.models.Question;
+import cs.quizzapp.prokect.backend.payload.QuizRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.annotation.PostConstruct;
@@ -18,6 +24,12 @@ public class QuizController {
     @Autowired
     private OpenTDBService openTDBService;
 
+    @Autowired
+    private QuizService quizService;
+
+    @Autowired
+    private UserService userService;
+
     private final List<SimpleQuiz> quizzes = new ArrayList<>();
     private Long nextId = 1L;
 
@@ -25,39 +37,33 @@ public class QuizController {
     public void initializeQuizzes() {
         System.out.println("Starting OpenTDB quiz initialization...");
 
-        // Test OpenTDB connection first
         try {
             List<OpenTDBService.Category> categories = openTDBService.fetchCategories();
             if (categories == null || categories.isEmpty()) {
-                System.err.println("❌ OpenTDB connection failed - no categories available");
-                System.err.println("❌ No quizzes will be created until OpenTDB is accessible");
+                System.err.println("OpenTDB connection failed - no categories available");
                 return;
             }
-            System.out.println("✅ OpenTDB connection successful - " + categories.size() + " categories available");
+            System.out.println("OpenTDB connection successful - " + categories.size() + " categories available");
         } catch (Exception e) {
-            System.err.println("❌ OpenTDB connection error: " + e.getMessage());
-            System.err.println("❌ No quizzes will be created until OpenTDB is accessible");
+            System.err.println("OpenTDB connection error: " + e.getMessage());
             return;
         }
 
-        // Create quizzes asynchronously to avoid blocking startup
         CompletableFuture.runAsync(() -> {
             createOpenTDBQuizzes();
         });
     }
 
     private void createOpenTDBQuizzes() {
-        System.out.println("Creating quizzes from OpenTDB (this may take a few moments due to rate limiting)...");
+        System.out.println("Creating quizzes from OpenTDB...");
 
-        // Popular categories to create quizzes for
-        int[] popularCategoryIds = {9, 17, 21, 22, 23, 11, 12, 18, 19, 27};
+        int[] popularCategoryIds = {9, 17, 21, 22, 23};
 
         try {
             List<OpenTDBService.Category> categories = openTDBService.fetchCategories();
 
             for (int categoryId : popularCategoryIds) {
                 try {
-                    // Respect OpenTDB rate limit (1 request per 5 seconds)
                     Thread.sleep(6000);
 
                     Optional<OpenTDBService.Category> categoryOpt = categories.stream()
@@ -70,80 +76,56 @@ public class QuizController {
                             synchronized (quizzes) {
                                 quizzes.add(quiz);
                             }
-                            System.out.println("✅ Created quiz: " + quiz.getTitle() + " with " +
-                                    quiz.getQuestions().size() + " OpenTDB questions");
-                        } else {
-                            System.err.println("❌ Failed to create quiz for category: " + categoryOpt.get().getName());
+                            System.out.println("Created quiz: " + quiz.getTitle());
                         }
                     }
 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    System.err.println("❌ Quiz creation interrupted");
                     break;
                 } catch (Exception e) {
-                    System.err.println("❌ Error creating quiz for category ID " + categoryId + ": " + e.getMessage());
+                    System.err.println("Error creating quiz for category ID " + categoryId + ": " + e.getMessage());
                 }
             }
 
-            System.out.println("✅ Quiz initialization complete. Created " + quizzes.size() + " quizzes from OpenTDB");
+            System.out.println("Quiz initialization complete. Created " + quizzes.size() + " quizzes");
 
         } catch (Exception e) {
-            System.err.println("❌ Failed to create OpenTDB quizzes: " + e.getMessage());
+            System.err.println("Failed to create OpenTDB quizzes: " + e.getMessage());
         }
     }
 
     private SimpleQuiz createQuizForCategory(OpenTDBService.Category category) {
-        System.out.println("Fetching questions for category: " + category.getName() + " (ID: " + category.getId() + ")");
+        try {
+            List<OpenTDBService.Question> questions = openTDBService.fetchQuestions(category.getId(), "easy", "multiple", 10);
 
-        // Try different difficulties to get questions
-        String[] difficulties = {"easy", "medium", "hard", ""};
-        List<OpenTDBService.Question> questions = null;
-
-        for (String difficulty : difficulties) {
-            try {
-                questions = openTDBService.fetchQuestions(category.getId(), difficulty, "multiple", 10);
-                if (questions != null && !questions.isEmpty()) {
-                    System.out.println("✅ Found " + questions.size() + " questions with difficulty: " +
-                            (difficulty.isEmpty() ? "any" : difficulty));
-                    break;
-                }
-            } catch (Exception e) {
-                System.err.println("Failed to fetch " + difficulty + " questions: " + e.getMessage());
+            if (questions == null || questions.isEmpty()) {
+                return null;
             }
-        }
 
-        if (questions == null || questions.isEmpty()) {
-            System.err.println("❌ No questions available for category: " + category.getName());
-            return null;
-        }
+            SimpleQuiz quiz = new SimpleQuiz();
+            quiz.setId(nextId++);
+            quiz.setTitle(category.getName() + " Quiz");
+            quiz.setDescription("Test your knowledge in " + category.getName());
+            quiz.setCategory(category.getName());
+            quiz.setDifficulty("easy");
+            quiz.setCreatedAt(LocalDateTime.now());
 
-        // Create quiz
-        SimpleQuiz quiz = new SimpleQuiz();
-        quiz.setId(nextId++);
-        quiz.setTitle(category.getName() + " Quiz");
-        quiz.setDescription("Test your knowledge in " + category.getName() + " with questions from OpenTDB");
-        quiz.setCategory(category.getName());
-        quiz.setDifficulty("mixed");
-        quiz.setCreatedAt(LocalDateTime.now());
-
-        // Convert OpenTDB questions to SimpleQuestion format
-        List<SimpleQuestion> simpleQuestions = new ArrayList<>();
-        for (OpenTDBService.Question q : questions) {
-            try {
+            List<SimpleQuestion> simpleQuestions = new ArrayList<>();
+            for (OpenTDBService.Question q : questions) {
                 SimpleQuestion sq = convertOpenTDBQuestion(q);
                 if (sq != null) {
                     simpleQuestions.add(sq);
                 }
-            } catch (Exception e) {
-                System.err.println("Error converting question: " + e.getMessage());
             }
+
+            quiz.setQuestions(simpleQuestions);
+            return quiz;
+
+        } catch (Exception e) {
+            System.err.println("Error creating quiz for category: " + category.getName());
+            return null;
         }
-
-        quiz.setQuestions(simpleQuestions);
-        System.out.println("✅ Successfully created quiz with " + simpleQuestions.size() + " valid questions");
-
-        return quiz;
     }
 
     private SimpleQuestion convertOpenTDBQuestion(OpenTDBService.Question openTDBQuestion) {
@@ -156,22 +138,18 @@ public class QuizController {
                 return null;
             }
 
-            // Create all options and shuffle them
             List<String> allOptions = new ArrayList<>();
             allOptions.add(correctAnswer);
             allOptions.addAll(incorrectAnswers);
             Collections.shuffle(allOptions);
 
-            // Ensure we have exactly 4 options
             while (allOptions.size() < 4) {
                 allOptions.add("No answer");
             }
 
-            // Fill the 4 option slots
             SimpleQuestion sq = new SimpleQuestion();
             sq.setQuestionText(question);
             sq.setCorrectAnswer(correctAnswer);
-
             sq.setOption1(allOptions.get(0));
             sq.setOption2(allOptions.get(1));
             sq.setOption3(allOptions.get(2));
@@ -185,17 +163,227 @@ public class QuizController {
         }
     }
 
-    // REST API Endpoints
+    // === ADMIN ENDPOINTS ===
 
-    @GetMapping
-    public List<SimpleQuiz> getAllQuizzes() {
-        synchronized (quizzes) {
-            return new ArrayList<>(quizzes);
+    @PostMapping("/tournaments")
+    public ResponseEntity<?> createQuizTournament(@RequestBody QuizRequest quizRequest) {
+        try {
+            if (quizRequest.getName() == null || quizRequest.getName().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Quiz name is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
+
+            Quiz createdQuiz = quizService.createQuizWithQuestions(quizRequest);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Quiz tournament created successfully");
+            response.put("quiz", createdQuiz);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to create quiz tournament: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
 
-    @GetMapping("/all")
-    public List<SimpleQuiz> getAllQuizzesAlternative() {
+    @GetMapping("/tournaments")
+    public ResponseEntity<?> getAllQuizTournaments() {
+        try {
+            List<Quiz> tournaments = quizService.getAllQuizzes();
+            return ResponseEntity.ok(tournaments);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve quiz tournaments: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @PutMapping("/tournaments/{id}")
+    public ResponseEntity<?> updateQuizTournament(@PathVariable Long id, @RequestBody QuizRequest quizRequest) {
+        try {
+            Quiz updatedQuiz = quizService.updateQuiz(id, quizRequest);
+
+            if (updatedQuiz != null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "Quiz tournament updated successfully");
+                response.put("quiz", updatedQuiz);
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Quiz tournament not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to update quiz tournament: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @DeleteMapping("/tournaments/{id}")
+    public ResponseEntity<?> deleteQuizTournament(@PathVariable Long id, @RequestParam(defaultValue = "false") boolean confirm) {
+        try {
+            if (!confirm) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Are you sure you want to delete this quiz tournament? Add ?confirm=true to proceed.");
+                return ResponseEntity.ok(response);
+            }
+
+            boolean deleted = quizService.deleteQuiz(id);
+
+            if (deleted) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Quiz tournament deleted successfully");
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Quiz tournament not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to delete quiz tournament: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @GetMapping("/tournaments/likes")
+    public ResponseEntity<?> getQuizLikes() {
+        try {
+            List<Quiz> quizzes = quizService.getAllQuizzes();
+            List<Map<String, Object>> likesData = new ArrayList<>();
+
+            for (Quiz quiz : quizzes) {
+                Map<String, Object> quizLikes = new HashMap<>();
+                quizLikes.put("quizId", quiz.getId());
+                quizLikes.put("quizName", quiz.getName());
+                quizLikes.put("likesCount", quiz.getLikesCount());
+                likesData.add(quizLikes);
+            }
+
+            return ResponseEntity.ok(likesData);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve quiz likes: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // === PLAYER ENDPOINTS ===
+
+    @GetMapping("/player/{userId}/tournaments")
+    public ResponseEntity<?> getPlayerTournaments(@PathVariable Long userId) {
+        try {
+            if (!userService.findUserById(userId).isPresent()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+
+            Map<String, Object> tournaments = new HashMap<>();
+            tournaments.put("ongoing", quizService.getOngoingQuizzes());
+            tournaments.put("upcoming", quizService.getUpcomingQuizzes());
+            tournaments.put("past", quizService.getPastQuizzes());
+            tournaments.put("participated", quizService.getParticipatedQuizzes(userId));
+
+            return ResponseEntity.ok(tournaments);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve player tournaments: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @PostMapping("/tournaments/{quizId}/participate/{userId}")
+    public ResponseEntity<?> participateInTournament(@PathVariable Long quizId, @PathVariable Long userId) {
+        try {
+            List<Question> questions = quizService.playQuiz(quizId, userId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Quiz started successfully");
+            response.put("questions", questions);
+            response.put("totalQuestions", questions.size());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to start quiz participation: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @PostMapping("/tournaments/{quizId}/submit/{userId}")
+    public ResponseEntity<?> submitQuizAnswers(@PathVariable Long quizId, @PathVariable Long userId,
+                                               @RequestBody Map<String, String> answers) {
+        try {
+            Map<Long, String> questionAnswers = new HashMap<>();
+            for (Map.Entry<String, String> entry : answers.entrySet()) {
+                try {
+                    Long questionId = Long.parseLong(entry.getKey());
+                    questionAnswers.put(questionId, entry.getValue());
+                } catch (NumberFormatException e) {
+                    Map<String, String> error = new HashMap<>();
+                    error.put("error", "Invalid question ID format: " + entry.getKey());
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+                }
+            }
+
+            Map<String, Object> result = quizService.submitAnswers(quizId, userId, questionAnswers);
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to submit quiz answers: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @PostMapping("/tournaments/{quizId}/like/{userId}")
+    public ResponseEntity<?> likeQuizTournament(@PathVariable Long quizId, @PathVariable Long userId) {
+        try {
+            boolean liked = quizService.likeQuiz(userId, quizId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", liked ? "Quiz tournament liked successfully" : "Quiz tournament already liked");
+            response.put("action", liked ? "liked" : "already_liked");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to like quiz tournament: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @DeleteMapping("/tournaments/{quizId}/like/{userId}")
+    public ResponseEntity<?> unlikeQuizTournament(@PathVariable Long quizId, @PathVariable Long userId) {
+        try {
+            boolean unliked = quizService.unlikeQuiz(userId, quizId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", unliked ? "Quiz tournament unliked successfully" : "Quiz tournament was not liked");
+            response.put("action", unliked ? "unliked" : "not_liked");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to unlike quiz tournament: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // === EXISTING ENDPOINTS ===
+
+    @GetMapping
+    public List<SimpleQuiz> getAllQuizzes() {
         synchronized (quizzes) {
             return new ArrayList<>(quizzes);
         }
@@ -211,144 +399,6 @@ public class QuizController {
         }
     }
 
-    @PostMapping
-    public SimpleQuiz createQuiz(@RequestBody SimpleQuiz quiz) {
-        quiz.setId(nextId++);
-        quiz.setCreatedAt(LocalDateTime.now());
-        synchronized (quizzes) {
-            quizzes.add(quiz);
-        }
-        return quiz;
-    }
-
-    @PostMapping("/refresh-all")
-    public ResponseEntity<Map<String, Object>> refreshAllQuizzes() {
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            // Clear existing quizzes
-            synchronized (quizzes) {
-                quizzes.clear();
-                nextId = 1L;
-            }
-
-            System.out.println("🔄 Refreshing all quizzes from OpenTDB...");
-
-            // Recreate quizzes from OpenTDB
-            CompletableFuture.runAsync(() -> {
-                createOpenTDBQuizzes();
-            });
-
-            response.put("success", true);
-            response.put("message", "Quiz refresh started. New quizzes will be available shortly.");
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            response.put("error", "Failed to refresh quizzes: " + e.getMessage());
-            return ResponseEntity.status(500).body(response);
-        }
-    }
-
-    @PostMapping("/create-from-opentdb")
-    public ResponseEntity<Map<String, Object>> createQuizFromOpenTDB(@RequestBody Map<String, Object> request) {
-        try {
-            String title = (String) request.get("title");
-            String description = (String) request.get("description");
-            Integer categoryId = (Integer) request.get("categoryId");
-            String difficulty = (String) request.get("difficulty");
-            String type = (String) request.get("type");
-            Integer questionCount = (Integer) request.get("questionCount");
-
-            if (title == null || title.trim().isEmpty()) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("error", "Title is required");
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-            if (questionCount == null || questionCount < 1 || questionCount > 50) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("error", "Question count must be between 1 and 50");
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-
-            List<OpenTDBService.Question> openTDBQuestions = openTDBService.fetchQuestions(
-                    categoryId, difficulty, type, questionCount);
-
-            if (openTDBQuestions.isEmpty()) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("error", "No questions available for the specified criteria. Try different parameters.");
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-
-            List<SimpleQuestion> questions = new ArrayList<>();
-            for (OpenTDBService.Question openTDBQuestion : openTDBQuestions) {
-                List<String> allAnswers = new ArrayList<>();
-                allAnswers.add(openTDBQuestion.getCorrectAnswer());
-                if (openTDBQuestion.getIncorrectAnswers() != null) {
-                    allAnswers.addAll(openTDBQuestion.getIncorrectAnswers());
-                }
-                Collections.shuffle(allAnswers);
-
-                while (allAnswers.size() < 4) {
-                    allAnswers.add("No answer");
-                }
-
-                SimpleQuestion question = new SimpleQuestion(
-                        openTDBQuestion.getQuestion(),
-                        openTDBQuestion.getCorrectAnswer(),
-                        allAnswers
-                );
-                questions.add(question);
-            }
-
-            SimpleQuiz newQuiz = new SimpleQuiz(nextId++, title,
-                    description != null ? description : "Quiz created from OpenTDB",
-                    openTDBQuestions.get(0).getCategory());
-
-            newQuiz.setDifficulty(difficulty != null ? difficulty : "mixed");
-            newQuiz.setQuestions(questions);
-
-            synchronized (quizzes) {
-                quizzes.add(newQuiz);
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("quiz", newQuiz);
-            response.put("questionsCount", questions.size());
-            response.put("message", "Quiz created successfully with " + questions.size() + " real questions from OpenTDB");
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to create quiz: " + e.getMessage());
-            return ResponseEntity.status(500).body(errorResponse);
-        }
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteQuiz(@PathVariable Long id) {
-        synchronized (quizzes) {
-            boolean removed = quizzes.removeIf(quiz -> quiz.getId().equals(id));
-            return removed ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
-        }
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<SimpleQuiz> updateQuiz(@PathVariable Long id, @RequestBody SimpleQuiz updatedQuiz) {
-        synchronized (quizzes) {
-            for (int i = 0; i < quizzes.size(); i++) {
-                if (quizzes.get(i).getId().equals(id)) {
-                    updatedQuiz.setId(id);
-                    quizzes.set(i, updatedQuiz);
-                    return ResponseEntity.ok(updatedQuiz);
-                }
-            }
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // OpenTDB endpoints
     @GetMapping("/categories")
     public ResponseEntity<List<OpenTDBService.Category>> getCategories() {
         try {
@@ -356,48 +406,6 @@ public class QuizController {
             return ResponseEntity.ok(categories);
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ArrayList<>());
-        }
-    }
-
-    @GetMapping("/difficulties")
-    public ResponseEntity<List<String>> getDifficulties() {
-        return ResponseEntity.ok(openTDBService.getAvailableDifficulties());
-    }
-
-    @GetMapping("/types")
-    public ResponseEntity<List<String>> getQuestionTypes() {
-        return ResponseEntity.ok(openTDBService.getAvailableTypes());
-    }
-
-    @PostMapping("/validate-parameters")
-    public ResponseEntity<Map<String, Object>> validateQuizParameters(@RequestBody Map<String, Object> request) {
-        try {
-            Integer categoryId = (Integer) request.get("categoryId");
-            String difficulty = (String) request.get("difficulty");
-            String type = (String) request.get("type");
-            Integer questionCount = (Integer) request.get("questionCount");
-
-            List<OpenTDBService.Question> testQuestions = openTDBService.fetchQuestions(
-                    categoryId, difficulty, type, Math.min(questionCount != null ? questionCount : 5, 5));
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("valid", !testQuestions.isEmpty());
-            response.put("availableQuestions", testQuestions.size());
-
-            if (testQuestions.isEmpty()) {
-                response.put("message", "No questions available for these parameters");
-            } else {
-                response.put("message", "Parameters are valid");
-                response.put("sampleQuestion", testQuestions.get(0).getQuestion());
-            }
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("valid", false);
-            response.put("message", "Error validating parameters: " + e.getMessage());
-            return ResponseEntity.ok(response);
         }
     }
 
@@ -411,55 +419,12 @@ public class QuizController {
             testResult.put("categoriesAvailable", categories.size());
             testResult.put("sampleQuestionsRetrieved", sampleQuestions.size());
             testResult.put("status", "OpenTDB connection working");
-            testResult.put("categories", categories.size() > 5 ? categories.subList(0, 5) : categories);
-
-            if (!sampleQuestions.isEmpty()) {
-                testResult.put("sampleQuestion", sampleQuestions.get(0).getQuestion());
-            }
 
             return ResponseEntity.ok(testResult);
-
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("status", "OpenTDB connection failed");
             errorResponse.put("error", e.getMessage());
-            return ResponseEntity.status(500).body(errorResponse);
-        }
-    }
-
-    @GetMapping("/player/{userId}/quiz-history")
-    public ResponseEntity<Map<String, Object>> getPlayerQuizHistory(@PathVariable Long userId) {
-        try {
-            Map<String, Object> history = new HashMap<>();
-            history.put("userId", userId);
-
-            synchronized (quizzes) {
-                history.put("totalQuizzes", quizzes.size());
-
-                List<Map<String, Object>> recentAttempts = new ArrayList<>();
-                for (int i = 0; i < Math.min(3, quizzes.size()); i++) {
-                    Map<String, Object> attempt = new HashMap<>();
-                    attempt.put("quizId", quizzes.get(i).getId());
-                    attempt.put("quizTitle", quizzes.get(i).getTitle());
-                    attempt.put("score", 70 + (i * 10));
-                    attempt.put("completedAt", LocalDateTime.now().minusDays(i + 1).toString());
-                    recentAttempts.add(attempt);
-                }
-                history.put("recentAttempts", recentAttempts);
-            }
-
-            history.put("averageScore", 75.5);
-
-            List<String> favoriteCategories = new ArrayList<>();
-            favoriteCategories.add("General Knowledge");
-            favoriteCategories.add("Science & Nature");
-            history.put("favoriteCategories", favoriteCategories);
-
-            return ResponseEntity.ok(history);
-
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Failed to fetch quiz history: " + e.getMessage());
             return ResponseEntity.status(500).body(errorResponse);
         }
     }
@@ -475,15 +440,6 @@ public class QuizController {
         private List<SimpleQuestion> questions = new ArrayList<>();
 
         public SimpleQuiz() {}
-
-        public SimpleQuiz(Long id, String title, String description, String category) {
-            this.id = id;
-            this.title = title;
-            this.description = description;
-            this.category = category;
-            this.difficulty = "easy";
-            this.createdAt = LocalDateTime.now();
-        }
 
         // Getters and setters
         public Long getId() { return id; }
@@ -512,15 +468,6 @@ public class QuizController {
         private String correctAnswer;
 
         public SimpleQuestion() {}
-
-        public SimpleQuestion(String questionText, String correctAnswer, List<String> options) {
-            this.questionText = questionText;
-            this.correctAnswer = correctAnswer;
-            if (options.size() >= 1) this.option1 = options.get(0);
-            if (options.size() >= 2) this.option2 = options.get(1);
-            if (options.size() >= 3) this.option3 = options.get(2);
-            if (options.size() >= 4) this.option4 = options.get(3);
-        }
 
         // Getters and setters
         public Long getId() { return id; }

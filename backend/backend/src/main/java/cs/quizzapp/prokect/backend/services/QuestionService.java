@@ -83,8 +83,7 @@ public class QuestionService {
         return false;
     }
 
-
-    /*/**
+    /**
      * Fetches questions for a quiz. If questions already exist for the quiz, they are limited to 10 and returned.
      * Otherwise, new questions are fetched from OpenTDB and saved to the database.
      *
@@ -92,6 +91,7 @@ public class QuestionService {
      * @param quiz        The quiz to which the questions belong.
      * @return List of saved or existing questions.
      */
+    @SuppressWarnings("unchecked")
     public List<Question> fetchAndSaveQuestions(QuizRequest quizRequest, Quiz quiz) {
         // Check if questions already exist for the quiz
         List<Question> existingQuestions = getQuestionsByQuizId(quiz.getId());
@@ -103,8 +103,10 @@ public class QuestionService {
                     .limit(10)
                     .toList(); // Return only the first 10 questions
         }
+
         // Initialize fetchedQuestions list
         List<Question> fetchedQuestions = new ArrayList<>();
+
         // Build the dynamic URL
         String apiUrl = "https://opentdb.com/api.php?amount=" + quizRequest.getAmount() +
                 "&category=" + quizRequest.getCategoryId() +
@@ -112,7 +114,6 @@ public class QuestionService {
                 "&type=multiple";
 
         RestTemplate restTemplate = new RestTemplate();
-        List<Question> questions = new ArrayList<>();
 
         int maxRetries = 3;
         int attempt = 0;
@@ -132,12 +133,14 @@ public class QuestionService {
                         newQuestion.setCorrectAnswer((String) result.get("correct_answer"));
 
                         // Combine correct and incorrect answers into options
-                        List<String> options = new ArrayList<>((List<String>) result.get("incorrect_answers"));
+                        List<String> incorrectAnswers = (List<String>) result.get("incorrect_answers");
+                        List<String> options = new ArrayList<>(incorrectAnswers);
                         options.add(newQuestion.getCorrectAnswer());
                         Collections.shuffle(options);
 
                         newQuestion.setOptions(options);
                         newQuestion.setQuiz(quiz);
+
                         // Check for duplicate questions in fetchedQuestions
                         boolean isDuplicate = fetchedQuestions.stream()
                                 .anyMatch(q -> q.getQuestionText().equals(newQuestion.getQuestionText()));

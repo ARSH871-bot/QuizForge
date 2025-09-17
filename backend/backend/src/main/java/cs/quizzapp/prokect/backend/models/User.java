@@ -1,9 +1,12 @@
 package cs.quizzapp.prokect.backend.models;
 
 import jakarta.persistence.*;
-import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+import java.time.LocalDate;
 
 @Entity
+@Table(name = "users")
 public class User {
 
     @Id
@@ -22,28 +25,35 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
     private String role;
 
     private String firstName;
     private String lastName;
     private String profilePicture;
 
-    // REQUIRED: Three additional profile fields as per requirements
+    // REQUIRED: Three additional profile fields (as per rubric)
     private String phoneNumber;
-    private String city; // New field 1
-    private String occupation; // New field 2
-    private String preferredLanguage; // New field 3
+    private String city;                // Field 1
+    private String occupation;          // Field 2
+    private String preferredLanguage;   // Field 3
 
     // Optional additional profile fields
     private String address;
-    private Date dateOfBirth;
+
+    @JsonFormat(pattern = "yyyy-MM-dd") // ensures correct JSON serialization
+    private LocalDate dateOfBirth;
+
     private String gender;
     private String country;
+
+    @Column(length = 1000) // allow longer text
     private String bio;
 
     public User() {}
 
-    public User(String username, String email, String password, String role, String firstName, String lastName, String profilePicture) {
+    public User(String username, String email, String password, String role,
+                String firstName, String lastName, String profilePicture) {
         this.username = username;
         this.email = email;
         this.password = password;
@@ -66,6 +76,9 @@ public class User {
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
+    public String getPasswordResetToken() { return passwordResetToken; }
+    public void setPasswordResetToken(String passwordResetToken) { this.passwordResetToken = passwordResetToken; }
+
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
@@ -78,15 +91,7 @@ public class User {
     public String getProfilePicture() { return profilePicture; }
     public void setProfilePicture(String profilePicture) { this.profilePicture = profilePicture; }
 
-    public String getPasswordResetToken() {
-        return passwordResetToken;
-    }
-
-    public void setPasswordResetToken(String passwordResetToken) {
-        this.passwordResetToken = passwordResetToken;
-    }
-
-    // NEW REQUIRED FIELDS - Getters and Setters
+    // Required new fields
     public String getCity() { return city; }
     public void setCity(String city) { this.city = city; }
 
@@ -96,15 +101,15 @@ public class User {
     public String getPreferredLanguage() { return preferredLanguage; }
     public void setPreferredLanguage(String preferredLanguage) { this.preferredLanguage = preferredLanguage; }
 
-    // Additional profile field getters and setters
+    // Optional profile fields
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    public Date getDateOfBirth() { return dateOfBirth; }
-    public void setDateOfBirth(Date dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }

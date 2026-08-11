@@ -20,6 +20,10 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **Runtime enforcement of Row-Level Security.** Every transaction carrying a
+  tenant now assumes the `NOBYPASSRLS` role `quizforge_app` and sets
+  `app.workspace_id`, both transaction-locally. Proven by a test asserting a
+  workspace cannot read another's rows even when explicitly asking for them.
 - **Foundation (M0).** Monorepo layout, Flyway-owned schema on PostgreSQL,
   Testcontainers harness, Spring Modulith module skeleton with ArchUnit
   guardrails, CI with build, gitleaks and PR-title linting.
@@ -63,10 +67,6 @@ that is not worth a line here is not worth shipping.
 
 ### Known gaps
 
-- **RLS is not enforced at runtime.** Policies exist and are proven, but the
-  application connects as a superuser, for which PostgreSQL silently skips
-  RLS. Tracked in [#23](https://github.com/ARSH871-bot/QuizForge/issues/23);
-  see ADR 0008.
 - A mail credential remains in git history. It is referenced by no code and
   revoking it breaks nothing. Tracked in
   [#2](https://github.com/ARSH871-bot/QuizForge/issues/2).

@@ -9,9 +9,16 @@ product surface.
 
 ## Status
 
-Pre-launch. Milestone M0 (foundation) is complete. See
-[`docs/superpowers/specs/`](docs/superpowers/specs/) for the platform design
-and the M0–M7 milestone map.
+Pre-launch. Milestones M0 (foundation) and M1 (identity and tenancy) are
+complete.
+
+**[STATUS.md](STATUS.md) is the single source of truth** for where the product
+stands, what is safe to do with the code, and every known gap. Read it before
+deploying anything.
+
+See [`docs/superpowers/specs/`](docs/superpowers/specs/) for the platform
+design and the M0–M7 milestone map, and [CHANGELOG.md](CHANGELOG.md) for what
+has changed.
 
 ## Getting started
 
@@ -69,6 +76,8 @@ tests via `quizforge.opentdb.bootstrap-enabled=false`.
 | `docs/adr` | Architecture Decision Records |
 | `docs/superpowers/specs` | Design specifications |
 | `docs/superpowers/plans` | Implementation plans |
+| `STATUS.md` | Current state, known gaps, what is safe to deploy |
+| `CHANGELOG.md` | What changed, and when |
 
 ## Architecture
 

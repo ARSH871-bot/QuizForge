@@ -187,7 +187,7 @@ invalid. Revocation at Google is the only thing that does.
 
 Do not proceed until this is done. Everything else in this task is cosmetic if the credential is still live.
 
-- [ ] **Step 2: Create the root `.gitignore`**
+- [x] **Step 2: Create the root `.gitignore`**
 
 ```gitignore
 # Build output
@@ -226,7 +226,7 @@ node_modules/
 dist/
 ```
 
-- [ ] **Step 3: Untrack build output and IDE configuration**
+- [x] **Step 3: Untrack build output and IDE configuration**
 
 ```bash
 git rm -r --cached backend/backend/target .idea backend/.idea backend/backend/.idea
@@ -235,7 +235,7 @@ git status --short
 
 Expected: many `D` entries staged, and the files still present on disk.
 
-- [ ] **Step 4: Remove committed secrets from `application.properties`**
+- [x] **Step 4: Remove committed secrets from `application.properties`**
 
 Replace lines 22–39 of `backend/backend/src/main/resources/application.properties` (the mail block) with:
 
@@ -258,7 +258,7 @@ email.test.mode=${EMAIL_TEST_MODE:true}
 
 Note `EMAIL_TEST_MODE` now defaults to `true` — the application must not attempt real sends unless explicitly configured to.
 
-- [ ] **Step 5: Remove hardcoded default credentials**
+- [x] **Step 5: Remove hardcoded default credentials**
 
 In `BackendApplication.java`, delete the entire `run(String... args)` method body and the `implements CommandLineRunner` clause, along with the now-unused `UserRepository` and `PasswordEncoder` fields and their imports. The class becomes:
 
@@ -279,7 +279,7 @@ public class BackendApplication {
 
 Seeding users is reintroduced properly in M1 as an idempotent, environment-driven bootstrap.
 
-- [ ] **Step 6: Create `.env.example`**
+- [x] **Step 6: Create `.env.example`**
 
 ```bash
 # Copy to .env and fill in. .env is gitignored and must never be committed.
@@ -298,7 +298,7 @@ MAIL_PASSWORD=
 PORT=8080
 ```
 
-- [ ] **Step 7: Create `SECURITY.md`**
+- [x] **Step 7: Create `SECURITY.md`**
 
 ```markdown
 # Security Policy
@@ -324,7 +324,7 @@ denial of service through volumetric traffic.
 Only the latest released version receives security fixes.
 ```
 
-- [ ] **Step 8: Verify no secret remains in the working tree**
+- [x] **Step 8: Verify no secret remains in the working tree**
 
 ```bash
 SECRET=$(git show 6ae6e43:backend/backend/src/main/resources/application.properties \
@@ -337,7 +337,7 @@ Expected: both `CLEAN` lines. If anything matches, remove it before
 committing. The secret is read out of history rather than typed here, so this
 check does not itself introduce another copy.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add .gitignore .env.example SECURITY.md \
@@ -416,7 +416,7 @@ git count-objects -vH | grep size-pack
 - Consumes: Task 1's cleaned `application.properties`
 - Produces: a working `./mvnw` and a build on Java 21 / Spring Boot 3.5.x. Later tasks invoke `./mvnw verify` and assume Spring Modulith's BOM is importable.
 
-- [ ] **Step 1: Create the missing wrapper properties**
+- [x] **Step 1: Create the missing wrapper properties**
 
 `mvnw` currently fails because `.mvn/wrapper/` does not exist. Create `backend/backend/.mvn/wrapper/maven-wrapper.properties`:
 
@@ -426,7 +426,7 @@ distributionType=only-script
 distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.11/apache-maven-3.9.11-bin.zip
 ```
 
-- [ ] **Step 2: Verify the wrapper now works**
+- [x] **Step 2: Verify the wrapper now works**
 
 ```bash
 cd backend/backend && ./mvnw -v
@@ -434,7 +434,7 @@ cd backend/backend && ./mvnw -v
 
 Expected: Maven 3.9.11 and Java 21 reported. If it fails to download, the network is blocking `repo.maven.apache.org` — resolve that before continuing.
 
-- [ ] **Step 3: Delete the duplicate test class from the main source tree**
+- [x] **Step 3: Delete the duplicate test class from the main source tree**
 
 `src/main/java/cs/quizzapp/prokect/backend/BackendApplicationTests.java` shares its fully-qualified name with the real test in `src/test/java`, and ships in the production jar.
 
@@ -442,7 +442,7 @@ Expected: Maven 3.9.11 and Java 21 reported. If it fails to download, the networ
 git rm backend/backend/src/main/java/cs/quizzapp/prokect/backend/BackendApplicationTests.java
 ```
 
-- [ ] **Step 4: Upgrade the POM**
+- [x] **Step 4: Upgrade the POM**
 
 Replace the `<parent>`, `<properties>`, and `<dependencies>` sections of `backend/backend/pom.xml`:
 
@@ -562,7 +562,7 @@ Replace the `<parent>`, `<properties>`, and `<dependencies>` sections of `backen
 
 Note the MySQL driver is deliberately gone — Task 4 completes the move to Postgres.
 
-- [ ] **Step 5: Verify the upgrade resolves and compiles**
+- [x] **Step 5: Verify the upgrade resolves and compiles**
 
 ```bash
 cd backend/backend && ./mvnw -B clean compile
@@ -572,7 +572,7 @@ Expected: `BUILD SUCCESS`. If Spring Boot 3.5.6 or Spring Modulith 1.4.3 does no
 
 The application will **not** start yet — `MAIL_USERNAME` has no default and Postgres is not configured. That is expected and is fixed in Task 4.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/backend/.mvn backend/backend/pom.xml
@@ -592,7 +592,7 @@ git commit -m "build: repair maven wrapper, upgrade to Java 21 and Spring Boot 3
 - Consumes: Task 2's working build
 - Produces: all subsequent paths are rooted at `apps/api/`. CI in Task 7 and docs in Task 8 assume this layout.
 
-- [ ] **Step 1: Move the module with history preserved**
+- [x] **Step 1: Move the module with history preserved**
 
 ```bash
 mkdir -p apps
@@ -603,7 +603,7 @@ git status --short | head -20
 
 Using `git mv` (not `mv`) preserves rename detection in history.
 
-- [ ] **Step 2: Verify the build still works from the new location**
+- [x] **Step 2: Verify the build still works from the new location**
 
 ```bash
 cd apps/api && ./mvnw -B clean compile
@@ -611,7 +611,7 @@ cd apps/api && ./mvnw -B clean compile
 
 Expected: `BUILD SUCCESS`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A
@@ -631,7 +631,7 @@ git commit -m "refactor: move api module to apps/api for monorepo layout"
 - Consumes: Task 3's `apps/api` layout
 - Produces: a schema owned by Flyway. Task 5's integration tests assert that Flyway applies cleanly and Hibernate validates against the result.
 
-- [ ] **Step 1: Create local Postgres via Compose**
+- [x] **Step 1: Create local Postgres via Compose**
 
 `docker-compose.yml` at the repository root:
 
@@ -667,7 +667,7 @@ docker compose ps
 
 Expected: `quizforge-postgres` running and healthy.
 
-- [ ] **Step 2: Write the baseline migration**
+- [x] **Step 2: Write the baseline migration**
 
 This reproduces the schema Hibernate was generating, expressed for Postgres. It is the schema of record from now on. Create `apps/api/src/main/resources/db/migration/V1__baseline.sql`:
 
@@ -758,7 +758,7 @@ CREATE INDEX idx_participation_quiz_id ON participation (quiz_id);
 CREATE INDEX idx_quiz_start_end        ON quiz (start_date, end_date);
 ```
 
-- [ ] **Step 3: Rewrite the datasource and JPA configuration**
+- [x] **Step 3: Rewrite the datasource and JPA configuration**
 
 Replace lines 4–20 of `apps/api/src/main/resources/application.properties`:
 
@@ -782,7 +782,7 @@ spring.flyway.baseline-on-migrate=false
 
 `open-in-view=false` stays deliberately. It exposes the missing transaction boundaries described in the spec, and those are fixed properly in M1–M3 rather than masked by re-enabling it.
 
-- [ ] **Step 4: Verify migration and validation succeed against real Postgres**
+- [x] **Step 4: Verify migration and validation succeed against real Postgres**
 
 ```bash
 cd apps/api && DB_PASSWORD=local-dev-only ./mvnw -B spring-boot:run
@@ -792,7 +792,7 @@ Expected in the log: `Successfully applied 1 migration to schema "public"`, then
 
 If Hibernate reports a missing column or table, the baseline SQL does not match the entities — fix `V1__baseline.sql` to match, do not change `ddl-auto`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docker-compose.yml apps/api/src/main/resources/
@@ -816,7 +816,7 @@ git commit -m "feat: replace ddl-auto with flyway migrations on postgresql"
 
 > **Why the application class moves first.** `@SpringBootTest` locates configuration by searching *upward* from the test's own package. A test in `com.quizforge` cannot find `cs.quizzapp.prokect.backend.BackendApplication`, so the harness would fail with "Unable to find a @SpringBootConfiguration" if the class were relocated later.
 
-- [ ] **Step 1: Create the application class in the new package**
+- [x] **Step 1: Create the application class in the new package**
 
 Create `apps/api/src/main/java/com/quizforge/QuizForgeApplication.java`:
 
@@ -851,7 +851,7 @@ public class QuizForgeApplication {
 }
 ```
 
-- [ ] **Step 2: Delete the old application class**
+- [x] **Step 2: Delete the old application class**
 
 ```bash
 git rm apps/api/src/main/java/cs/quizzapp/prokect/backend/BackendApplication.java
@@ -859,7 +859,7 @@ git rm apps/api/src/main/java/cs/quizzapp/prokect/backend/BackendApplication.jav
 
 Two `@SpringBootApplication` classes on the classpath make the context ambiguous, so this deletion is required, not optional.
 
-- [ ] **Step 3: Verify the application still starts**
+- [x] **Step 3: Verify the application still starts**
 
 ```bash
 cd apps/api && DB_PASSWORD=local-dev-only ./mvnw -B spring-boot:run
@@ -867,7 +867,7 @@ cd apps/api && DB_PASSWORD=local-dev-only ./mvnw -B spring-boot:run
 
 Expected: startup completes with no `Unable to find a @SpringBootConfiguration` error and no `Not a managed type` error. A `Not a managed type` failure means `@EntityScan` is missing a package. Stop with Ctrl-C.
 
-- [ ] **Step 4: Write the failing test**
+- [x] **Step 4: Write the failing test**
 
 Create `apps/api/src/test/java/com/quizforge/SchemaMigrationTest.java`:
 
@@ -907,7 +907,7 @@ class SchemaMigrationTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 5: Run it to verify it fails**
+- [x] **Step 5: Run it to verify it fails**
 
 ```bash
 cd apps/api && ./mvnw -B test -Dtest=SchemaMigrationTest
@@ -915,7 +915,7 @@ cd apps/api && ./mvnw -B test -Dtest=SchemaMigrationTest
 
 Expected: FAIL — compilation error, `AbstractIntegrationTest` does not exist.
 
-- [ ] **Step 6: Write the base class and stop the context from calling the internet**
+- [x] **Step 6: Write the base class and stop the context from calling the internet**
 
 `QuizController` has an `@PostConstruct` hook that calls the live OpenTDB API and then sleeps for six seconds per category. Because `@SpringBootTest` starts the full context, every integration test would inherit that — making the suite network-dependent, flaky, and roughly thirty seconds slower per JVM. Guard it with a property first.
 
@@ -983,13 +983,13 @@ public abstract class AbstractIntegrationTest {
 
 The container is started in a static initialiser rather than annotated with `@Container` so that it is shared across all test classes instead of restarted per class — this is the difference between a 20-second suite and a 5-minute one.
 
-- [ ] **Step 7: Delete the obsolete placeholder test**
+- [x] **Step 7: Delete the obsolete placeholder test**
 
 ```bash
 git rm apps/api/src/test/java/cs/quizzapp/prokect/backend/BackendApplicationTests.java
 ```
 
-- [ ] **Step 8: Run the tests to verify they pass**
+- [x] **Step 8: Run the tests to verify they pass**
 
 ```bash
 cd apps/api && ./mvnw -B test
@@ -999,7 +999,7 @@ Expected: PASS, 2 tests in `SchemaMigrationTest`. First run pulls the `postgres:
 
 If the run fails with `Could not find a valid Docker environment`, Docker Desktop is not running — start it and retry.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/ apps/api/src/test/java/com/quizforge/ \
@@ -1022,7 +1022,7 @@ git commit -m "test: relocate application class and add testcontainers harness"
 - Consumes: Task 5's `QuizForgeApplication` (required by `ApplicationModules.of(...)`) and its test harness
 - Produces: eight empty but real Spring Modulith modules under `com.quizforge`, and a build that fails if new code is added to the legacy package. M1 populates `identity`.
 
-- [ ] **Step 1: Write the failing architecture test**
+- [x] **Step 1: Write the failing architecture test**
 
 Create `apps/api/src/test/java/com/quizforge/ArchitectureTest.java`:
 
@@ -1084,7 +1084,7 @@ class ArchitectureTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify the third test fails**
+- [x] **Step 2: Run it to verify the third test fails**
 
 ```bash
 cd apps/api && ./mvnw -B test -Dtest=ArchitectureTest
@@ -1094,7 +1094,7 @@ Expected: FAIL on `entitiesMustNotLeakIntoControllers` — the legacy `QuizContr
 
 This failure is informative, not a blocker: it proves the rule has teeth. The next step scopes it to new code only, because rewriting the legacy controllers is M1–M3 work, not M0 work.
 
-- [ ] **Step 3: Scope the controller rule to new code**
+- [x] **Step 3: Scope the controller rule to new code**
 
 Replace the `entitiesMustNotLeakIntoControllers` method with:
 
@@ -1111,7 +1111,7 @@ Replace the `entitiesMustNotLeakIntoControllers` method with:
     }
 ```
 
-- [ ] **Step 4: Run again to verify all three pass**
+- [x] **Step 4: Run again to verify all three pass**
 
 ```bash
 cd apps/api && ./mvnw -B test -Dtest=ArchitectureTest
@@ -1119,7 +1119,7 @@ cd apps/api && ./mvnw -B test -Dtest=ArchitectureTest
 
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Create the eight module declarations**
+- [x] **Step 5: Create the eight module declarations**
 
 Create one `package-info.java` per module. For `platform`:
 
@@ -1203,7 +1203,7 @@ package com.quizforge.notify;
 
 `notify` depends only on `platform` by design — it learns about everything else through published events, never by importing it.
 
-- [ ] **Step 6: Write the modularity verification test**
+- [x] **Step 6: Write the modularity verification test**
 
 Create `apps/api/src/test/java/com/quizforge/ModularityTest.java`:
 
@@ -1241,7 +1241,7 @@ class ModularityTest {
 > hold real components and the incompatibility can be judged against output
 > that has value.
 
-- [ ] **Step 7: Run the full suite**
+- [x] **Step 7: Run the full suite**
 
 ```bash
 cd apps/api && ./mvnw -B test
@@ -1249,7 +1249,7 @@ cd apps/api && ./mvnw -B test
 
 Expected: PASS. `ModularityTest.modulesRespectTheirDeclaredBoundaries` passes trivially because the modules are empty — that is the point. The guardrail exists before the code it guards.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/ apps/api/src/test/java/com/quizforge/
@@ -1268,7 +1268,7 @@ git commit -m "feat: add spring modulith module skeleton with archunit guardrail
 - Consumes: Task 6's green test suite
 - Produces: a required status check named `build` that every future pull request must pass.
 
-- [ ] **Step 1: Write the CI workflow**
+- [x] **Step 1: Write the CI workflow**
 
 Create `.github/workflows/ci.yml`:
 
@@ -1346,7 +1346,7 @@ jobs:
 
 The `build` job runs Testcontainers, which works on GitHub's Ubuntu runners because Docker is preinstalled.
 
-- [ ] **Step 2: Confirm dependency automation is already in place**
+- [x] **Step 2: Confirm dependency automation is already in place**
 
 Dependency updates are handled by Renovate, configured in Task 0
 (`.github/renovate.json`). Do **not** add a Dependabot configuration —
@@ -1362,7 +1362,7 @@ gh api repos/ARSH871-bot/QuizForge/installation --jq '.app_slug' 2>/dev/null || 
 GitHub's own Dependabot **alerts** (as distinct from version updates) remain
 enabled, since they feed Renovate's vulnerability handling.
 
-- [ ] **Step 3: Verify the workflow is valid before pushing**
+- [x] **Step 3: Verify the workflow is valid before pushing**
 
 ```bash
 cd apps/api && ./mvnw -B verify
@@ -1370,7 +1370,7 @@ cd apps/api && ./mvnw -B verify
 
 Expected: `BUILD SUCCESS`. This runs exactly what CI runs, so a green local `verify` means a green `build` job.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/
@@ -1400,7 +1400,7 @@ After the workflow has run once on `main`:
 - Consumes: everything above
 - Produces: the documentation an outside reader needs. M1 adds ADRs numbered from 0006.
 
-- [ ] **Step 1: Write the README**
+- [x] **Step 1: Write the README**
 
 Create `README.md`:
 
@@ -1459,7 +1459,7 @@ regenerated into `apps/api/target/spring-modulith-docs` on every build.
 Read `docs/adr/` for why things are the way they are.
 ````
 
-- [ ] **Step 2: Write CONTRIBUTING.md**
+- [x] **Step 2: Write CONTRIBUTING.md**
 
 Create `CONTRIBUTING.md`:
 
@@ -1532,7 +1532,7 @@ Module boundaries are enforced by `ModularityTest`. If it fails, the fix is
 almost always to publish an event rather than to widen `allowedDependencies`.
 ````
 
-- [ ] **Step 3: Write the five ADRs**
+- [x] **Step 3: Write the five ADRs**
 
 Create `docs/adr/0001-modular-monolith.md`:
 
@@ -1707,7 +1707,7 @@ are portable. Tests run against the same engine as production.
 Negative: no MySQL deployment option. Nobody was asking for one.
 ```
 
-- [ ] **Step 4: Verify every documented command actually works**
+- [x] **Step 4: Verify every documented command actually works**
 
 ```bash
 # From a clean checkout perspective — confirm the README instructions hold
@@ -1717,7 +1717,7 @@ cd apps/api && ./mvnw -B verify
 
 Expected: `BUILD SUCCESS`. If any README command does not work as written, fix the README — documentation that lies is worse than no documentation.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add README.md CONTRIBUTING.md docs/adr/
@@ -1726,7 +1726,11 @@ git commit -m "docs: add readme, contributing guide and initial ADRs"
 
 ---
 
-## Task 9: Make the repository public and enable the protections it unlocks
+## Task 9: Make the repository public — NOT DONE (closed as not planned, see ADR 0007)
+
+> **Superseded.** The owner decided the repository stays private. The lost
+> controls are replaced by substitutes recorded in ADR 0007. The steps below
+> are retained for reference should visibility ever change.
 
 **Files:** none — this is entirely GitHub configuration.
 
@@ -1842,15 +1846,15 @@ All of the following must be true:
 
 - [ ] The leaked Gmail app password is revoked at Google and purged from git history
 - [ ] No commit message anywhere in history carries a `Co-Authored-By` trailer, and no tracked file references any authoring tool
-- [ ] The mail password (read out of history, never typed into a tracked file) and the strings `op@1234` and `Player@123` appear nowhere in the working tree
-- [ ] No `target/` or `.idea/` content is tracked
-- [ ] `cd apps/api && ./mvnw verify` passes from a clean clone
-- [ ] `spring.jpa.hibernate.ddl-auto` is `validate`
-- [ ] Integration tests run against a real PostgreSQL container
-- [ ] `ModularityTest` and `ArchitectureTest` both pass and are wired into CI
+- [x] The mail password (read out of history, never typed into a tracked file) and the strings `op@1234` and `Player@123` appear nowhere in the working tree
+- [x] No `target/` or `.idea/` content is tracked
+- [x] `cd apps/api && ./mvnw verify` passes from a clean clone
+- [x] `spring.jpa.hibernate.ddl-auto` is `validate`
+- [x] Integration tests run against a real PostgreSQL container
+- [x] `ModularityTest` and `ArchitectureTest` both pass and are wired into CI
 - [ ] CI is green on `main` and branch protection requires it
-- [ ] `README.md` gets a stranger running the project with the commands as written
-- [ ] Five ADRs exist in `docs/adr/`
+- [x] `README.md` gets a stranger running the project with the commands as written
+- [x] Five ADRs exist in `docs/adr/`
 
 ## Explicitly out of scope for M0
 

@@ -98,7 +98,7 @@ apps/api/src/main/resources/db/migration/
 - Consumes: nothing
 - Produces: `UuidV7.generate() -> UUID` (time-ordered); `TypeId.render(String prefix, UUID id) -> String`; `TypeId.parse(String prefix, String rendered) -> UUID`; `ApiException(ErrorCode, String message)`; a `@RestControllerAdvice` returning RFC 9457 `application/problem+json`.
 
-- [ ] **Step 1: Write the failing test for time-ordered IDs**
+- [x] **Step 1: Write the failing test for time-ordered IDs**
 
 ```java
 package com.quizforge.platform.id;
@@ -136,12 +136,12 @@ class UuidV7Test {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=UuidV7Test`
 Expected: FAIL — compilation error, `UuidV7` does not exist.
 
-- [ ] **Step 3: Implement UUIDv7**
+- [x] **Step 3: Implement UUIDv7**
 
 ```java
 package com.quizforge.platform.id;
@@ -187,12 +187,12 @@ public final class UuidV7 {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=UuidV7Test`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Write the failing test for prefixed identifiers**
+- [x] **Step 5: Write the failing test for prefixed identifiers**
 
 ```java
 package com.quizforge.platform.id;
@@ -234,12 +234,12 @@ class TypeIdTest {
 }
 ```
 
-- [ ] **Step 6: Run to verify it fails**
+- [x] **Step 6: Run to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=TypeIdTest`
 Expected: FAIL — `TypeId` and `ApiException` do not exist.
 
-- [ ] **Step 7: Implement the error model**
+- [x] **Step 7: Implement the error model**
 
 `platform/error/ErrorCode.java`:
 
@@ -314,7 +314,7 @@ public class ApiException extends RuntimeException {
 }
 ```
 
-- [ ] **Step 8: Implement TypeId**
+- [x] **Step 8: Implement TypeId**
 
 ```java
 package com.quizforge.platform.id;
@@ -377,12 +377,12 @@ public final class TypeId {
 }
 ```
 
-- [ ] **Step 9: Run to verify it passes**
+- [x] **Step 9: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=TypeIdTest`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 10: Implement the RFC 9457 exception handler**
+- [x] **Step 10: Implement the RFC 9457 exception handler**
 
 ```java
 package com.quizforge.platform.error;
@@ -445,12 +445,12 @@ and are safe to return; anything else is logged and replaced with a generic
 message. The prototype returned raw `e.getMessage()` to clients, which leaked
 internal detail.
 
-- [ ] **Step 11: Verify the whole suite still passes**
+- [x] **Step 11: Verify the whole suite still passes**
 
 Run: `cd apps/api && ./mvnw -B verify`
 Expected: BUILD SUCCESS. `ModularityTest` confirms `platform` depends on nothing.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/platform apps/api/src/test/java/com/quizforge/platform
@@ -469,7 +469,7 @@ git commit -m "feat(platform): add typed identifiers and problem-details errors"
 - Consumes: Task 1
 - Produces: `account`, `workspace`, `membership` tables. Task 3 maps entities onto them.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.identity;
@@ -515,12 +515,12 @@ class IdentitySchemaTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=IdentitySchemaTest`
 Expected: FAIL — tables `account`, `workspace`, `membership` are missing.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 `apps/api/src/main/resources/db/migration/V2__identity.sql`:
 
@@ -578,12 +578,12 @@ CREATE INDEX idx_membership_workspace ON membership (workspace_id);
 CREATE INDEX idx_membership_owners ON membership (workspace_id) WHERE role = 'OWNER';
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=IdentitySchemaTest`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/api/src/main/resources/db/migration/V2__identity.sql \
@@ -604,7 +604,7 @@ git commit -m "feat(identity): add account, workspace and membership schema"
 - Consumes: Tasks 1–2
 - Produces: `AccountService.register(String email, String password, String displayName) -> Account`; `AccountService.authenticate(String email, String password) -> Account` (throws `ApiException(INVALID_CREDENTIALS)`); `AccountService.changePassword(UUID accountId, String current, String replacement)`.
 
-- [ ] **Step 1: Add the Argon2 dependency**
+- [x] **Step 1: Add the Argon2 dependency**
 
 Argon2id in Spring Security requires BouncyCastle. Add to `apps/api/pom.xml`
 inside `<dependencies>`:
@@ -617,7 +617,7 @@ inside `<dependencies>`:
         </dependency>
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 ```java
 package com.quizforge.identity.app;
@@ -702,12 +702,12 @@ class AccountServiceTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=AccountServiceTest`
 Expected: FAIL — `AccountService` does not exist.
 
-- [ ] **Step 4: Implement the entity**
+- [x] **Step 4: Implement the entity**
 
 ```java
 package com.quizforge.identity.domain;
@@ -805,7 +805,7 @@ public class Account {
 }
 ```
 
-- [ ] **Step 5: Implement the repository**
+- [x] **Step 5: Implement the repository**
 
 ```java
 package com.quizforge.identity.repo;
@@ -825,7 +825,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 }
 ```
 
-- [ ] **Step 6: Implement the service**
+- [x] **Step 6: Implement the service**
 
 ```java
 package com.quizforge.identity.app;
@@ -938,7 +938,7 @@ Note the minimum is 12 characters, not the prototype's 6. Length dominates
 composition rules for real-world resistance, and NIST SP 800-63B recommends
 against composition requirements entirely.
 
-- [ ] **Step 7: Replace the password encoder bean**
+- [x] **Step 7: Replace the password encoder bean**
 
 The legacy `SecurityConfig` defines a `BCryptPasswordEncoder`. Create
 `identity/security/PasswordConfig.java` and delete the bean method from
@@ -986,19 +986,19 @@ public class PasswordConfig {
 Removing the legacy bean is required — two `PasswordEncoder` beans make the
 context ambiguous and every test will fail to start.
 
-- [ ] **Step 8: Run to verify it passes**
+- [x] **Step 8: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=AccountServiceTest`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 9: Run the full suite**
+- [x] **Step 9: Run the full suite**
 
 Run: `cd apps/api && ./mvnw -B verify`
 Expected: BUILD SUCCESS. If `UserService` in the legacy package fails to wire,
 it is because it injected the removed BCrypt bean — it should now receive the
 delegating encoder, which still verifies its existing BCrypt hashes.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add apps/api/pom.xml apps/api/src/main/java/com/quizforge/identity \
@@ -1021,7 +1021,7 @@ git commit -m "feat(identity): add accounts with argon2id password hashing"
 - Consumes: Task 3
 - Produces: `WorkspaceService.create(UUID ownerId, String name) -> Workspace`; `addMember(UUID workspaceId, UUID actorId, UUID accountId, Role role)`; `changeRole(...)`; `removeMember(...)`; `Role.can(Permission)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.identity.app;
@@ -1112,12 +1112,12 @@ class WorkspaceServiceTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=WorkspaceServiceTest`
 Expected: FAIL — `WorkspaceService` does not exist.
 
-- [ ] **Step 3: Implement the role model**
+- [x] **Step 3: Implement the role model**
 
 ```java
 package com.quizforge.identity.domain;
@@ -1162,7 +1162,7 @@ public enum Role {
 }
 ```
 
-- [ ] **Step 4: Implement the entities**
+- [x] **Step 4: Implement the entities**
 
 `identity/domain/Workspace.java`:
 
@@ -1273,7 +1273,7 @@ public class Membership {
 }
 ```
 
-- [ ] **Step 5: Implement the repositories**
+- [x] **Step 5: Implement the repositories**
 
 ```java
 package com.quizforge.identity.repo;
@@ -1312,7 +1312,7 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
 }
 ```
 
-- [ ] **Step 6: Implement the service**
+- [x] **Step 6: Implement the service**
 
 ```java
 package com.quizforge.identity.app;
@@ -1450,12 +1450,12 @@ public class WorkspaceService {
 }
 ```
 
-- [ ] **Step 7: Run to verify it passes**
+- [x] **Step 7: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=WorkspaceServiceTest`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 8: Run the full suite and commit**
+- [x] **Step 8: Run the full suite and commit**
 
 ```bash
 cd apps/api && ./mvnw -B verify
@@ -1478,7 +1478,7 @@ git commit -m "feat(identity): add workspaces, memberships and role permissions"
 - Consumes: Task 4
 - Produces: `SessionService.issue(UUID accountId, String userAgent, String ip) -> IssuedSession(String token, Session session)`; `resolve(String token) -> Optional<Session>`; `revoke(String token)`. `ApiKeyService.issue(UUID workspaceId, UUID actorId, String name, boolean live) -> IssuedApiKey(String secret, ApiKey key)`; `resolve(String secret) -> Optional<ApiKey>`.
 
-- [ ] **Step 1: Write the migration**
+- [x] **Step 1: Write the migration**
 
 ```sql
 -- V3: Authentication material. Neither table stores a usable credential: both
@@ -1520,7 +1520,7 @@ CREATE TABLE api_key (
 CREATE INDEX idx_api_key_workspace ON api_key (workspace_id) WHERE revoked_at IS NULL;
 ```
 
-- [ ] **Step 2: Write the failing session test**
+- [x] **Step 2: Write the failing session test**
 
 ```java
 package com.quizforge.identity.app;
@@ -1584,12 +1584,12 @@ class SessionServiceTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=SessionServiceTest`
 Expected: FAIL — `SessionService` does not exist.
 
-- [ ] **Step 4: Implement token hashing**
+- [x] **Step 4: Implement token hashing**
 
 `identity/app/TokenDigest.java`:
 
@@ -1637,7 +1637,7 @@ final class TokenDigest {
 }
 ```
 
-- [ ] **Step 5: Implement the session entity and service**
+- [x] **Step 5: Implement the session entity and service**
 
 `identity/domain/Session.java`:
 
@@ -1800,12 +1800,12 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
 }
 ```
 
-- [ ] **Step 6: Run to verify sessions pass**
+- [x] **Step 6: Run to verify sessions pass**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=SessionServiceTest`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 7: Write the failing API key test**
+- [x] **Step 7: Write the failing API key test**
 
 ```java
 package com.quizforge.identity.app;
@@ -1892,7 +1892,7 @@ class ApiKeyServiceTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 8: Implement the API key entity, repository and service**
+- [x] **Step 8: Implement the API key entity, repository and service**
 
 `identity/domain/ApiKey.java`:
 
@@ -2084,12 +2084,12 @@ public class ApiKeyService {
 }
 ```
 
-- [ ] **Step 9: Run to verify both pass**
+- [x] **Step 9: Run to verify both pass**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest='SessionServiceTest,ApiKeyServiceTest'`
 Expected: PASS, 9 tests total.
 
-- [ ] **Step 10: Run the full suite and commit**
+- [x] **Step 10: Run the full suite and commit**
 
 ```bash
 cd apps/api && ./mvnw -B verify
@@ -2117,7 +2117,7 @@ git commit -m "feat(identity): add hashed sessions and scoped api keys"
 > RLS fails closed — the database returns nothing regardless of what the query
 > asked for. This is the single highest-value control in the milestone.
 
-- [ ] **Step 1: Write the failing isolation test**
+- [x] **Step 1: Write the failing isolation test**
 
 ```java
 package com.quizforge.identity;
@@ -2173,12 +2173,12 @@ class TenantIsolationTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=TenantIsolationTest`
 Expected: FAIL — no RLS-enabled tables, and role `quizforge_app` does not exist.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 ```sql
 -- V5: Row-Level Security. Tenant scoping is enforced by PostgreSQL rather than
@@ -2231,7 +2231,7 @@ CREATE POLICY membership_tenant_isolation ON membership
 -- by application-layer authorization instead.
 ```
 
-- [ ] **Step 4: Implement the tenant context**
+- [x] **Step 4: Implement the tenant context**
 
 ```java
 package com.quizforge.platform.tenancy;
@@ -2267,7 +2267,7 @@ public final class TenantContext {
 }
 ```
 
-- [ ] **Step 5: Propagate the tenant to the database session**
+- [x] **Step 5: Propagate the tenant to the database session**
 
 ```java
 package com.quizforge.platform.tenancy;
@@ -2318,7 +2318,7 @@ public class TenantAwareDataSource extends DelegatingDataSource {
 }
 ```
 
-- [ ] **Step 6: Wire the tenant-aware DataSource into the context**
+- [x] **Step 6: Wire the tenant-aware DataSource into the context**
 
 Defining the class is not enough — nothing uses it until it wraps the real
 `DataSource`. Create `platform/tenancy/TenancyConfig.java`:
@@ -2357,7 +2357,7 @@ public class TenancyConfig {
 }
 ```
 
-- [ ] **Step 7: Run to verify it passes**
+- [x] **Step 7: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=TenantIsolationTest`
 Expected: PASS, 3 tests.
@@ -2368,7 +2368,7 @@ expected. If instead the context fails with "expected single matching bean but
 found 2", a second `DataSource` bean is still being auto-configured; ensure
 `realDataSource` is the only other one defined.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/api/src/main/resources/db/migration/V5__row_level_security.sql \
@@ -2397,7 +2397,7 @@ git commit -m "feat(platform): enforce tenant isolation with postgres RLS"
 > table, and `V4` does not enable RLS. If you add a cross-reference later, add
 > it as `V6`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.identity.app;
@@ -2445,7 +2445,7 @@ class AuditServiceTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Write the migration**
+- [x] **Step 2: Write the migration**
 
 ```sql
 -- V4: Append-only audit log for privileged actions.
@@ -2477,7 +2477,7 @@ CREATE TRIGGER audit_event_is_append_only
     FOR EACH ROW EXECUTE FUNCTION reject_audit_mutation();
 ```
 
-- [ ] **Step 3: Implement the entity, repository and service**
+- [x] **Step 3: Implement the entity, repository and service**
 
 ```java
 package com.quizforge.identity.domain;
@@ -2608,12 +2608,12 @@ public class AuditService {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=AuditServiceTest`
 Expected: PASS, 2 tests. The second proves the database rejects deletion.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/api/src/main/resources/db/migration/V4__audit.sql \
@@ -2636,7 +2636,7 @@ git commit -m "feat(identity): add append-only audit log"
 - Consumes: Task 7
 - Produces: authenticated requests carry a `Principal(accountId, workspaceId, role, authType)`. Unauthenticated requests to protected paths receive `401` as Problem Details.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.identity.security;
@@ -2677,7 +2677,7 @@ class AuthenticationTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Implement the principal**
+- [x] **Step 2: Implement the principal**
 
 ```java
 package com.quizforge.identity.security;
@@ -2701,7 +2701,7 @@ public record Principal(UUID accountId, UUID workspaceId, Role role, AuthType au
 }
 ```
 
-- [ ] **Step 3: Implement the security configuration**
+- [x] **Step 3: Implement the security configuration**
 
 ```java
 package com.quizforge.identity.security;
@@ -2755,7 +2755,7 @@ public class SecurityConfig {
 Delete `cs/quizzapp/prokect/backend/config/SecurityConfig.java`. Two
 `SecurityFilterChain` beans make the context ambiguous.
 
-- [ ] **Step 4: Implement the filters**
+- [x] **Step 4: Implement the filters**
 
 ```java
 package com.quizforge.identity.security;
@@ -2904,7 +2904,7 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 }
 ```
 
-- [ ] **Step 5: Add the health endpoint this task's test depends on**
+- [x] **Step 5: Add the health endpoint this task's test depends on**
 
 `AuthenticationTest` asserts that `/v1/auth/**` is reachable without
 credentials. That needs something to reach. Create
@@ -2940,12 +2940,12 @@ Remove the duplicate `health()` method from Task 9's `AuthController` — two
 handlers mapped to the same path fail context startup with an ambiguous
 mapping error.
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=AuthenticationTest`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd apps/api && ./mvnw -B verify
@@ -2976,7 +2976,7 @@ git commit -m "feat(identity): authenticate sessions and api keys"
 > delete. Authentication is the exception because the dashboard and every
 > integration test need it before M4 exists.
 
-- [ ] **Step 1: Write the failing end-to-end test**
+- [x] **Step 1: Write the failing end-to-end test**
 
 ```java
 package com.quizforge.identity.web;
@@ -3064,7 +3064,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Implement the DTOs**
+- [x] **Step 2: Implement the DTOs**
 
 ```java
 package com.quizforge.identity.web.dto;
@@ -3108,7 +3108,7 @@ public record AccountResponse(String id, String email, String displayName, boole
 }
 ```
 
-- [ ] **Step 3: Implement the auth controller**
+- [x] **Step 3: Implement the auth controller**
 
 ```java
 package com.quizforge.identity.web;
@@ -3208,17 +3208,17 @@ public class AuthController {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=AuthControllerTest`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Run the whole suite**
+- [x] **Step 5: Run the whole suite**
 
 Run: `cd apps/api && ./mvnw -B verify`
 Expected: BUILD SUCCESS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/identity/web \
@@ -3230,18 +3230,18 @@ git commit -m "feat(identity): add authentication and workspace endpoints"
 
 ## Definition of done for M1
 
-- [ ] `cd apps/api && ./mvnw verify` passes from a clean clone
-- [ ] Registration, login, logout and `/v1/auth/me` work end to end
-- [ ] Passwords are Argon2id; no BCrypt encoder bean remains
-- [ ] A wrong password and an unknown account are indistinguishable to a caller
-- [ ] Sessions and API keys are stored only as SHA-256 digests
-- [ ] An API key secret is returned exactly once, at issue time
-- [ ] Postgres RLS is enabled on `api_key` and `membership`, and the application role is `NOBYPASSRLS`
-- [ ] The audit log rejects `UPDATE` and `DELETE` at the database level
-- [ ] A workspace can never lose its last owner
-- [ ] `/v1/**` requires authentication; `/api/**` (legacy) still does not
-- [ ] `ModularityTest` and `ArchitectureTest` still pass
-- [ ] No password reset token appears in any HTTP response
+- [x] `cd apps/api && ./mvnw verify` passes from a clean clone
+- [x] Registration, login, logout and `/v1/auth/me` work end to end
+- [x] Passwords are Argon2id; no BCrypt encoder bean remains
+- [x] A wrong password and an unknown account are indistinguishable to a caller
+- [x] Sessions and API keys are stored only as SHA-256 digests
+- [x] An API key secret is returned exactly once, at issue time
+- [x] Postgres RLS is enabled on `api_key` and `membership`, and the application role is `NOBYPASSRLS`
+- [x] The audit log rejects `UPDATE` and `DELETE` at the database level
+- [x] A workspace can never lose its last owner
+- [x] `/v1/**` requires authentication; `/api/**` (legacy) still does not
+- [x] `ModularityTest` and `ArchitectureTest` still pass
+- [x] No password reset token appears in any HTTP response
 
 ## Explicitly out of scope for M1
 

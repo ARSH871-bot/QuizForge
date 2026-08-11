@@ -170,12 +170,20 @@ git commit -m "ci: add repository governance, commit linting and renovate"
 
 - [ ] **Step 1: Revoke the leaked credential (human action, do this first)**
 
-The Gmail app password `ducr ztnw rnoe pwfo` for `vhoraarsh87@gmail.com` is committed in git history. Removing the file does **not** remove it from history or make it invalid.
+A Gmail app password is committed in git history at
+`apps/api/src/main/resources/application.properties`, on the
+`spring.mail.password` line, together with the account it belongs to on the
+line above. Read the value from there — it is deliberately **not** reproduced
+in this document, because that would create a second copy of the secret in a
+second tracked file.
 
 1. Go to https://myaccount.google.com/apppasswords
-2. Sign in as `vhoraarsh87@gmail.com`
+2. Sign in as the account named on the `spring.mail.username` line
 3. Delete the app password used by this project
 4. Do not create a replacement yet — Task 4 wires it through the environment
+
+Removing the file does **not** remove the value from history or make it
+invalid. Revocation at Google is the only thing that does.
 
 Do not proceed until this is done. Everything else in this task is cosmetic if the credential is still live.
 
@@ -319,10 +327,15 @@ Only the latest released version receives security fixes.
 - [ ] **Step 8: Verify no secret remains in the working tree**
 
 ```bash
-git grep -nE "ducr ztnw|vhoraarsh87|op@1234|Player@123" -- . || echo "CLEAN"
+SECRET=$(git show 6ae6e43:backend/backend/src/main/resources/application.properties \
+         | sed -n 's/^spring\.mail\.password=//p')
+git grep -nF "$SECRET" -- . || echo "CLEAN: password absent"
+git grep -nE "op@1234|Player@123" -- . || echo "CLEAN: default credentials absent"
 ```
 
-Expected: `CLEAN`. If anything matches, remove it before committing.
+Expected: both `CLEAN` lines. If anything matches, remove it before
+committing. The secret is read out of history rather than typed here, so this
+check does not itself introduce another copy.
 
 - [ ] **Step 9: Commit**
 
@@ -344,11 +357,14 @@ git clone --mirror . ../QuizForge-backup.git
 # 2. Install git-filter-repo (once)
 pip install git-filter-repo
 
-# 3. Replace the secret everywhere in history
-cat > /tmp/replacements.txt <<'REPL'
-ducr ztnw rnoe pwfo==>REDACTED
-REPL
+# 3. Replace the secret everywhere in history.
+#    The value is read out of history into a file outside the repository, so
+#    no additional tracked copy is ever created. /tmp is not committed.
+SECRET=$(git show 6ae6e43:backend/backend/src/main/resources/application.properties \
+         | sed -n 's/^spring\.mail\.password=//p')
+printf '%s==>REDACTED\n' "$SECRET" > /tmp/replacements.txt
 git filter-repo --replace-text /tmp/replacements.txt --force
+rm -f /tmp/replacements.txt
 
 # 4. Also purge the unrelated 1.1MB archive still in history
 git filter-repo --path "pizzaorderingsystemc (4).zip" --invert-paths --force
@@ -359,13 +375,23 @@ git push --force --all
 git push --force --tags
 ```
 
-Verify afterwards:
+Verify afterwards — note the SHA changes after the rewrite, so search for the
+literal `REDACTED` marker instead:
 
 ```bash
-git log --all -S "ducr ztnw" --oneline || echo "PURGED"
+git log --all -S "REDACTED" --oneline | head    # the marker should appear
+git grep -rI "spring.mail.password=" $(git rev-list --all) -- '*application.properties' \
+  | grep -v REDACTED || echo "PURGED: no unredacted password anywhere in history"
 ```
 
-Expected: `PURGED` with no commits listed.
+Expected: `PURGED`. Also confirm the repository shrank — the pizza archive
+was roughly 1.1 MB of a 1.37 MB pack:
+
+```bash
+git count-objects -vH | grep size-pack
+```
+
+**Only after this succeeds** may the repository be made public. See Task 9.
 
 ---
 
@@ -1670,6 +1696,116 @@ Expected: `BUILD SUCCESS`. If any README command does not work as written, fix t
 git add README.md CONTRIBUTING.md docs/adr/
 git commit -m "docs: add readme, contributing guide and initial ADRs"
 ```
+
+---
+
+## Task 9: Make the repository public and enable the protections it unlocks
+
+**Files:** none — this is entirely GitHub configuration.
+
+**Interfaces:**
+- Consumes: Task 1 Step 10 (history purge) — **hard prerequisite, no exceptions**
+- Produces: branch protection, secret scanning, push protection, and private
+  vulnerability reporting, none of which are available otherwise.
+
+> **Why this task exists.** Branch protection and rulesets return HTTP 403
+> `Upgrade to GitHub Pro or make this repository public` on a private
+> repository on the Free plan. The same is true of secret scanning, push
+> protection, and private vulnerability reporting. Going public unlocks all of
+> them at no cost, which is the only route consistent with constraint C1.
+> GitHub Pro would cost $4/month for a strictly worse outcome.
+
+> **Why the ordering is absolute.** The repository history currently contains a
+> live Gmail app password. Publishing before the purge would expose it to
+> automated credential scrapers within minutes. Do not reorder these tasks.
+
+- [ ] **Step 1: Confirm the prerequisites are genuinely met**
+
+```bash
+git log --all -S "REDACTED" --oneline | head -1   # purge ran
+gh api repos/ARSH871-bot/QuizForge --jq .private  # currently true
+```
+
+The credential must also be revoked at Google (Task 1 Step 1). Revocation
+matters more than the purge: a purged-but-live credential is still a live
+credential in every existing clone and fork.
+
+- [ ] **Step 2: Make the repository public**
+
+```bash
+gh repo edit ARSH871-bot/QuizForge --visibility public --accept-visibility-change-consequences
+```
+
+- [ ] **Step 3: Enable the security features this unlocks**
+
+```bash
+gh api -X PATCH repos/ARSH871-bot/QuizForge \
+  -f 'security_and_analysis[secret_scanning][status]=enabled' \
+  -f 'security_and_analysis[secret_scanning_push_protection][status]=enabled'
+gh api -X PUT repos/ARSH871-bot/QuizForge/private-vulnerability-reporting
+```
+
+Push protection is the important one: it rejects a push containing a
+recognised credential pattern, which would have prevented the original
+incident outright.
+
+- [ ] **Step 4: Create the branch protection ruleset**
+
+```bash
+cat > /tmp/ruleset.json <<'EOF'
+{
+  "name": "main protection",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "required_linear_history" },
+    { "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true,
+        "allowed_merge_methods": ["squash"]
+      }
+    },
+    { "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "build" },
+          { "context": "codeql" },
+          { "context": "secret-scan" },
+          { "context": "conventional-title" }
+        ]
+      }
+    }
+  ]
+}
+EOF
+gh api -X POST repos/ARSH871-bot/QuizForge/rulesets --input /tmp/ruleset.json \
+  --jq '"created: \(.name) [\(.enforcement)]"'
+```
+
+`required_approving_review_count` is 0 because GitHub will not let you approve
+your own pull request — setting 1 as a solo maintainer blocks every merge.
+The pull request requirement itself still applies, so nothing reaches `main`
+without a PR and green checks.
+
+- [ ] **Step 5: Verify the protection actually works**
+
+```bash
+echo "test" >> README.md && git add README.md
+git commit -m "test: verify branch protection rejects direct pushes"
+git push origin HEAD:main    # expect: rejected by the ruleset
+git reset --hard HEAD~1
+```
+
+Expected: the push is rejected. A protection rule you have not seen reject
+something is a protection rule you have not tested.
 
 ---
 

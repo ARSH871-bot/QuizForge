@@ -16,6 +16,10 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write        # the junit reporter publishes a check run
+      pull-requests: write # and annotates the pull request
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +64,9 @@ jobs:
   secret-scan:
     name: secret-scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # gitleaks comments findings on the pull request
     steps:
       - uses: actions/checkout@v4
         with:

@@ -1,5 +1,34 @@
 # Contributing
 
+## Definition of done for any change
+
+Code that works is half a change. A change is done when the repository still
+tells the truth about itself. Before opening a pull request, walk this list —
+every item that applies, every time:
+
+| Artefact | Update when |
+|---|---|
+| `CHANGELOG.md` | Always. A change not worth a line here is not worth shipping. |
+| `STATUS.md` | A milestone moves, a gap opens or closes, or what is safe to do with the code changes. |
+| Plan checkboxes | A step is finished. Tick it in `docs/superpowers/plans/`. |
+| The GitHub issue | Close it with the verification output, or comment what changed and why. |
+| Project board | Set Estimate and Risk on new issues. Status is automated; do not set it by hand. |
+| `docs/adr/` | A structural or security decision was made, including deciding *not* to do something. |
+| The plan document | Reality diverged from the plan. Correct the plan; do not leave it lying. |
+| `README.md` | A documented command changed. Run every command in it before claiming so. |
+| `openapi.yaml` | The public API surface changed (from M4). |
+
+The rule behind the table: **anything that would mislead a reader who trusts
+it must be corrected in the same commit as the change that made it wrong.** A
+stale document is worse than a missing one, because it is believed.
+
+### Why this is written down
+
+Two milestones were completed with every GitHub issue diligently closed and
+150 plan checkboxes left unticked, no changelog, and nothing in the repository
+recording progress. The work was done; the repository said otherwise. Tracking
+that depends on remembering will be forgotten.
+
 ## Workflow
 
 Trunk-based. Branch from `main`, keep branches short-lived, open a pull

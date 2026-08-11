@@ -343,7 +343,7 @@ check does not itself introduce another copy.
 git add .gitignore .env.example SECURITY.md \
         backend/backend/src/main/resources/application.properties \
         backend/backend/src/main/java/cs/quizzapp/prokect/backend/BackendApplication.java
-git commit -m "chore: untrack build artifacts, remove committed secrets and default credentials"
+git commit -m "chore: untrack build output and remove committed credentials"
 ```
 
 - [ ] **Step 10: Purge the credential from git history (destructive — requires explicit go-ahead)**
@@ -1836,7 +1836,7 @@ All of the following must be true:
 
 - [ ] The leaked Gmail app password is revoked at Google and purged from git history
 - [ ] No commit message anywhere in history carries a `Co-Authored-By` trailer, and no tracked file references any authoring tool
-- [ ] `git grep -nE "ducr ztnw|op@1234|Player@123"` returns nothing
+- [ ] The mail password (read out of history, never typed into a tracked file) and the strings `op@1234` and `Player@123` appear nowhere in the working tree
 - [ ] No `target/` or `.idea/` content is tracked
 - [ ] `cd apps/api && ./mvnw verify` passes from a clean clone
 - [ ] `spring.jpa.hibernate.ddl-auto` is `validate`

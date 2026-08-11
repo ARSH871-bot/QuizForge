@@ -80,3 +80,45 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docs-current:
+    name: docs-current
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Changelog must accompany source changes
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch --quiet origin "${{ github.base_ref }}"
+          changed=$(git diff --name-only "$base"...HEAD)
+
+          if echo "$changed" | grep -qE '^apps/api/src/main/'; then
+            if ! echo "$changed" | grep -q '^CHANGELOG.md$'; then
+              echo "::error::Source under apps/api/src/main changed but CHANGELOG.md did not."
+              echo ""
+              echo "A change not worth a line in the changelog is not worth shipping."
+              echo "See CONTRIBUTING.md, 'Definition of done for any change'."
+              echo ""
+              echo "Changed files:"
+              echo "$changed" | sed 's/^/  /'
+              exit 1
+            fi
+          fi
+          echo "Changelog is current."
+
+      - name: Migrations must be additive
+        run: |
+          base="origin/${{ github.base_ref }}"
+          modified=$(git diff --diff-filter=MD --name-only "$base"...HEAD                      -- 'apps/api/src/main/resources/db/migration/*.sql')
+          if [ -n "$modified" ]; then
+            echo "::error::An already-applied migration was modified or deleted."
+            echo "Flyway checksums every migration; editing one breaks every existing"
+            echo "database. Add a new migration instead."
+            echo "$modified" | sed 's/^/  /'
+            exit 1
+          fi
+          echo "Migrations are additive."

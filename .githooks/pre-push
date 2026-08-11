@@ -1,0 +1,33 @@
+#!/bin/sh
+# Blocks direct pushes to main.
+#
+# GitHub branch protection requires a public repository or a paid plan, so
+# this hook stands in for it. It is advisory - `--no-verify` bypasses it - but
+# it catches the accident, which is what protection is actually for.
+#
+# Enable with: git config core.hooksPath .githooks
+
+protected="refs/heads/main"
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+    if [ "$remote_ref" = "$protected" ]; then
+        cat >&2 <<'MSG'
+
+  Direct pushes to main are not allowed.
+
+  Open a pull request instead:
+
+    git switch -c feat/your-change
+    git push -u origin feat/your-change
+    gh pr create
+
+  This repository is private, so GitHub cannot enforce branch protection
+  server-side. If you genuinely need to bypass this, use --no-verify and
+  understand that CI will not have reviewed the change.
+
+MSG
+        exit 1
+    fi
+done
+
+exit 0

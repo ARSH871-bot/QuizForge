@@ -33,8 +33,15 @@ public class QuizController {
     private final List<SimpleQuiz> quizzes = new ArrayList<>();
     private Long nextId = 1L;
 
+    @org.springframework.beans.factory.annotation.Value("${quizforge.opentdb.bootstrap-enabled:true}")
+    private boolean openTdbBootstrapEnabled;
+
     @PostConstruct
     public void initializeQuizzes() {
+        if (!openTdbBootstrapEnabled) {
+            System.out.println("OpenTDB bootstrap disabled by configuration; skipping.");
+            return;
+        }
         System.out.println("Starting OpenTDB quiz initialization...");
 
         try {

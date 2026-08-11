@@ -143,6 +143,7 @@
                          Analysing it would produce hundreds of findings nobody
                          intends to fix, which trains you to ignore the report. -->
                     <onlyAnalyze>com.quizforge.-</onlyAnalyze>
+                    <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
                 </configuration>
                 <executions>
                     <execution>

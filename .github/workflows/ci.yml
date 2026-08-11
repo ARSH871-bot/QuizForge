@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write        # the junit reporter publishes a check run
+      pull-requests: write # and annotates the pull request
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test
+        working-directory: apps/api
+        run: ./mvnw -B verify
+
+      - name: Publish test report
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: apps/api/target/surefire-reports/TEST-*.xml
+
+  codeql:
+    name: codeql
+    # Code scanning requires GitHub Advanced Security, which is free on public
+    # repositories and paid on private ones. While this repository is private
+    # the job is skipped rather than failing; it activates automatically the
+    # moment the repository is made public (see issue #11). Do not remove this
+    # condition to "fix" a red build - it is load-bearing until then.
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java
+      - name: Compile for analysis
+        working-directory: apps/api
+        run: ./mvnw -B clean compile -DskipTests
+      - uses: github/codeql-action/analyze@v3
+
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # gitleaks comments findings on the pull request
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

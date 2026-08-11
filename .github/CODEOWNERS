@@ -1,0 +1,10 @@
+# Every change requires review by the repository owner.
+# As a solo project this exists to force a deliberate read of your own diff,
+# and to be correct from day one when collaborators arrive.
+*                       @ARSH871-bot
+
+# Areas where a mistake is expensive — called out so they are never skimmed.
+/.github/               @ARSH871-bot
+/apps/api/src/main/resources/db/migration/  @ARSH871-bot
+/docs/adr/              @ARSH871-bot
+/openapi.yaml           @ARSH871-bot

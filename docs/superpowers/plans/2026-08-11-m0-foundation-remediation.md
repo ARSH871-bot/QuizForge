@@ -369,6 +369,14 @@ rm -f /tmp/replacements.txt
 # 4. Also purge the unrelated 1.1MB archive still in history
 git filter-repo --path "pizzaorderingsystemc (4).zip" --invert-paths --force
 
+# 5. Strip tooling co-authorship trailers from every commit message.
+#    The repository and product must contain no attribution of this kind.
+git filter-repo --force --message-callback '
+    import re
+    cleaned = re.sub(rb"^Co-Authored-By: .*$\n?", b"", message, flags=re.MULTILINE)
+    return cleaned.rstrip(b"\n") + b"\n"
+'
+
 # 5. Re-add the remote (filter-repo removes it) and force-push
 git remote add origin <your-remote-url>
 git push --force --all
@@ -382,6 +390,8 @@ literal `REDACTED` marker instead:
 git log --all -S "REDACTED" --oneline | head    # the marker should appear
 git grep -rI "spring.mail.password=" $(git rev-list --all) -- '*application.properties' \
   | grep -v REDACTED || echo "PURGED: no unredacted password anywhere in history"
+git log --all --format='%(trailers:key=Co-Authored-By)' | grep . \
+  || echo "PURGED: no co-authorship trailers remain"
 ```
 
 Expected: `PURGED`. Also confirm the repository shrank — the pizza archive
@@ -1463,6 +1473,17 @@ cd apps/api && ./mvnw verify     # must pass before pushing
 git push -u origin feat/short-description
 ```
 
+## Attribution
+
+Commits carry no co-authorship or tooling trailers. Repository content,
+commit messages, pull request descriptions, documentation, and product copy
+reference no authoring tool of any kind. Keep `git commit` free of trailers
+and verify with:
+
+```bash
+git log --format='%(trailers:key=Co-Authored-By)' | grep . && echo "REMOVE THESE"
+```
+
 ## Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/):
@@ -1814,6 +1835,7 @@ something is a protection rule you have not tested.
 All of the following must be true:
 
 - [ ] The leaked Gmail app password is revoked at Google and purged from git history
+- [ ] No commit message anywhere in history carries a `Co-Authored-By` trailer, and no tracked file references any authoring tool
 - [ ] `git grep -nE "ducr ztnw|op@1234|Player@123"` returns nothing
 - [ ] No `target/` or `.idea/` content is tracked
 - [ ] `cd apps/api && ./mvnw verify` passes from a clean clone

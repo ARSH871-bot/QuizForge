@@ -42,6 +42,12 @@ jobs:
 
   codeql:
     name: codeql
+    # Code scanning requires GitHub Advanced Security, which is free on public
+    # repositories and paid on private ones. While this repository is private
+    # the job is skipped rather than failing; it activates automatically the
+    # moment the repository is made public (see issue #11). Do not remove this
+    # condition to "fix" a red build - it is load-bearing until then.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

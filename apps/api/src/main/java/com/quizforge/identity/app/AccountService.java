@@ -80,6 +80,12 @@ public class AccountService {
         return accounts.save(account);
     }
 
+    @Transactional(readOnly = true)
+    public Account requireById(UUID accountId) {
+        return accounts.findById(accountId)
+                .orElseThrow(() -> ApiException.notFound("account"));
+    }
+
     @Transactional
     public void changePassword(UUID accountId, String current, String replacement) {
         validatePassword(replacement);

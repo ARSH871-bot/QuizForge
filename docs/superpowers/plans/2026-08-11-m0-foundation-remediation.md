@@ -1212,28 +1212,34 @@ package com.quizforge;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
-import org.springframework.modulith.docs.Documenter;
 
 class ModularityTest {
 
     static final ApplicationModules MODULES =
             ApplicationModules.of(QuizForgeApplication.class);
 
+    /**
+     * Fails the build if any module reaches outside the dependencies it
+     * declares in its {@code package-info.java}. Passes trivially while the
+     * modules are empty - that is deliberate. The guardrail exists before the
+     * code it guards, so the first violation is caught the moment it appears.
+     */
     @Test
     void modulesRespectTheirDeclaredBoundaries() {
         MODULES.verify();
     }
-
-    @Test
-    void writeModuleDocumentation() {
-        new Documenter(MODULES)
-                .writeDocumentation()
-                .writeIndividualModulesAsPlantUml();
-    }
 }
 ```
 
-The second test is not an assertion — it regenerates C4 module diagrams into `target/spring-modulith-docs` on every build, so the architecture documentation cannot go stale.
+> **Module documentation is deferred to M1.** The original design added a
+> second test driving Spring Modulith's `Documenter` to regenerate C4 diagrams
+> on every build. It fails under Spring Modulith 1.4.3 with Spring Boot 3.5.6:
+> the `Documenter` cannot parse the `javadoc.json` that its own annotation
+> processor emits (`JsonParseException` wrapping an NPE), even though the file
+> is well-formed. Since eight empty modules would produce empty diagrams
+> regardless, this buys nothing in M0. Reintroduce it in M1, when the modules
+> hold real components and the incompatibility can be judged against output
+> that has value.
 
 - [ ] **Step 7: Run the full suite**
 

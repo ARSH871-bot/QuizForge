@@ -163,7 +163,9 @@ public final class UuidV7 {
 
         long most = (timestamp & 0xFFFFFFFFFFFFL) << 16;
         most |= 0x7000L;                                  // version 7
-        most |= ((random[0] & 0xFFL) << 8) | (random[1] & 0xFFL);
+        // Mask to 4 bits: a full byte here would shift into the version nibble
+        // set on the line above and corrupt it.
+        most |= ((random[0] & 0x0FL) << 8) | (random[1] & 0xFFL);
 
         long least = 0;
         for (int i = 2; i < 10; i++) {

@@ -22,14 +22,17 @@ git clone https://github.com/ARSH871-bot/QuizForge.git && cd QuizForge
 cp .env.example .env          # fill in DB_PASSWORD
 docker compose up -d          # starts PostgreSQL 16
 cd apps/api
-DB_PASSWORD=local-dev-only MAIL_USERNAME=unused MAIL_PASSWORD=unused ./mvnw spring-boot:run
+DB_PASSWORD=local-dev-only ./mvnw spring-boot:run
 ```
 
 The API listens on http://localhost:8080.
 
-Credentials have no committed defaults by design, so the environment
-variables above are required. Copy `.env.example` to `.env` for a permanent
-local setup.
+`DB_PASSWORD` has no committed default by design, so it must be supplied.
+Copy `.env.example` to `.env` for a permanent local setup.
+
+Email needs no configuration. `EMAIL_TEST_MODE` defaults to `true`, so the
+application logs messages instead of sending them. A real provider is wired in
+M4; personal SMTP credentials are deliberately not used.
 
 ## Running tests
 

@@ -785,7 +785,7 @@ spring.flyway.baseline-on-migrate=false
 - [ ] **Step 4: Verify migration and validation succeed against real Postgres**
 
 ```bash
-cd apps/api && DB_PASSWORD=local-dev-only MAIL_USERNAME=unused MAIL_PASSWORD=unused ./mvnw -B spring-boot:run
+cd apps/api && DB_PASSWORD=local-dev-only ./mvnw -B spring-boot:run
 ```
 
 Expected in the log: `Successfully applied 1 migration to schema "public"`, then the application starts without a Hibernate validation error. Stop it with Ctrl-C.
@@ -862,7 +862,7 @@ Two `@SpringBootApplication` classes on the classpath make the context ambiguous
 - [ ] **Step 3: Verify the application still starts**
 
 ```bash
-cd apps/api && DB_PASSWORD=local-dev-only MAIL_USERNAME=unused MAIL_PASSWORD=unused ./mvnw -B spring-boot:run
+cd apps/api && DB_PASSWORD=local-dev-only ./mvnw -B spring-boot:run
 ```
 
 Expected: startup completes with no `Unable to find a @SpringBootConfiguration` error and no `Not a managed type` error. A `Not a managed type` failure means `@EntityScan` is missing a package. Stop with Ctrl-C.

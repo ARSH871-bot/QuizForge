@@ -1,0 +1,50 @@
+name: Bug report
+description: Something behaves differently from how it is documented or intended.
+labels: ["type: bug", "status: triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include the exact error or response, not a paraphrase.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: A request, a test, or a sequence of commands someone else can run.
+      placeholder: |
+        1. POST /v1/tournaments with ...
+        2. GET /v1/attempts/{id}
+        3. Response contains ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - identity
+        - content
+        - tournament
+        - play
+        - leaderboard
+        - billing
+        - notify
+        - platform / build / CI
+        - unsure
+    validations:
+      required: true

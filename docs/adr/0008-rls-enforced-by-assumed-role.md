@@ -4,7 +4,7 @@ Date: 2026-08-12
 
 ## Status
 
-Accepted — policies in place; runtime enforcement not yet wired (see Consequences)
+Accepted — policies in place and enforced at runtime
 
 ## Context
 
@@ -48,15 +48,21 @@ Positive: a missing tenant predicate becomes an empty result rather than a
 cross-tenant disclosure. The mechanism is proven by a test that inserts a row
 for one workspace and asserts it is invisible while another is in scope.
 
-**Negative, and important: the application does not yet assume this role at
-runtime.** The policies and the proof exist; the connection-level wiring does
-not. Until it is done, RLS provides no protection in a running application —
-only the application-layer checks in the service classes do.
+Runtime enforcement is implemented (#23). `TenantAwareDataSource` wraps the
+pool and hooks `Connection.setAutoCommit(false)` — the moment Spring opens a
+transaction — to issue both statements. That hook is the only correct one:
+`SET LOCAL` outside a transaction is a no-op, and a session-level `SET ROLE`
+would leak across pooled connections.
 
-Wiring it is not a one-line change. `SET LOCAL` requires an open transaction,
-while a session-level `SET ROLE` would leak across pooled connections. The
-correct implementation hooks connection preparation so both settings are
-applied inside the transaction that will use them. Tracked separately rather
-than half-implemented, because a security control that is present but inert is
-worse than one that is visibly absent: it invites the assumption of protection
-that is not there.
+`RlsRuntimeEnforcementTest` proves it end to end: it asserts the transaction
+runs as `quizforge_app`, and that a query explicitly asking for another
+workspace's rows returns nothing.
+
+Negative: every transaction carrying a tenant pays two extra round trips. At
+the expected scale this is not measurable, but it is real, and it is the price
+of a control that fails closed.
+
+Negative: paths with no tenant in scope — authentication, and Flyway
+migrations — still run as the owner and are not covered by RLS. That is
+deliberate; `account`, `workspace` and `session` are read before a workspace is
+known. They rely on application-layer authorization.

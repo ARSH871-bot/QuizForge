@@ -19,6 +19,14 @@
 - **Transactions:** every application service method that touches the database is explicitly `@Transactional`. `open-in-view` stays `false`.
 - **Commits:** Conventional Commits, subject ≤72 characters, no trailers of any kind.
 - **Every task ends green:** `cd apps/api && ./mvnw verify` must pass before each commit.
+- **Cross-module types must be exposed deliberately.** Spring Modulith treats a
+  module's sub-packages as internal: only `com.quizforge.platform` itself is
+  visible to other modules, not `com.quizforge.platform.id`. Annotate a
+  sub-package's `package-info.java` with
+  `@org.springframework.modulith.NamedInterface("id")` to publish it, and
+  reference it as `platform::id` in the consuming module's
+  `allowedDependencies`. `ModularityTest` fails with
+  *"Allowed targets: platform"* when this is missed.
 
 ---
 

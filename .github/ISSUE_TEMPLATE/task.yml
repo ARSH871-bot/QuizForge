@@ -1,0 +1,26 @@
+name: Implementation task
+description: A task drawn from an approved implementation plan.
+labels: ["type: task"]
+body:
+  - type: input
+    id: plan
+    attributes:
+      label: Source plan
+      description: Path to the plan document this task comes from.
+      placeholder: docs/superpowers/plans/2026-08-11-m0-foundation-remediation.md
+    validations:
+      required: true
+  - type: textarea
+    id: deliverable
+    attributes:
+      label: Deliverable
+      description: What is true when this is done that is not true now?
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: The command that proves it, and its expected output.
+    validations:
+      required: true

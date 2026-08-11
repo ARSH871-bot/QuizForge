@@ -1,0 +1,47 @@
+# Normalise line endings. The repository stores LF; Windows checkouts get
+# CRLF only where a tool genuinely requires it.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF or cmd.exe misparses them.
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Shell scripts and the Maven wrapper must keep LF even on Windows.
+*.sh   text eol=lf
+mvnw   text eol=lf
+gradlew text eol=lf
+
+# Explicit text types
+*.java       text diff=java
+*.sql        text
+*.xml        text
+*.yml        text
+*.yaml       text
+*.json       text
+*.md         text diff=markdown
+*.properties text
+*.tsx        text
+*.ts         text
+
+# Binary — never diff or normalise
+*.jar   binary
+*.war   binary
+*.class binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.woff  binary
+*.woff2 binary
+
+# Keep generated and vendored files out of language statistics and
+# collapse them in pull request diffs.
+apps/api/target/**      linguist-generated=true
+packages/sdk-*/**       linguist-generated=true
+*.lock                  linguist-generated=true -diff
+pnpm-lock.yaml          linguist-generated=true -diff
+docs/**                 linguist-documentation=true

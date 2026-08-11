@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose new behaviour.
+labels: ["type: feature", "status: triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: Describe the situation, not the solution. What cannot be done today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including doing nothing. Why is that not good enough?
+    validations:
+      required: true
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Which milestone does this belong to
+      options:
+        - M0 Foundation
+        - M1 Identity and tenancy
+        - M2 Content and authoring
+        - M3 Tournament and play engine
+        - M4 Public API and SDKs
+        - M5 Web dashboard
+        - M6 Player experience and widget
+        - M7 Commercial and launch readiness
+        - Post-launch
+        - unsure
+    validations:
+      required: true

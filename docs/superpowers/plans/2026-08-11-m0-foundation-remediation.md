@@ -28,9 +28,15 @@ After M0 the repository looks like this. Files marked **new** are created by thi
 ```
 QuizForge/
 ├── .gitignore                                    new — root ignore rules
+├── .gitattributes                                new — line-ending normalisation
+├── .githooks/commit-msg                          new — conventional commit hook
 ├── .github/
 │   ├── workflows/ci.yml                          new — build, test, scan
-│   └── dependabot.yml                            new — dependency updates
+│   ├── workflows/pr-title.yml                    new — server-side commit lint
+│   ├── renovate.json                             new — dependency updates
+│   ├── CODEOWNERS                                new — review routing
+│   ├── pull_request_template.md                  new
+│   └── ISSUE_TEMPLATE/*.yml                      new — typed issue forms
 ├── README.md                                     new — one-command getting started
 ├── CONTRIBUTING.md                               new — workflow + commit rules
 ├── SECURITY.md                                   new — disclosure policy
@@ -66,6 +72,87 @@ QuizForge/
 ```
 
 **Responsibilities.** `AbstractIntegrationTest` owns Postgres container lifecycle and nothing else, so every future integration test inherits a real database in one line. `ArchitectureTest` owns package-dependency rules; `ModularityTest` owns Spring Modulith's own verification — kept separate because they fail for different reasons and a reader should be able to tell which guardrail tripped.
+
+---
+
+## Task 0: Repository governance
+
+**Status: complete.** Executed ahead of the other tasks because branch
+protection, templates, and commit linting must exist *before* the first pull
+request flows through them, not after.
+
+**Files:**
+- Create: `.gitattributes`
+- Create: `.github/CODEOWNERS`, `.github/pull_request_template.md`
+- Create: `.github/ISSUE_TEMPLATE/{config,bug_report,feature_request,task}.yml`
+- Create: `.github/renovate.json`, `.github/workflows/pr-title.yml`
+- Create: `.githooks/commit-msg`
+
+**Interfaces:**
+- Consumes: nothing
+- Produces: repository governance that every later task and pull request
+  depends on. Task 7 assumes `renovate.json` exists and does **not** create a
+  Dependabot config.
+
+- [x] **Step 1: Normalise line endings**
+
+`.gitattributes` sets `* text=auto eol=lf` with explicit CRLF exceptions for
+`.cmd`, `.bat`, and `.ps1`, and explicit LF for `mvnw` and `*.sh`. Without
+this, commits made on Windows and CI runs on Linux disagree about every file,
+and `mvnw` becomes unexecutable on the runner. Generated directories are
+marked `linguist-generated` so they collapse in pull request diffs.
+
+- [x] **Step 2: Add CODEOWNERS and the pull request template**
+
+`CODEOWNERS` assigns review of everything to the owner, with migrations,
+`openapi.yaml`, ADRs, and `.github/` called out explicitly so they are never
+skimmed. The PR template requires a verification section containing the
+commands actually run — not the phrase "tests pass".
+
+- [x] **Step 3: Add issue forms**
+
+Three typed forms (bug, feature, implementation task) with required fields
+and an area dropdown matching the module names. Blank issues are disabled,
+and `config.yml` routes security reports to private advisories and open
+questions to Discussions, so neither arrives as a public issue.
+
+- [x] **Step 4: Enforce Conventional Commits locally**
+
+`.githooks/commit-msg` is a dependency-free POSIX shell script — no Node,
+no Husky, works in Git Bash on Windows. Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Verify it works in both directions:
+
+```bash
+echo "bad message" > /tmp/m && .githooks/commit-msg /tmp/m   # expect: exit 1
+echo "feat(play): add expiry" > /tmp/m && .githooks/commit-msg /tmp/m  # expect: exit 0
+```
+
+Because a local hook can be bypassed with `--no-verify`, `pr-title.yml`
+enforces the same convention on pull request titles server-side, where it
+cannot be skipped.
+
+- [x] **Step 5: Configure Renovate rather than Dependabot**
+
+Renovate is chosen over Dependabot because it groups related updates (all
+Spring artifacts move in lockstep; splitting them produces unbuildable
+intermediate states), handles Maven, npm, and Docker from one config in the
+monorepo that arrives at M5, and can auto-merge patch updates while holding
+minor and major for a human. Security advisories bypass the weekly schedule.
+
+Enable the Renovate GitHub App on the repository for the config to take
+effect: https://github.com/apps/renovate
+
+- [x] **Step 6: Commit**
+
+```bash
+git add .gitattributes .github/ .githooks/
+git commit -m "ci: add repository governance, commit linting and renovate"
+```
 
 ---
 
@@ -1217,29 +1304,21 @@ jobs:
 
 The `build` job runs Testcontainers, which works on GitHub's Ubuntu runners because Docker is preinstalled.
 
-- [ ] **Step 2: Configure automated dependency updates**
+- [ ] **Step 2: Confirm dependency automation is already in place**
 
-Create `.github/dependabot.yml`:
+Dependency updates are handled by Renovate, configured in Task 0
+(`.github/renovate.json`). Do **not** add a Dependabot configuration —
+running both produces duplicate pull requests for every update.
 
-```yaml
-version: 2
-updates:
-  - package-ecosystem: maven
-    directory: /apps/api
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    groups:
-      spring:
-        patterns: ["org.springframework*"]
-      testing:
-        patterns: ["org.testcontainers*", "com.tngtech.archunit*", "org.junit*"]
+Confirm the Renovate GitHub App is installed on the repository:
 
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
+```bash
+gh api repos/ARSH871-bot/QuizForge/installation --jq '.app_slug' 2>/dev/null || \
+  echo "Renovate not installed — enable at https://github.com/apps/renovate"
 ```
+
+GitHub's own Dependabot **alerts** (as distinct from version updates) remain
+enabled, since they feed Renovate's vulnerability handling.
 
 - [ ] **Step 3: Verify the workflow is valid before pushing**
 

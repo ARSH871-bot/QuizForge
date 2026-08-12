@@ -20,6 +20,13 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **Server-side grading (M2).** A grader per question type behind a registry.
+  Multi-choice requires set equality; numeric compares within absolute
+  tolerance; short text normalises without fuzzy matching. A null or
+  unparseable answer is incorrect, never an error.
+- **Tenant isolation for content.** RLS policies on `question_bank` and
+  `question`, proven by a test that asks for another workspace's rows and gets
+  nothing.
 - **Question banks and immutable authoring (M2).** Authoring writes version 1;
   revising inserts a new row sharing the lineage and supersedes the previous
   one, leaving it byte-identical so a tournament can pin exactly what a player

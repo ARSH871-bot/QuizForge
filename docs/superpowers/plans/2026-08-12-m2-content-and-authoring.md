@@ -875,7 +875,7 @@ git commit -m "feat(content): add banks and immutable question authoring"
 - Consumes: Task 3
 - Produces: `GraderRegistry.grade(QuestionType, Payload, String givenAnswer) -> GradingResult`, plus a convenience overload `grade(Question, String)` that unpacks the entity's type and payload. M3's attempt submission calls the latter.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content.grading;
@@ -958,12 +958,12 @@ class GradingTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=GradingTest`
 Expected: FAIL — the grading package does not exist.
 
-- [ ] **Step 3: Implement the contract**
+- [x] **Step 3: Implement the contract**
 
 ```java
 package com.quizforge.content.grading;
@@ -1006,7 +1006,7 @@ public interface QuestionGrader {
 }
 ```
 
-- [ ] **Step 4: Implement the three graders and the registry**
+- [x] **Step 4: Implement the three graders and the registry**
 
 `ChoiceGrader` handles `SINGLE_CHOICE`, `MULTI_CHOICE` and `TRUE_FALSE`.
 Multi-choice splits the given answer on commas, normalises each with
@@ -1026,12 +1026,12 @@ list at construction, and throws `ApiException(INTERNAL, …)` for a type with n
 grader — an unreachable state that must fail loudly rather than silently
 marking answers wrong.
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=GradingTest`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content/grading \
@@ -1051,7 +1051,7 @@ git commit -m "feat(content): add server-side grading for every question type"
 - Consumes: Tasks 1–4, M1's `TenantAwareDataSource`
 - Produces: `question_bank` and `question` enforced by PostgreSQL.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Model it on `RlsRuntimeEnforcementTest`: create banks in two workspaces, set
 `TenantContext` to the second, and assert a repository query explicitly asking
@@ -1117,11 +1117,11 @@ class ContentIsolationTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Expected: FAIL — `visible` is 1, because no policy exists yet.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 ```sql
 -- V7: Tenant isolation for content, matching the pattern established in V5.
@@ -1144,13 +1144,13 @@ CREATE POLICY question_tenant_isolation ON question
 -- policy needs no join. A policy that joins runs on every row of every query.
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Expected: PASS. If it still returns 1, the transaction is not assuming the
 restricted role — check that `TenancyConfig`'s wrapper is `@Primary` and that
 the query runs inside a transaction.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/api/src/main/resources/db/migration/V7__content_rls.sql \

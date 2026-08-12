@@ -1170,7 +1170,7 @@ git commit -m "feat(content): enforce tenant isolation on banks and questions"
 - Consumes: Task 3
 - Produces: `QuestionImporter.importInto(bankId, actorId, source) -> ImportReport(imported, skipped, failed, messages)`.
 
-- [ ] **Step 1: Write the failing CSV test**
+- [x] **Step 1: Write the failing CSV test**
 
 ```java
 package com.quizforge.content.importer;
@@ -1269,11 +1269,11 @@ class CsvImporterTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Expected: FAIL — `CsvImporter` does not exist.
 
-- [ ] **Step 3: Implement the report and interface**
+- [x] **Step 3: Implement the report and interface**
 
 ```java
 package com.quizforge.content.importer;
@@ -1301,7 +1301,7 @@ public interface QuestionImporter {
 }
 ```
 
-- [ ] **Step 4: Implement the CSV importer**
+- [x] **Step 4: Implement the CSV importer**
 
 Columns: `type,prompt,options,correct,difficulty`. `options` is pipe-separated
 and empty for `NUMERIC` and `SHORT_TEXT`. `correct` is the option text, the
@@ -1313,7 +1313,7 @@ increment `skipped`, not `failed`; re-importing the same file must be a no-op
 rather than an error. Messages are 1-indexed by file line including the header,
 so `row 3` is the third line a human sees in a spreadsheet.
 
-- [ ] **Step 5: Implement the OpenTDB importer**
+- [x] **Step 5: Implement the OpenTDB importer**
 
 Replaces the legacy `OpenTDBService`. Differences that matter:
 
@@ -1332,12 +1332,12 @@ The importer is disabled in tests via the existing
 network. `OpenTdbImporterTest` exercises the mapping with a recorded response
 fixture, not a live call.
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest='CsvImporterTest,OpenTdbImporterTest'`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content/importer \
@@ -1349,16 +1349,16 @@ git commit -m "feat(content): add csv and opentdb import pipeline"
 
 ## Definition of done for M2
 
-- [ ] `cd apps/api && ./mvnw verify` passes from a clean clone
-- [ ] A question can be authored, revised, and listed; revision leaves the original row intact
-- [ ] A tournament could pin a specific `question.id` and be certain of what it contains
-- [ ] All five question types validate on write and grade on read
-- [ ] No player-facing type carries a correct answer — asserted by test
-- [ ] `question_bank` and `question` are RLS-enforced, proven by an isolation test
-- [ ] CSV import handles partial failure, reports precise row numbers, and is idempotent
-- [ ] OpenTDB import replaces the legacy service and makes no network call in tests
-- [ ] `ModularityTest` and `ArchitectureTest` pass
-- [ ] `CHANGELOG.md`, `STATUS.md` and this plan's checkboxes are current
+- [x] `cd apps/api && ./mvnw verify` passes from a clean clone
+- [x] A question can be authored, revised, and listed; revision leaves the original row intact
+- [x] A tournament could pin a specific `question.id` and be certain of what it contains
+- [x] All five question types validate on write and grade on read
+- [x] No player-facing type carries a correct answer — asserted by test
+- [x] `question_bank` and `question` are RLS-enforced, proven by an isolation test
+- [x] CSV import handles partial failure, reports precise row numbers, and is idempotent
+- [x] OpenTDB import replaces the legacy service and makes no network call in tests
+- [x] `ModularityTest` and `ArchitectureTest` pass
+- [x] `CHANGELOG.md`, `STATUS.md` and this plan's checkboxes are current
 
 ## Explicitly out of scope for M2
 

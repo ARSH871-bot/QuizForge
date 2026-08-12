@@ -20,6 +20,11 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **OpenTDB import (M2).** Replaces the legacy `OpenTDBService`. Requests
+  base64 rather than URL encoding (the legacy path double-decoded any answer
+  containing a percent sign), fails fast on rate limiting instead of sleeping
+  six seconds per category, and de-duplicates through the same content hash as
+  every other import.
 - **CSV import (M2).** Partial success is the normal case: one malformed row
   does not discard the rest, failures are reported with the line number a human
   sees in a spreadsheet, and re-importing the same file is a no-op rather than

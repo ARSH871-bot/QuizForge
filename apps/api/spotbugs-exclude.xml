@@ -23,4 +23,24 @@
         </Or>
     </Match>
 
+    <!--
+      Payload records defensively copy their lists into an unmodifiable
+      wrapper in a compact constructor, so the accessor cannot leak anything
+      mutable. SpotBugs cannot see through Collections.unmodifiableList and
+      reports the accessor regardless.
+
+      This suppression is justified by a test, not by assertion:
+      QuestionPayloadTest.payloadsAreImmutableAfterConstruction mutates the
+      list passed to the constructor and asserts the payload is unchanged,
+      then asserts the accessor's list rejects modification. If that property
+      is ever lost, the test fails - the suppression cannot hide it.
+    -->
+    <Match>
+        <Class name="~com\.quizforge\.content\.domain\.payload\..*"/>
+        <Or>
+            <Bug pattern="EI_EXPOSE_REP"/>
+            <Bug pattern="EI_EXPOSE_REP2"/>
+        </Or>
+    </Match>
+
 </FindBugsFilter>

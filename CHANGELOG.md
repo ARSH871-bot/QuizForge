@@ -20,6 +20,9 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **Question types (M2).** Five types — SINGLE_CHOICE, MULTI_CHOICE,
+  TRUE_FALSE, NUMERIC, SHORT_TEXT — with immutable payload records that
+  validate on write, since a JSONB column cannot enforce shape itself.
 - **Content schema (M2).** `question_bank` and `question` tables, with
   lineage/version uniqueness, per-bank content-hash de-duplication, and a
   partial index on the current version of each lineage.

@@ -292,7 +292,7 @@ Update `CHANGELOG.md` in the same commit.
 - Consumes: Task 1
 - Produces: `QuestionType.parsePayload(String json) -> Payload` and `Payload.validate()` throwing `ApiException(INVALID_REQUEST)`. Task 3 persists them; Task 4 grades them.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content.domain;
@@ -377,12 +377,12 @@ class QuestionPayloadTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionPayloadTest`
 Expected: FAIL — none of these types exist.
 
-- [ ] **Step 3: Implement the payload contract**
+- [x] **Step 3: Implement the payload contract**
 
 `content/domain/payload/Payload.java`:
 
@@ -511,7 +511,7 @@ public record ShortTextPayload(List<String> accepted, boolean ignoreCase) implem
 }
 ```
 
-- [ ] **Step 4: Implement the type enum**
+- [x] **Step 4: Implement the type enum**
 
 ```java
 package com.quizforge.content.domain;
@@ -560,12 +560,12 @@ public enum QuestionType {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionPayloadTest`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content apps/api/src/test/java/com/quizforge/content

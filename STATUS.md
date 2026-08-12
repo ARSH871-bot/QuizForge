@@ -12,7 +12,7 @@ what is safe to do with the code.
 |---|---|---|---|
 | M0 | Foundation & remediation | **Complete** | merged to `main`, CI green |
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
-| M2 | Content & authoring | Not started | no plan written |
+| M2 | Content & authoring | **Planned** | [plan](docs/superpowers/plans/2026-08-12-m2-content-and-authoring.md), 6 tasks, not yet implemented |
 | M3 | Tournament & play engine | Not started | no plan written |
 | M4 | Public API & SDKs | Not started | no plan written |
 | M5 | Web dashboard | Not started | no plan written |

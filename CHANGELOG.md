@@ -30,6 +30,9 @@ that is not worth a line here is not worth shipping.
 - SpotBugs with FindSecBugs, replacing CodeQL on a private repository.
 - Mailpit in the local stack, so email paths can be developed with no account.
 - Eight ADRs in `docs/adr/`.
+- M2 (content and authoring) implementation plan: immutable versioned
+  questions, five question types with server-side grading, and a CSV/OpenTDB
+  import pipeline.
 - `STATUS.md` and `CHANGELOG.md`, plus a "Definition of done for any change"
   in `CONTRIBUTING.md` and a `docs-current` CI job that fails a pull request
   touching application source without updating the changelog, and blocks edits

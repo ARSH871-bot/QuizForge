@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.util.List;
 
 @Entity
+@Table(name = "legacy_question")
 public class Question {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -13,6 +14,7 @@ public class Question {
     private String questionText; // The question text from OpenTDB
 
     @ElementCollection
+    @CollectionTable(name = "question_options", joinColumns = @JoinColumn(name = "question_id"))
     private List<String> options; // Stores options (correct and incorrect answers)
 
     private String correctAnswer; // Stores the correct answer

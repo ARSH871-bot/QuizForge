@@ -20,6 +20,9 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **Content schema (M2).** `question_bank` and `question` tables, with
+  lineage/version uniqueness, per-bank content-hash de-duplication, and a
+  partial index on the current version of each lineage.
 - **Runtime enforcement of Row-Level Security.** Every transaction carrying a
   tenant now assumes the `NOBYPASSRLS` role `quizforge_app` and sets
   `app.workspace_id`, both transaction-locally. Proven by a test asserting a
@@ -48,6 +51,13 @@ that is not worth a line here is not worth shipping.
 - Email is optional and disabled by default; the application starts with no
   mail configuration at all.
 - Java 17 → 21, Spring Boot 3.3.5 → 3.5.6.
+
+### Changed
+
+- The legacy `question` table is renamed to `legacy_question`, freeing the name
+  for the new content model. Its entity mapping gains an explicit
+  `@CollectionTable` so Hibernate still finds `question_options`. The legacy
+  table is deleted outright in M3.
 
 ### Removed
 

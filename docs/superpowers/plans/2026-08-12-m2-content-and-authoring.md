@@ -13,6 +13,10 @@
 Everything in M1's Global Constraints still applies — Java 21, `com.quizforge` base package, Flyway-only schema with `ddl-auto=validate`, UUIDv7 in native `uuid` columns, explicit `@Transactional`, Conventional Commits ≤72 chars, no trailers, green `./mvnw verify` before every commit. In addition:
 
 - **Cross-module types need `@NamedInterface`.** `content` will consume `platform::id`, `platform::error` and `identity` — declare them in `content/package-info.java` or `ModularityTest` fails with *"Allowed targets: …"*.
+- **The legacy schema owns the name `question`.** V6 renames it to
+  `legacy_question` and remaps the legacy entity, including an explicit
+  `@CollectionTable`, because Hibernate derives the element-collection table
+  name from the owning table. Discovered during Task 1, not at planning time.
 - **Migrations are additive.** V1–V5 exist; start at **V6**. Never edit an applied migration — CI blocks it, because Flyway checksums every file and editing one breaks every existing database.
 - **Correct answers never leave the server.** No DTO exposed to a player may carry the answer, and a test must assert it for every type.
 - **Every change updates the tracking artefacts** — see `CONTRIBUTING.md`, "Definition of done for any change".
@@ -114,7 +118,7 @@ apps/api/src/main/resources/db/migration/
 - Consumes: M1's `workspace` table
 - Produces: `question_bank` and `question` tables. Task 2 maps entities onto them.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content;
@@ -168,12 +172,12 @@ class ContentSchemaTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=ContentSchemaTest`
 Expected: FAIL — `relation "question" does not exist`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 `apps/api/src/main/resources/db/migration/V6__content.sql`:
 
@@ -248,7 +252,7 @@ CREATE UNIQUE INDEX uk_question_bank_content
 > field, and Postgres blank-pads `CHAR`, which silently breaks hash
 > comparison. Never use `CHAR` for a digest column.
 
-- [ ] **Step 4: Declare the module**
+- [x] **Step 4: Declare the module**
 
 `apps/api/src/main/java/com/quizforge/content/package-info.java`:
 
@@ -260,12 +264,12 @@ CREATE UNIQUE INDEX uk_question_bank_content
 package com.quizforge.content;
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=ContentSchemaTest`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/resources/db/migration/V6__content.sql \

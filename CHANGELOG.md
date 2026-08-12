@@ -20,6 +20,10 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **CSV import (M2).** Partial success is the normal case: one malformed row
+  does not discard the rest, failures are reported with the line number a human
+  sees in a spreadsheet, and re-importing the same file is a no-op rather than
+  an error.
 - **Server-side grading (M2).** A grader per question type behind a registry.
   Multi-choice requires set equality; numeric compares within absolute
   tolerance; short text normalises without fuzzy matching. A null or

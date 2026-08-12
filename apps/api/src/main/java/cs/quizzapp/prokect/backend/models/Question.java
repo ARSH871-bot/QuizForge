@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.List;
 
-@Entity
+@Entity(name = "LegacyQuestion")
 @Table(name = "legacy_question")
 public class Question {
     @Id

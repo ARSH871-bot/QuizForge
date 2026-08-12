@@ -17,6 +17,18 @@ Everything in M1's Global Constraints still applies — Java 21, `com.quizforge`
   `legacy_question` and remaps the legacy entity, including an explicit
   `@CollectionTable`, because Hibernate derives the element-collection table
   name from the owning table. Discovered during Task 1, not at planning time.
+- **Cross-module access goes through a published API.** `content` may depend on
+  `identity`, but Modulith exposes only identity's *root* package — not
+  `identity.app` or `identity.domain`. Depend on
+  `com.quizforge.identity.WorkspaceAccess`, which answers permission questions
+  as booleans, rather than widening the boundary. A caller handed a `Role`
+  starts branching on it, reimplementing the permission matrix in the wrong
+  module.
+- **Watch for bean-name collisions with the legacy package.** Spring derives a
+  default bean name from the simple class name, so `content.app.QuestionService`
+  collides with `cs.quizzapp...QuestionService` and the context fails to start.
+  Qualify the new bean (`@Service("contentQuestionService")`). M1 hit the same
+  thing with `AuthController`; the qualifiers go away in M3.
 - **Migrations are additive.** V1–V5 exist; start at **V6**. Never edit an applied migration — CI blocks it, because Flyway checksums every file and editing one breaks every existing database.
 - **Correct answers never leave the server.** No DTO exposed to a player may carry the answer, and a test must assert it for every type.
 - **Every change updates the tracking artefacts** — see `CONTRIBUTING.md`, "Definition of done for any change".
@@ -592,7 +604,7 @@ git commit -m "feat(content): add question types with validated payloads"
   - `QuestionService.currentIn(UUID bankId) -> List<Question>`
   - `QuestionBankRepository.findByWorkspaceIdAndArchivedAtIsNull(UUID workspaceId) -> List<QuestionBank>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content.app;
@@ -752,12 +764,12 @@ class QuestionServiceTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionServiceTest`
 Expected: FAIL — `QuestionService` does not exist.
 
-- [ ] **Step 3: Implement the content hash**
+- [x] **Step 3: Implement the content hash**
 
 ```java
 package com.quizforge.content.app;
@@ -824,7 +836,7 @@ public final class ContentHash {
 }
 ```
 
-- [ ] **Step 4: Implement entities, repositories and services**
+- [x] **Step 4: Implement entities, repositories and services**
 
 The entities follow M1's pattern exactly: `@Id UUID`, explicit `@Column`
 names, `protected` no-arg constructor for JPA, no setters beyond intentional
@@ -839,12 +851,12 @@ reject a duplicate with `ALREADY_EXISTS`, then insert with `version = 1` and
 validate, insert a new row with `version + 1` and the same `lineage_id`, then
 call `supersede` on the previous row. Both writes share one transaction.
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionServiceTest`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content apps/api/src/test/java/com/quizforge/content

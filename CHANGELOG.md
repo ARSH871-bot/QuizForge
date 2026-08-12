@@ -20,6 +20,13 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **Question banks and immutable authoring (M2).** Authoring writes version 1;
+  revising inserts a new row sharing the lineage and supersedes the previous
+  one, leaving it byte-identical so a tournament can pin exactly what a player
+  saw. Duplicates are rejected per bank by normalised content hash.
+- **`WorkspaceAccess`**, identity's published authorization API. Other modules
+  ask permission questions through it rather than reaching into
+  `identity.app` or `identity.domain`, so the permission matrix stays internal.
 - **Question types (M2).** Five types — SINGLE_CHOICE, MULTI_CHOICE,
   TRUE_FALSE, NUMERIC, SHORT_TEXT — with immutable payload records that
   validate on write, since a JSONB column cannot enforce shape itself.
@@ -57,6 +64,10 @@ that is not worth a line here is not worth shipping.
 
 ### Changed
 
+- The legacy `Question` entity, `QuestionRepository` and `question` table are
+  all renamed with a `Legacy` prefix, freeing those names for the content
+  module. Spring, Spring Data and Hibernate each derive a distinct identifier
+  from the simple class name, and all three collided.
 - The legacy `question` table is renamed to `legacy_question`, freeing the name
   for the new content model. Its entity mapping gains an explicit
   `@CollectionTable` so Hibernate still finds `question_options`. The legacy

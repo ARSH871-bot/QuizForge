@@ -20,6 +20,35 @@ that is not worth a line here is not worth shipping.
 - Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
   at the API boundary.
 - RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- **OpenTDB import (M2).** Replaces the legacy `OpenTDBService`. Requests
+  base64 rather than URL encoding (the legacy path double-decoded any answer
+  containing a percent sign), fails fast on rate limiting instead of sleeping
+  six seconds per category, and de-duplicates through the same content hash as
+  every other import.
+- **CSV import (M2).** Partial success is the normal case: one malformed row
+  does not discard the rest, failures are reported with the line number a human
+  sees in a spreadsheet, and re-importing the same file is a no-op rather than
+  an error.
+- **Server-side grading (M2).** A grader per question type behind a registry.
+  Multi-choice requires set equality; numeric compares within absolute
+  tolerance; short text normalises without fuzzy matching. A null or
+  unparseable answer is incorrect, never an error.
+- **Tenant isolation for content.** RLS policies on `question_bank` and
+  `question`, proven by a test that asks for another workspace's rows and gets
+  nothing.
+- **Question banks and immutable authoring (M2).** Authoring writes version 1;
+  revising inserts a new row sharing the lineage and supersedes the previous
+  one, leaving it byte-identical so a tournament can pin exactly what a player
+  saw. Duplicates are rejected per bank by normalised content hash.
+- **`WorkspaceAccess`**, identity's published authorization API. Other modules
+  ask permission questions through it rather than reaching into
+  `identity.app` or `identity.domain`, so the permission matrix stays internal.
+- **Question types (M2).** Five types — SINGLE_CHOICE, MULTI_CHOICE,
+  TRUE_FALSE, NUMERIC, SHORT_TEXT — with immutable payload records that
+  validate on write, since a JSONB column cannot enforce shape itself.
+- **Content schema (M2).** `question_bank` and `question` tables, with
+  lineage/version uniqueness, per-bank content-hash de-duplication, and a
+  partial index on the current version of each lineage.
 - **Runtime enforcement of Row-Level Security.** Every transaction carrying a
   tenant now assumes the `NOBYPASSRLS` role `quizforge_app` and sets
   `app.workspace_id`, both transaction-locally. Proven by a test asserting a
@@ -48,6 +77,17 @@ that is not worth a line here is not worth shipping.
 - Email is optional and disabled by default; the application starts with no
   mail configuration at all.
 - Java 17 → 21, Spring Boot 3.3.5 → 3.5.6.
+
+### Changed
+
+- The legacy `Question` entity, `QuestionRepository` and `question` table are
+  all renamed with a `Legacy` prefix, freeing those names for the content
+  module. Spring, Spring Data and Hibernate each derive a distinct identifier
+  from the simple class name, and all three collided.
+- The legacy `question` table is renamed to `legacy_question`, freeing the name
+  for the new content model. Its entity mapping gains an explicit
+  `@CollectionTable` so Hibernate still finds `question_options`. The legacy
+  table is deleted outright in M3.
 
 ### Removed
 

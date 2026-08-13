@@ -13,6 +13,22 @@
 Everything in M1's Global Constraints still applies — Java 21, `com.quizforge` base package, Flyway-only schema with `ddl-auto=validate`, UUIDv7 in native `uuid` columns, explicit `@Transactional`, Conventional Commits ≤72 chars, no trailers, green `./mvnw verify` before every commit. In addition:
 
 - **Cross-module types need `@NamedInterface`.** `content` will consume `platform::id`, `platform::error` and `identity` — declare them in `content/package-info.java` or `ModularityTest` fails with *"Allowed targets: …"*.
+- **The legacy schema owns the name `question`.** V6 renames it to
+  `legacy_question` and remaps the legacy entity, including an explicit
+  `@CollectionTable`, because Hibernate derives the element-collection table
+  name from the owning table. Discovered during Task 1, not at planning time.
+- **Cross-module access goes through a published API.** `content` may depend on
+  `identity`, but Modulith exposes only identity's *root* package — not
+  `identity.app` or `identity.domain`. Depend on
+  `com.quizforge.identity.WorkspaceAccess`, which answers permission questions
+  as booleans, rather than widening the boundary. A caller handed a `Role`
+  starts branching on it, reimplementing the permission matrix in the wrong
+  module.
+- **Watch for bean-name collisions with the legacy package.** Spring derives a
+  default bean name from the simple class name, so `content.app.QuestionService`
+  collides with `cs.quizzapp...QuestionService` and the context fails to start.
+  Qualify the new bean (`@Service("contentQuestionService")`). M1 hit the same
+  thing with `AuthController`; the qualifiers go away in M3.
 - **Migrations are additive.** V1–V5 exist; start at **V6**. Never edit an applied migration — CI blocks it, because Flyway checksums every file and editing one breaks every existing database.
 - **Correct answers never leave the server.** No DTO exposed to a player may carry the answer, and a test must assert it for every type.
 - **Every change updates the tracking artefacts** — see `CONTRIBUTING.md`, "Definition of done for any change".
@@ -114,7 +130,7 @@ apps/api/src/main/resources/db/migration/
 - Consumes: M1's `workspace` table
 - Produces: `question_bank` and `question` tables. Task 2 maps entities onto them.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content;
@@ -168,12 +184,12 @@ class ContentSchemaTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=ContentSchemaTest`
 Expected: FAIL — `relation "question" does not exist`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 `apps/api/src/main/resources/db/migration/V6__content.sql`:
 
@@ -248,7 +264,7 @@ CREATE UNIQUE INDEX uk_question_bank_content
 > field, and Postgres blank-pads `CHAR`, which silently breaks hash
 > comparison. Never use `CHAR` for a digest column.
 
-- [ ] **Step 4: Declare the module**
+- [x] **Step 4: Declare the module**
 
 `apps/api/src/main/java/com/quizforge/content/package-info.java`:
 
@@ -260,12 +276,12 @@ CREATE UNIQUE INDEX uk_question_bank_content
 package com.quizforge.content;
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=ContentSchemaTest`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/resources/db/migration/V6__content.sql \
@@ -288,7 +304,7 @@ Update `CHANGELOG.md` in the same commit.
 - Consumes: Task 1
 - Produces: `QuestionType.parsePayload(String json) -> Payload` and `Payload.validate()` throwing `ApiException(INVALID_REQUEST)`. Task 3 persists them; Task 4 grades them.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content.domain;
@@ -373,12 +389,12 @@ class QuestionPayloadTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionPayloadTest`
 Expected: FAIL — none of these types exist.
 
-- [ ] **Step 3: Implement the payload contract**
+- [x] **Step 3: Implement the payload contract**
 
 `content/domain/payload/Payload.java`:
 
@@ -507,7 +523,7 @@ public record ShortTextPayload(List<String> accepted, boolean ignoreCase) implem
 }
 ```
 
-- [ ] **Step 4: Implement the type enum**
+- [x] **Step 4: Implement the type enum**
 
 ```java
 package com.quizforge.content.domain;
@@ -556,12 +572,12 @@ public enum QuestionType {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionPayloadTest`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content apps/api/src/test/java/com/quizforge/content
@@ -588,7 +604,7 @@ git commit -m "feat(content): add question types with validated payloads"
   - `QuestionService.currentIn(UUID bankId) -> List<Question>`
   - `QuestionBankRepository.findByWorkspaceIdAndArchivedAtIsNull(UUID workspaceId) -> List<QuestionBank>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content.app;
@@ -748,12 +764,12 @@ class QuestionServiceTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionServiceTest`
 Expected: FAIL — `QuestionService` does not exist.
 
-- [ ] **Step 3: Implement the content hash**
+- [x] **Step 3: Implement the content hash**
 
 ```java
 package com.quizforge.content.app;
@@ -820,7 +836,7 @@ public final class ContentHash {
 }
 ```
 
-- [ ] **Step 4: Implement entities, repositories and services**
+- [x] **Step 4: Implement entities, repositories and services**
 
 The entities follow M1's pattern exactly: `@Id UUID`, explicit `@Column`
 names, `protected` no-arg constructor for JPA, no setters beyond intentional
@@ -835,12 +851,12 @@ reject a duplicate with `ALREADY_EXISTS`, then insert with `version = 1` and
 validate, insert a new row with `version + 1` and the same `lineage_id`, then
 call `supersede` on the previous row. Both writes share one transaction.
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=QuestionServiceTest`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content apps/api/src/test/java/com/quizforge/content
@@ -859,7 +875,7 @@ git commit -m "feat(content): add banks and immutable question authoring"
 - Consumes: Task 3
 - Produces: `GraderRegistry.grade(QuestionType, Payload, String givenAnswer) -> GradingResult`, plus a convenience overload `grade(Question, String)` that unpacks the entity's type and payload. M3's attempt submission calls the latter.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```java
 package com.quizforge.content.grading;
@@ -942,12 +958,12 @@ class GradingTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=GradingTest`
 Expected: FAIL — the grading package does not exist.
 
-- [ ] **Step 3: Implement the contract**
+- [x] **Step 3: Implement the contract**
 
 ```java
 package com.quizforge.content.grading;
@@ -990,7 +1006,7 @@ public interface QuestionGrader {
 }
 ```
 
-- [ ] **Step 4: Implement the three graders and the registry**
+- [x] **Step 4: Implement the three graders and the registry**
 
 `ChoiceGrader` handles `SINGLE_CHOICE`, `MULTI_CHOICE` and `TRUE_FALSE`.
 Multi-choice splits the given answer on commas, normalises each with
@@ -1010,12 +1026,12 @@ list at construction, and throws `ApiException(INTERNAL, …)` for a type with n
 grader — an unreachable state that must fail loudly rather than silently
 marking answers wrong.
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest=GradingTest`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content/grading \
@@ -1035,7 +1051,7 @@ git commit -m "feat(content): add server-side grading for every question type"
 - Consumes: Tasks 1–4, M1's `TenantAwareDataSource`
 - Produces: `question_bank` and `question` enforced by PostgreSQL.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Model it on `RlsRuntimeEnforcementTest`: create banks in two workspaces, set
 `TenantContext` to the second, and assert a repository query explicitly asking
@@ -1101,11 +1117,11 @@ class ContentIsolationTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Expected: FAIL — `visible` is 1, because no policy exists yet.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 ```sql
 -- V7: Tenant isolation for content, matching the pattern established in V5.
@@ -1128,13 +1144,13 @@ CREATE POLICY question_tenant_isolation ON question
 -- policy needs no join. A policy that joins runs on every row of every query.
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Expected: PASS. If it still returns 1, the transaction is not assuming the
 restricted role — check that `TenancyConfig`'s wrapper is `@Primary` and that
 the query runs inside a transaction.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/api/src/main/resources/db/migration/V7__content_rls.sql \
@@ -1154,7 +1170,7 @@ git commit -m "feat(content): enforce tenant isolation on banks and questions"
 - Consumes: Task 3
 - Produces: `QuestionImporter.importInto(bankId, actorId, source) -> ImportReport(imported, skipped, failed, messages)`.
 
-- [ ] **Step 1: Write the failing CSV test**
+- [x] **Step 1: Write the failing CSV test**
 
 ```java
 package com.quizforge.content.importer;
@@ -1253,11 +1269,11 @@ class CsvImporterTest extends AbstractIntegrationTest {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Expected: FAIL — `CsvImporter` does not exist.
 
-- [ ] **Step 3: Implement the report and interface**
+- [x] **Step 3: Implement the report and interface**
 
 ```java
 package com.quizforge.content.importer;
@@ -1285,7 +1301,7 @@ public interface QuestionImporter {
 }
 ```
 
-- [ ] **Step 4: Implement the CSV importer**
+- [x] **Step 4: Implement the CSV importer**
 
 Columns: `type,prompt,options,correct,difficulty`. `options` is pipe-separated
 and empty for `NUMERIC` and `SHORT_TEXT`. `correct` is the option text, the
@@ -1297,7 +1313,7 @@ increment `skipped`, not `failed`; re-importing the same file must be a no-op
 rather than an error. Messages are 1-indexed by file line including the header,
 so `row 3` is the third line a human sees in a spreadsheet.
 
-- [ ] **Step 5: Implement the OpenTDB importer**
+- [x] **Step 5: Implement the OpenTDB importer**
 
 Replaces the legacy `OpenTDBService`. Differences that matter:
 
@@ -1316,12 +1332,12 @@ The importer is disabled in tests via the existing
 network. `OpenTdbImporterTest` exercises the mapping with a recorded response
 fixture, not a live call.
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `cd apps/api && ./mvnw -B test -Dtest='CsvImporterTest,OpenTdbImporterTest'`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/api/src/main/java/com/quizforge/content/importer \
@@ -1333,16 +1349,16 @@ git commit -m "feat(content): add csv and opentdb import pipeline"
 
 ## Definition of done for M2
 
-- [ ] `cd apps/api && ./mvnw verify` passes from a clean clone
-- [ ] A question can be authored, revised, and listed; revision leaves the original row intact
-- [ ] A tournament could pin a specific `question.id` and be certain of what it contains
-- [ ] All five question types validate on write and grade on read
-- [ ] No player-facing type carries a correct answer — asserted by test
-- [ ] `question_bank` and `question` are RLS-enforced, proven by an isolation test
-- [ ] CSV import handles partial failure, reports precise row numbers, and is idempotent
-- [ ] OpenTDB import replaces the legacy service and makes no network call in tests
-- [ ] `ModularityTest` and `ArchitectureTest` pass
-- [ ] `CHANGELOG.md`, `STATUS.md` and this plan's checkboxes are current
+- [x] `cd apps/api && ./mvnw verify` passes from a clean clone
+- [x] A question can be authored, revised, and listed; revision leaves the original row intact
+- [x] A tournament could pin a specific `question.id` and be certain of what it contains
+- [x] All five question types validate on write and grade on read
+- [x] No player-facing type carries a correct answer — asserted by test
+- [x] `question_bank` and `question` are RLS-enforced, proven by an isolation test
+- [x] CSV import handles partial failure, reports precise row numbers, and is idempotent
+- [x] OpenTDB import replaces the legacy service and makes no network call in tests
+- [x] `ModularityTest` and `ArchitectureTest` pass
+- [x] `CHANGELOG.md`, `STATUS.md` and this plan's checkboxes are current
 
 ## Explicitly out of scope for M2
 

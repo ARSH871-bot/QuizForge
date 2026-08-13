@@ -12,8 +12,8 @@ what is safe to do with the code.
 |---|---|---|---|
 | M0 | Foundation & remediation | **Complete** | merged to `main`, CI green |
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
-| M2 | Content & authoring | **Planned** | [plan](docs/superpowers/plans/2026-08-12-m2-content-and-authoring.md), 6 tasks, not yet implemented |
-| M3 | Tournament & play engine | Not started | no plan written |
+| M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
+| M3 | Tournament & play engine | Not started | no plan written; retires the legacy package |
 | M4 | Public API & SDKs | Not started | no plan written |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
@@ -46,9 +46,9 @@ customer's data.
 
 ## Numbers
 
-- **Tests:** 56, all passing
-- **Migrations:** V1–V5
-- **Modules:** 8 declared, 2 populated (`platform`, `identity`)
+- **Tests:** 99, all passing
+- **Migrations:** V1–V7
+- **Modules:** 8 declared, 3 populated (`platform`, `identity`, `content`)
 - **ADRs:** 8
 - **Monthly cost:** $0
 

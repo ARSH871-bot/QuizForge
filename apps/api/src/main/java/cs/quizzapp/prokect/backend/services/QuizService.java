@@ -19,7 +19,7 @@ public class QuizService {
     private final UserRepository userRepository;
     private final QuestionService questionService;
     private final ScoreRepository scoreRepository;
-    private final QuestionRepository questionRepository;
+    private final LegacyQuestionRepository questionRepository;
     private final LikeRepository likeRepository;
 
     @Autowired
@@ -30,7 +30,7 @@ public class QuizService {
                        UserRepository userRepository,
                        QuestionService questionService,
                        ScoreRepository scoreRepository,
-                       QuestionRepository questionRepository,
+                       LegacyQuestionRepository questionRepository,
                        LikeRepository likeRepository) {
         this.participationRepository = participationRepository;
         this.quizRepository = quizRepository;

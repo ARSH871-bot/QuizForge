@@ -59,6 +59,7 @@ that is not worth a line here is not worth shipping.
 - SpotBugs with FindSecBugs, replacing CodeQL on a private repository.
 - Mailpit in the local stack, so email paths can be developed with no account.
 - Eight ADRs in `docs/adr/`.
+- M3 (tournament and play engine) implementation plan, including the retirement of the legacy package.
 - M2 (content and authoring) implementation plan: immutable versioned
   questions, five question types with server-side grading, and a CSV/OpenTDB
   import pipeline.

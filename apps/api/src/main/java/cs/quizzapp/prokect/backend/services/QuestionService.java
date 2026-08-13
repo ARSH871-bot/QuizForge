@@ -1,6 +1,6 @@
 package cs.quizzapp.prokect.backend.services;
 
-import cs.quizzapp.prokect.backend.db.QuestionRepository;
+import cs.quizzapp.prokect.backend.db.LegacyQuestionRepository;
 import cs.quizzapp.prokect.backend.models.Question;
 import cs.quizzapp.prokect.backend.models.Quiz;
 import cs.quizzapp.prokect.backend.payload.QuizRequest;
@@ -18,7 +18,7 @@ import java.util.Optional;
 public class QuestionService {
 
     @Autowired
-    private QuestionRepository questionRepository;
+    private LegacyQuestionRepository questionRepository;
 
     /**
      * Fetches all questions from the database.

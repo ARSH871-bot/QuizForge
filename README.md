@@ -1,5 +1,11 @@
 # QuizForge
 
+[![CI](https://github.com/ARSH871-bot/QuizForge/actions/workflows/ci.yml/badge.svg)](https://github.com/ARSH871-bot/QuizForge/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ARSH871-bot/QuizForge?sort=semver)](https://github.com/ARSH871-bot/QuizForge/releases)
+[![Java 21](https://img.shields.io/badge/Java-21-blue)](https://adoptium.net/)
+[![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F)](https://spring.io/projects/spring-boot)
+[![Licence: Proprietary](https://img.shields.io/badge/licence-proprietary-lightgrey)](LICENSE)
+
 An asynchronous quiz and assessment engine. Tournaments open for a time
 window, players enter on their own schedule, and results roll up to a
 leaderboard — deliberately different from live synchronous quizzing.
@@ -78,6 +84,7 @@ tests via `quizforge.opentdb.bootstrap-enabled=false`.
 | `docs/superpowers/plans` | Implementation plans |
 | `STATUS.md` | Current state, known gaps, what is safe to deploy |
 | `CHANGELOG.md` | What changed, and when |
+| `LICENSE` | Proprietary. See the file for why, and what it would take to change |
 
 ## Architecture
 
@@ -102,3 +109,18 @@ Read [`docs/adr/`](docs/adr/) for why things are the way they are.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Commits follow Conventional Commits,
 enforced locally by a git hook and on pull request titles in CI.
+
+## Versioning
+
+Milestones are tagged and released: `v0.1.0` (M0), `v0.2.0` (M1), `v0.3.0`
+(M2). See [Releases](https://github.com/ARSH871-bot/QuizForge/releases).
+
+Semantic versioning of the **public API** begins at M4, when the OpenAPI
+contract and generated SDKs exist and a version number starts meaning
+something to a consumer. Until then the numbers track milestones and act as
+restore points. `1.0.0` is launch.
+
+## Licence
+
+Proprietary — see [LICENSE](LICENSE). This is a deliberate default for a
+commercial product, and a one-way door in the other direction.

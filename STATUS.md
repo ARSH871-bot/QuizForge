@@ -57,6 +57,16 @@ that was never installed and had therefore updated nothing for three
 milestones; six stale merged branches; and five closed issues stuck at
 *In Progress* on the board.
 
+## Releases
+
+| Tag | Milestone |
+|---|---|
+| [v0.3.0](https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.3.0) | M2 — Content and authoring |
+| [v0.2.0](https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.2.0) | M1 — Identity and tenancy |
+| [v0.1.0](https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.1.0) | M0 — Foundation |
+
+Semantic versioning of the public API begins at M4. `1.0.0` is launch.
+
 ## Numbers
 
 - **Tests:** 99, all passing

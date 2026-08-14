@@ -70,6 +70,13 @@ that is not worth a line here is not worth shipping.
 
 ### Changed
 
+- Dependencies brought current: gitleaks-action 3, setup-java 5, checkout 7,
+  junit-report 6, ArchUnit, maven-wrapper, BouncyCastle.
+- Dependabot now ignores Spring Boot **major** versions. 4.x moves to Spring
+  Framework 7 with breaking changes across Security and Data and drops
+  testcontainers from its managed dependencies — a migration to schedule
+  deliberately, not to merge from a green bot PR.
+
 - `/v1/**` now requires authentication. `/api/**` (legacy) remains open until
   M3 retires it.
 - CSRF protection enabled for cookie-authenticated requests, exempting
@@ -100,6 +107,12 @@ that is not worth a line here is not worth shipping.
 - Tracked build artifacts (`target/`) and IDE configuration (`.idea/`).
 
 ### Security
+
+- FindSecBugs 1.13.0 → 1.14.0, which flagged `XSS_SERVLET` in the
+  authentication entry point. A false positive — the only interpolated value is
+  a compile-time constant — but the hand-written JSON it pointed at is now
+  serialised by Jackson, which removes the smell rather than suppressing the
+  finding.
 
 - Bumped `bcprov-jdk18on` 1.78.1 → 1.84, closing a CRITICAL and a MEDIUM
   advisory. Actual exposure was nil (BouncyCastle is used only as the Argon2

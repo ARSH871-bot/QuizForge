@@ -1,18 +1,28 @@
 package com.quizforge.identity.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quizforge.platform.error.ErrorCode;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.net.URI;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
+
+    private final ObjectMapper objectMapper;
+
+    public SecurityConfig(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
@@ -50,13 +60,22 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) -> {
+                // Serialised by Jackson rather than composed as a string.
+                // FindSecBugs 1.14 flags the hand-written version as
+                // XSS_SERVLET. That is a false positive here - the only
+                // interpolated value is a compile-time constant - but writing
+                // JSON by hand into a servlet response is the smell the
+                // detector points at, and it is not worth defending.
+                ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                        ErrorCode.AUTHENTICATION_REQUIRED.status(),
+                        "authentication is required");
+                problem.setType(URI.create(ErrorCode.AUTHENTICATION_REQUIRED.type()));
+                problem.setTitle(ErrorCode.AUTHENTICATION_REQUIRED.name());
+                problem.setProperty("code", ErrorCode.AUTHENTICATION_REQUIRED.name());
+
                 response.setStatus(ErrorCode.AUTHENTICATION_REQUIRED.status().value());
                 response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-                response.getWriter().write("""
-                    {"type":"%s","title":"AUTHENTICATION_REQUIRED",\
-                    "status":401,"detail":"authentication is required",\
-                    "code":"AUTHENTICATION_REQUIRED"}"""
-                        .formatted(ErrorCode.AUTHENTICATION_REQUIRED.type()));
+                objectMapper.writeValue(response.getOutputStream(), problem);
             }))
             .addFilterBefore(apiKeyAuth, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(sessionAuth, UsernamePasswordAuthenticationFilter.class);

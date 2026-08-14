@@ -13,7 +13,7 @@ what is safe to do with the code.
 | M0 | Foundation & remediation | **Complete** | merged to `main`, CI green |
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
-| M3 | Tournament & play engine | **Planned** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 tasks; Task 7 is irreversible |
+| M3 | Tournament & play engine | **In progress** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 tasks; Task 7 is irreversible |
 | M4 | Public API & SDKs | Not started | no plan written |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
@@ -69,9 +69,9 @@ Semantic versioning of the public API begins at M4. `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 99, all passing
-- **Migrations:** V1–V7
-- **Modules:** 8 declared, 3 populated (`platform`, `identity`, `content`)
+- **Tests:** 106, all passing
+- **Migrations:** V1–V8
+- **Modules:** 8 declared, 4 populated (`platform`, `identity`, `content`, `tournament`)
 - **ADRs:** 8
 - **Monthly cost:** $0
 

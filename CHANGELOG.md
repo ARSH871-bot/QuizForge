@@ -70,8 +70,13 @@ that is not worth a line here is not worth shipping.
 
 ### Changed
 
-- Dependencies brought current: gitleaks-action 3, setup-java 5, checkout 7,
-  junit-report 6, ArchUnit, maven-wrapper, BouncyCastle.
+- Dependencies brought current: Spring Boot 3.5.16, Spring Modulith 1.4.12,
+  gitleaks-action 3, setup-java 5, checkout 7, junit-report 6, ArchUnit,
+  maven-wrapper, BouncyCastle, SpotBugs, FindSecBugs.
+- Spring Boot 3.5.16 required Spring Modulith 1.4.12 alongside it: Modulith
+  1.4.3's annotation processor fails at compile with
+  `NoClassDefFoundError: JsonWriter$Extractor` against the newer Boot. Bumping
+  Boot alone breaks the build, which is why Dependabot's grouped PR failed.
 - Dependabot now ignores Spring Boot **major** versions. 4.x moves to Spring
   Framework 7 with breaking changes across Security and Data and drops
   testcontainers from its managed dependencies — a migration to schedule

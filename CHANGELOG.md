@@ -100,6 +100,13 @@ that is not worth a line here is not worth shipping.
 
 ### Security
 
+- Bumped `bcprov-jdk18on` 1.78.1 → 1.84, closing a CRITICAL and a MEDIUM
+  advisory. Actual exposure was nil (BouncyCastle is used only as the Argon2
+  provider; the flaws are in GOST ciphers and LDAP handling) but the security
+  PR had been blocked by this repository's own PR-title lint.
+- Replaced the never-installed Renovate configuration with Dependabot, which
+  runs without an app install and now emits Conventional Commit titles.
+
 - Legacy BCrypt password encoder replaced with Argon2id. Existing BCrypt
   hashes remain verifiable, so accounts upgrade on next login.
 - Session and API key material stored only as SHA-256 digests.

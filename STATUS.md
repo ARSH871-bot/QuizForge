@@ -4,7 +4,7 @@ The single place that says where this product actually stands. Updated in the
 same commit as any change that moves a milestone, opens a known gap, or alters
 what is safe to do with the code.
 
-**Last updated:** 2026-08-12
+**Last updated:** 2026-08-13 (full repository audit)
 
 ## Milestones
 
@@ -42,7 +42,20 @@ customer's data.
 |---|---|---|---|
 | [#2](https://github.com/ARSH871-bot/QuizForge/issues/2) | Mail credential in git history; referenced by no code | **repo owner** | nothing |
 | — | Branch protection is advisory only (private repo, Free plan) | accepted | see ADR 0007 |
+| — | 2 commits in history carry a tooling trailer; removed by the same purge as #2 | **repo owner** | nothing |
 | — | Legacy `cs.quizzapp` package still serves quiz traffic unauthenticated | M3 | deployment |
+
+## Last audit
+
+**2026-08-13.** Verified rather than assumed: every numeric claim below was
+re-measured, every README command executed, and the secret and attribution
+sweeps re-run.
+
+Found and fixed: a **CRITICAL** BouncyCastle advisory whose security PR had
+been blocked by this repository's own PR-title lint; a Renovate configuration
+that was never installed and had therefore updated nothing for three
+milestones; six stale merged branches; and five closed issues stuck at
+*In Progress* on the board.
 
 ## Numbers
 

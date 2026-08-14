@@ -20,6 +20,13 @@ updates:
     commit-message:
       prefix: "build"
       include: scope
+    ignore:
+      # Spring Boot major versions are a migration, not an update. 4.x moves to
+      # Spring Framework 7 with breaking changes across Security and Data, and
+      # drops testcontainers from its managed dependencies. That is a decision
+      # to schedule deliberately, not to merge from a green bot PR.
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
     groups:
       spring:
         patterns:

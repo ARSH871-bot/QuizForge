@@ -11,6 +11,14 @@ that is not worth a line here is not worth shipping.
 
 ### Added
 
+- `LICENSE` (proprietary), `CODE_OF_CONDUCT.md`, `SUPPORT.md`, and README
+  status badges — completing GitHub's community standards checklist.
+- Milestone tags and GitHub Releases: `v0.1.0` (M0), `v0.2.0` (M1), `v0.3.0`
+  (M2). Three milestones had shipped with no tags at all, so there were no
+  restore points and no visible version history.
+
+### Added
+
 - **Identity and tenancy (M1).** Accounts with Argon2id hashing at OWASP
   parameters, workspaces with an OWNER/ADMIN/EDITOR/VIEWER permission matrix,
   hashed sessions and API keys, an append-only audit log, and Postgres

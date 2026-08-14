@@ -69,7 +69,7 @@ Semantic versioning of the public API begins at M4. `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 125, all passing
+- **Tests:** 138, all passing
 - **Migrations:** V1–V9
 - **Modules:** 8 declared, 5 populated (`platform`, `identity`, `content`, `tournament`, `play`)
 - **ADRs:** 8

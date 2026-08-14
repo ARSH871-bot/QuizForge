@@ -44,4 +44,29 @@
         </Or>
     </Match>
 
+    <!--
+      PREDICTABLE_RANDOM on the seeded shuffle.
+
+      Determinism is the requirement, not an oversight: an attempt must render
+      the same question order every time it is asked, so a refresh mid-question
+      does not reshuffle the options under the player. SecureRandom cannot do
+      that - it has no reproducible seed - so the detector is objecting to the
+      only mechanism that satisfies the requirement.
+
+      The seed is derived from the attempt's UUIDv7 by XORing its halves. The
+      timestamp prefix is guessable, but the remaining 74 random bits are not,
+      so predicting another player's shuffle is not feasible. Nothing secret
+      depends on it in any case: the shuffle hides no answer, it only varies
+      presentation between players.
+
+      Proven by AttemptServiceTest.anAttemptRendersTheSameOrderEveryTimeItIsAsked.
+    -->
+    <Match>
+        <Or>
+            <Class name="com.quizforge.play.app.AttemptService"/>
+            <Class name="com.quizforge.content.app.QuestionAccessAdapter"/>
+        </Or>
+        <Bug pattern="PREDICTABLE_RANDOM"/>
+    </Match>
+
 </FindBugsFilter>

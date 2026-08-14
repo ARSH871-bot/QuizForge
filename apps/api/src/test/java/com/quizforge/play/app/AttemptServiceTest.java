@@ -12,7 +12,7 @@ import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.tenancy.TenantContext;
 import com.quizforge.tournament.app.TournamentDraft;
 import com.quizforge.tournament.app.TournamentService;
-import com.quizforge.tournament.domain.ScoringPolicy;
+import com.quizforge.tournament.ScoringPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

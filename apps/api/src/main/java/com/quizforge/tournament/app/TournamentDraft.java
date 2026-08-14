@@ -1,6 +1,6 @@
 package com.quizforge.tournament.app;
 
-import com.quizforge.tournament.domain.ScoringPolicy;
+import com.quizforge.tournament.ScoringPolicy;
 
 import java.time.Instant;
 import java.util.UUID;

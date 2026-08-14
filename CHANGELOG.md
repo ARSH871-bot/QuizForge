@@ -11,6 +11,12 @@ that is not worth a line here is not worth shipping.
 
 ### Added
 
+- **Leaderboards (M3).** Standings materialised when an attempt closes, with
+  the tournament's scoring policy (BEST/FIRST/LAST/AVERAGE) applied at read
+  time so changing a policy takes effect without recomputing history. Ties
+  break in favour of whoever finished first.
+- **`PlayAccess` and the `AttemptGraded` event**, so leaderboards react to play
+  without either module reaching into the other.
 - **Playing an attempt (M3).** Start, per-question retrieval, answer and
   submit. Answers are graded and persisted as the player advances, so an
   attempt survives a disconnect and submission merely aggregates stored

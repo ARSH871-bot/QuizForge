@@ -1,5 +1,6 @@
 package com.quizforge.tournament.domain;
 
+import com.quizforge.tournament.ScoringPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

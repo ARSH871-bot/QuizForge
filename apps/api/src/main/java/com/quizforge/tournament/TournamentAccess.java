@@ -37,4 +37,12 @@ public interface TournamentAccess {
      * own scheduling fields and callers should not re-derive it.
      */
     PlayableTournament requireOpen(UUID tournamentId);
+
+    /**
+     * How multiple attempts collapse into one standing.
+     *
+     * <p>Read at leaderboard time rather than stamped onto a standing, so
+     * changing a tournament's policy takes effect without recomputing history.
+     */
+    ScoringPolicy scoringPolicyOf(UUID tournamentId);
 }

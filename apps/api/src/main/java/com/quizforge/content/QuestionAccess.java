@@ -1,5 +1,6 @@
 package com.quizforge.content;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,4 +28,40 @@ public interface QuestionAccess {
 
     /** Whether the bank exists and belongs to the given workspace. */
     boolean bankBelongsTo(UUID bankId, UUID workspaceId);
+
+    /**
+     * A question as a player may see it.
+     *
+     * <p>Carries no correct answer by construction. This record crosses the
+     * network during play, and a type that cannot represent the answer cannot
+     * leak it — which is a stronger guarantee than remembering to strip it.
+     */
+    record PlayableQuestion(UUID questionId, String type, String prompt, List<String> options) {
+
+        /** Defensively copies, so the option list cannot be mutated after construction. */
+        public PlayableQuestion {
+            options = options == null ? List.of() : List.copyOf(options);
+        }
+    }
+
+    /**
+     * Picks {@code count} current questions from the bank, deterministically
+     * for a given seed.
+     *
+     * <p>Seeded rather than random so an attempt can be reconstructed exactly,
+     * while two players still receive different questions.
+     */
+    List<UUID> selectQuestions(UUID bankId, int count, long seed);
+
+    /** Renders a question for play, with options in the given order. */
+    PlayableQuestion playable(UUID questionId, List<Integer> optionOrder);
+
+    /** The canonical number of options, so a caller can build a shuffle order. */
+    int optionCount(UUID questionId);
+
+    /**
+     * Grades one answer server-side. The correct answer never leaves this
+     * module.
+     */
+    boolean grade(UUID questionId, String given);
 }

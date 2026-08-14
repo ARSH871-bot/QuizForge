@@ -11,6 +11,14 @@ that is not worth a line here is not worth shipping.
 
 ### Added
 
+- **Playing an attempt (M3).** Start, per-question retrieval, answer and
+  submit. Answers are graded and persisted as the player advances, so an
+  attempt survives a disconnect and submission merely aggregates stored
+  outcomes. Options are shuffled per attempt and the order stored, so a
+  refresh does not reshuffle under the player while two players still get
+  different orders.
+- **`TournamentAccess`**, the tournament module's published API, so `play` can
+  read a tournament without reaching into its internals.
 - **The `Attempt` aggregate (M3).** One player's run at a tournament, as
   durable state rather than a marker row. Replaces the prototype's
   disconnected `Participation` and `Score`, fixing six defects at once:

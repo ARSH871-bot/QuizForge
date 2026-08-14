@@ -11,7 +11,7 @@ import com.quizforge.identity.domain.Role;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.tenancy.TenantContext;
-import com.quizforge.tournament.domain.ScoringPolicy;
+import com.quizforge.tournament.ScoringPolicy;
 import com.quizforge.tournament.domain.TournamentState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

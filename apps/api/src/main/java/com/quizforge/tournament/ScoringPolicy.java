@@ -1,4 +1,4 @@
-package com.quizforge.tournament.domain;
+package com.quizforge.tournament;
 
 /**
  * How multiple attempts collapse into one standing. Per ADR 0003, defaulting to

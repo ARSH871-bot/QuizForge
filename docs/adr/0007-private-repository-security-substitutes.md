@@ -26,7 +26,7 @@ works on any plan:
 | Branch protection | `pre-push` hook rejecting direct pushes to `main` | `.githooks/pre-push` |
 | Secret scanning + push protection | gitleaks on every pull request | CI job `secret-scan` |
 | CodeQL | SpotBugs 4.8.6 with FindSecBugs 1.13.0, failing the build at Medium threshold | `spotbugs-maven-plugin`, bound to `verify` |
-| Dependabot alerts | None needed — already enabled and works on private repositories | GitHub settings |
+| Dependency updates | Dependabot alerts, security updates, and version updates | `.github/dependabot.yml` |
 
 SpotBugs analyses only `com.quizforge.*`. The legacy `cs.quizzapp` package is
 frozen and deleted in M3; analysing it would produce findings nobody intends
@@ -41,6 +41,28 @@ in the meantime.
 Positive: every control has a working equivalent, and two of them (SpotBugs,
 gitleaks) are portable — they would keep working after a migration away from
 GitHub, which CodeQL would not.
+
+**Amendment, 2026-08-12.** This ADR originally specified Renovate for
+dependency updates. Renovate is a GitHub App requiring a separate install step
+that was never performed, so `renovate.json` sat inert for three milestones
+while nothing updated dependencies. The gap was invisible because the file
+existed and looked configured.
+
+It surfaced during a repository audit: a **CRITICAL** advisory against
+`bcprov-jdk18on` 1.78.1 (added in M1 for Argon2id) had an open Dependabot
+security PR that nobody had noticed — and which was **blocked by this
+repository's own `conventional-title` CI check**, because Dependabot's default
+title is not a Conventional Commit.
+
+Replaced with Dependabot, which needs no install and was already producing
+security PRs, configured with `commit-message.prefix` so its titles pass the
+check. Actual exposure from the advisory was nil — BouncyCastle is used only as
+the Argon2 provider, and the vulnerabilities are in GOST ciphers and LDAP
+handling, neither of which this codebase touches — but a security update that
+CI silently blocks is a process failure regardless of the payload.
+
+Lesson recorded because it generalises: **a configuration file is not a
+control.** Verify the tool actually runs.
 
 Negative, and worth stating plainly: the `pre-push` hook is **advisory**. It is
 bypassed by `--no-verify` and by any clone that has not run

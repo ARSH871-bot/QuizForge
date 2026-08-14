@@ -91,6 +91,20 @@ git config --global commit.gpgsign true
 Add the same public key to GitHub under Settings → SSH and GPG keys, as a
 **signing** key.
 
+## Versioning and releases
+
+Milestones are tagged `vMAJOR.MINOR.PATCH` and published as GitHub Releases
+with notes written by hand, because generated notes describe commits rather
+than consequences.
+
+Semantic versioning of the public API starts at M4, when the OpenAPI contract
+and SDKs exist and the number means something to a consumer. Before then the
+numbers track milestones and serve as restore points.
+
+The `CHANGELOG.md` is maintained by hand rather than generated. It carries a
+`Known gaps` section and the reasoning behind decisions — neither of which can
+be derived from commit messages.
+
 ## Architecture decisions
 
 Anything structural gets an ADR in `docs/adr/`, numbered sequentially, using

@@ -1,6 +1,7 @@
 package com.quizforge.tournament.app;
 
 import com.quizforge.platform.error.ApiException;
+import com.quizforge.tournament.ScoringPolicy;
 import com.quizforge.tournament.TournamentAccess;
 import com.quizforge.tournament.domain.Tournament;
 import org.springframework.stereotype.Service;
@@ -33,5 +34,11 @@ public class TournamentAccessAdapter implements TournamentAccess {
         return new PlayableTournament(tournament.getId(), tournament.getWorkspaceId(),
                 tournament.getBankId(), tournament.getQuestionCount(),
                 tournament.getTimeLimitSeconds(), tournament.getMaxAttempts());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ScoringPolicy scoringPolicyOf(UUID tournamentId) {
+        return tournaments.requireById(tournamentId).getScoringPolicy();
     }
 }

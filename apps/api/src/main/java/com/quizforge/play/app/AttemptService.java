@@ -11,8 +11,10 @@ import com.quizforge.play.domain.AttemptQuestion;
 import com.quizforge.play.domain.Response;
 import com.quizforge.play.repo.AttemptQuestionRepository;
 import com.quizforge.play.repo.AttemptRepository;
+import com.quizforge.play.AttemptGraded;
 import com.quizforge.play.repo.ResponseRepository;
 import com.quizforge.tournament.TournamentAccess;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,16 +35,19 @@ public class AttemptService {
     private final TournamentAccess tournaments;
     private final QuestionAccess questions;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher events;
 
     public AttemptService(AttemptRepository attempts, AttemptQuestionRepository attemptQuestions,
                           ResponseRepository responses, TournamentAccess tournaments,
-                          QuestionAccess questions, ObjectMapper objectMapper) {
+                          QuestionAccess questions, ObjectMapper objectMapper,
+                          ApplicationEventPublisher events) {
         this.attempts = attempts;
         this.attemptQuestions = attemptQuestions;
         this.responses = responses;
         this.tournaments = tournaments;
         this.questions = questions;
         this.objectMapper = objectMapper;
+        this.events = events;
     }
 
     /**
@@ -124,6 +129,13 @@ public class AttemptService {
         int correct = (int) responses.countByAttemptIdAndCorrectIsTrue(attemptId);
         attempt.submit(correct, Instant.now());
         attempts.save(attempt);
+
+        // Published inside the transaction, so a rollback takes the event with
+        // it. Consumers must still be idempotent - delivery is at-least-once.
+        events.publishEvent(new AttemptGraded(attempt.getId(), attempt.getTournamentId(),
+                attempt.getWorkspaceId(), attempt.getAccountId(),
+                attempt.getScoreNumerator(), attempt.getScoreDenominator(),
+                attempt.getGradedAt()));
 
         return result(attempt);
     }

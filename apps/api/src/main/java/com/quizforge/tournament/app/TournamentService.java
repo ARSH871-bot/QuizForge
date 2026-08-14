@@ -5,7 +5,7 @@ import com.quizforge.identity.WorkspaceAccess;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
-import com.quizforge.tournament.domain.ScoringPolicy;
+import com.quizforge.tournament.ScoringPolicy;
 import com.quizforge.tournament.domain.Tournament;
 import com.quizforge.tournament.repo.TournamentRepository;
 import org.springframework.stereotype.Service;

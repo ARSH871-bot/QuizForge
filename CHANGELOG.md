@@ -11,13 +11,19 @@ that is not worth a line here is not worth shipping.
 
 ### Added
 
+- **Tournaments (M3).** A scheduled run of questions drawn from a bank, open
+  for a window. State (SCHEDULED/OPEN/CLOSED) is derived from the clock rather
+  than stored, so no scheduled job transitions it and a row can never disagree
+  with the calendar. A tournament asking for more questions than its bank holds
+  is rejected at creation, not discovered by the first player.
+- **`QuestionAccess`**, the content module's published API, so `tournament`
+  (and later `play`) can ask about questions without reaching into
+  `content.app` or `content.domain`.
 - `LICENSE` (proprietary), `CODE_OF_CONDUCT.md`, `SUPPORT.md`, and README
   status badges — completing GitHub's community standards checklist.
 - Milestone tags and GitHub Releases: `v0.1.0` (M0), `v0.2.0` (M1), `v0.3.0`
   (M2). Three milestones had shipped with no tags at all, so there were no
   restore points and no visible version history.
-
-### Added
 
 - **Identity and tenancy (M1).** Accounts with Argon2id hashing at OWASP
   parameters, workspaces with an OWNER/ADMIN/EDITOR/VIEWER permission matrix,

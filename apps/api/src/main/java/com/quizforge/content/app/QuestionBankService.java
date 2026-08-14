@@ -44,6 +44,12 @@ public class QuestionBankService {
                 .orElseThrow(() -> ApiException.notFound("question bank"));
     }
 
+    /** Optional lookup, for callers that treat absence as a normal outcome. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<QuestionBank> findById(UUID bankId) {
+        return banks.findById(bankId);
+    }
+
     @Transactional(readOnly = true)
     public List<QuestionBank> activeIn(UUID workspaceId) {
         return banks.findByWorkspaceIdAndArchivedAtIsNull(workspaceId);

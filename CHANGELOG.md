@@ -11,6 +11,14 @@ that is not worth a line here is not worth shipping.
 
 ### Added
 
+- **The `Attempt` aggregate (M3).** One player's run at a tournament, as
+  durable state rather than a marker row. Replaces the prototype's
+  disconnected `Participation` and `Score`, fixing six defects at once:
+  resumability after a disconnect, idempotent submission, a score denominator
+  frozen at creation so a player is never graded against questions they did
+  not see, per-question responses that the paginated flow can persist,
+  server-side grading, and a time limit computed from the server clock rather
+  than accepted from a request.
 - **Tournaments (M3).** A scheduled run of questions drawn from a bank, open
   for a window. State (SCHEDULED/OPEN/CLOSED) is derived from the clock rather
   than stored, so no scheduled job transitions it and a row can never disagree

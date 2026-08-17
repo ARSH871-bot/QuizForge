@@ -35,5 +35,8 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.mail.password", () -> "unused");
         registry.add("email.test.mode", () -> "true");
         registry.add("quizforge.opentdb.bootstrap-enabled", () -> "false");
+        // The sweep is driven explicitly in its own test. Left on a timer it
+        // would close attempts mid-assertion in every other test.
+        registry.add("quizforge.play.expiry-sweep-enabled", () -> "false");
     }
 }

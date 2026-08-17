@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Application entry point.
@@ -17,6 +18,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * every legacy bean. All three legacy entries are removed once M3 completes.
  */
 @SpringBootApplication
+@EnableScheduling
 @ComponentScan(basePackages = {"com.quizforge", "cs.quizzapp.prokect.backend"})
 @EntityScan(basePackages = {"com.quizforge", "cs.quizzapp.prokect.backend.models"})
 @EnableJpaRepositories(basePackages = {"com.quizforge", "cs.quizzapp.prokect.backend.db"})

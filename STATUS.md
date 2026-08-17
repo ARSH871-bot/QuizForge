@@ -13,7 +13,7 @@ what is safe to do with the code.
 | M0 | Foundation & remediation | **Complete** | merged to `main`, CI green |
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
-| M3 | Tournament & play engine | **In progress** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 tasks; Task 7 is irreversible |
+| M3 | Tournament & play engine | **6 of 7** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 tasks; Task 7 is irreversible |
 | M4 | Public API & SDKs | Not started | no plan written |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
@@ -29,8 +29,12 @@ ahead of a plan produces fiction, not tracking.
 **Not safe:** deploy it anywhere reachable. One reason remains:
 
 1. The legacy `/api/**` endpoints are still completely unauthenticated. They
-   are retired in M3. Until then, anyone reachable can read and modify quiz
-   data without credentials.
+   are retired by #45, the last open task in M3. Until then, anyone reachable
+   can read and modify quiz data without credentials.
+
+The replacement is complete and tested: a player can start a tournament,
+answer question by question, submit, and appear on a leaderboard entirely
+through authenticated `/v1` endpoints. Only the deletion remains.
 
 Tenant isolation is now enforced by PostgreSQL itself (#23, ADR 0008), so a
 missing `WHERE workspace_id = ?` returns nothing rather than another

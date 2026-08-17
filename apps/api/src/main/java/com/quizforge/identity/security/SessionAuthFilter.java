@@ -1,5 +1,6 @@
 package com.quizforge.identity.security;
 
+import com.quizforge.identity.Principal;
 import com.quizforge.identity.app.SessionService;
 import com.quizforge.identity.app.WorkspaceService;
 import com.quizforge.identity.domain.Role;

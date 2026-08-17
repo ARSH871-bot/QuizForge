@@ -39,11 +39,17 @@ class AuthenticationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void leavesTheLegacyApiOpenUntilM3() throws Exception {
-        // /api/** is deliberately still unauthenticated. Asserting it here
-        // makes the exception explicit and deliberate rather than forgotten,
-        // and this test is deleted along with the legacy package in M3.
-        mvc.perform(get("/api/questions"))
-                .andExpect(status().isOk());
+    void theLegacyApiServesNothing() throws Exception {
+        // This was the last unauthenticated surface in the product. It is
+        // asserted positively rather than assumed gone.
+        //
+        // The status is 401 rather than 404 because Spring Security intercepts
+        // an unknown path before the dispatcher can report it missing. That is
+        // the better behaviour - an anonymous caller learns nothing about which
+        // routes exist - so the assertion is that it serves no data, not that
+        // it 404s.
+        mvc.perform(get("/api/questions")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/quizzes")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
     }
 }

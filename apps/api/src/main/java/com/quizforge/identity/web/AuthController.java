@@ -25,10 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-// Explicitly named: the legacy cs.quizzapp AuthController would otherwise
-// claim the same default bean name and the context would fail to start. The
-// qualifier goes away with the legacy package in M3.
-@RestController("identityAuthController")
+@RestController
 @RequestMapping("/v1/auth")
 public class AuthController {
 

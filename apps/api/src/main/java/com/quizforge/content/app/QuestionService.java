@@ -14,10 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-// Explicitly named: the legacy cs.quizzapp QuestionService would otherwise
-// claim the same default bean name and the context would fail to start. The
-// qualifier goes away with the legacy package in M3.
-@Service("contentQuestionService")
+@Service
 public class QuestionService {
 
     private final QuestionRepository questions;

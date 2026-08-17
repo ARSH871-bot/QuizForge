@@ -11,6 +11,10 @@ that is not worth a line here is not worth shipping.
 
 ### Added
 
+- **Expiry sweep (M3).** Closes attempts abandoned past their time limit so
+  leaderboards settle, coordinated across instances by a Postgres advisory
+  lock. The sweep is *not* what enforces the limit — that is checked on every
+  access — so a player never benefits from the job running late.
 - **Leaderboards (M3).** Standings materialised when an attempt closes, with
   the tournament's scoring policy (BEST/FIRST/LAST/AVERAGE) applied at read
   time so changing a policy takes effect without recomputing history. Ties

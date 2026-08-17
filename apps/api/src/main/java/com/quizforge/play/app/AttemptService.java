@@ -7,6 +7,7 @@ import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
 import com.quizforge.play.domain.Attempt;
+import com.quizforge.play.domain.AttemptState;
 import com.quizforge.play.domain.AttemptQuestion;
 import com.quizforge.play.domain.Response;
 import com.quizforge.play.repo.AttemptQuestionRepository;
@@ -138,6 +139,41 @@ public class AttemptService {
                 attempt.getGradedAt()));
 
         return result(attempt);
+    }
+
+    /**
+     * Closes one overdue attempt, scoring whatever was answered.
+     *
+     * <p>Separate transaction per attempt so a single bad row cannot abort the
+     * whole sweep, and returns quietly if another instance closed it first.
+     */
+    @Transactional
+    public boolean expireIfOverdue(UUID attemptId) {
+        Attempt attempt = attempts.findById(attemptId).orElse(null);
+        if (attempt == null || attempt.getState().isTerminal()
+                || !attempt.isExpired(Instant.now())) {
+            return false;
+        }
+
+        int correct = (int) responses.countByAttemptIdAndCorrectIsTrue(attemptId);
+        attempt.expire(correct, Instant.now());
+        attempts.save(attempt);
+
+        // Expired attempts still settle the leaderboard. Without this an
+        // abandoned attempt would leave standings permanently incomplete.
+        events.publishEvent(new AttemptGraded(attempt.getId(), attempt.getTournamentId(),
+                attempt.getWorkspaceId(), attempt.getAccountId(),
+                attempt.getScoreNumerator(), attempt.getScoreDenominator(),
+                attempt.getGradedAt()));
+
+        return true;
+    }
+
+    /** Ids of attempts past their limit but still open. */
+    @Transactional(readOnly = true)
+    public List<UUID> overdueAttemptIds() {
+        return attempts.findByStateAndExpiresAtBefore(AttemptState.STARTED, Instant.now())
+                .stream().map(Attempt::getId).toList();
     }
 
     @Transactional(readOnly = true)

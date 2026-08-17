@@ -2,7 +2,7 @@ package com.quizforge.identity.web;
 
 import com.quizforge.identity.app.AccountService;
 import com.quizforge.identity.app.SessionService;
-import com.quizforge.identity.security.Principal;
+import com.quizforge.identity.Principal;
 import com.quizforge.identity.security.SessionAuthFilter;
 import com.quizforge.identity.web.dto.AccountResponse;
 import com.quizforge.identity.web.dto.LoginRequest;

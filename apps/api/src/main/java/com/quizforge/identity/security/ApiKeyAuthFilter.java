@@ -1,5 +1,6 @@
 package com.quizforge.identity.security;
 
+import com.quizforge.identity.Principal;
 import com.quizforge.identity.app.ApiKeyService;
 import com.quizforge.identity.domain.Role;
 import com.quizforge.platform.tenancy.TenantContext;

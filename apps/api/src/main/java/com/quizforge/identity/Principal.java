@@ -1,11 +1,15 @@
-package com.quizforge.identity.security;
+package com.quizforge.identity;
 
 import com.quizforge.identity.domain.Role;
 
 import java.util.UUID;
 
 /**
- * The authenticated caller. {@code workspaceId} and {@code role} are null for a
+ * The authenticated caller, and part of identity's published API.
+ *
+ * <p>It sits in the root package because every module's controllers need it:
+ * knowing who is calling is not an identity-internal concern, it is the whole
+ * point of authenticating. {@code workspaceId} and {@code role} are null for a
  * session that has not yet selected a workspace; they are always populated for
  * API key authentication, since a key belongs to exactly one workspace.
  */

@@ -149,6 +149,14 @@ that is not worth a line here is not worth shipping.
 
 ### Removed
 
+- **The legacy `cs.quizzapp` package and all 41 `/api/**` endpoints.** This was
+  the last unauthenticated surface in the product. V11 drops the coursework
+  schema (`quiz`, `score`, `participation`, `users` and friends) — confirmed by
+  the owner as holding no data worth keeping.
+- Hand-declared component, entity and repository scanning on the entry point,
+  and the bean-name qualifiers on `QuestionService` and `AuthController`. All
+  existed only to coexist with the legacy package.
+
 - `spring.jpa.hibernate.ddl-auto=update`. Flyway owns the schema; Hibernate
   validates only.
 - MySQL driver and dialect configuration. PostgreSQL only.

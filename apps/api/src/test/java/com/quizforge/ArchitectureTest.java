@@ -16,18 +16,9 @@ class ArchitectureTest {
     static void importClasses() {
         allClasses = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-                .importPackages("com.quizforge", "cs.quizzapp");
+                .importPackages("com.quizforge");
     }
 
-    @Test
-    void newCodeMustNotDependOnLegacyCode() {
-        noClasses()
-                .that().resideInAPackage("com.quizforge..")
-                .should().dependOnClassesThat().resideInAPackage("cs.quizzapp..")
-                .because("new modules must not couple themselves to code that is being deleted")
-                .allowEmptyShould(true)
-                .check(allClasses);
-    }
 
     @Test
     void controllersMustNotTalkDirectlyToRepositories() {

@@ -48,7 +48,6 @@ public class SecurityConfig {
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .ignoringRequestMatchers(
                         new AntPathRequestMatcher("/v1/auth/**"),
-                        new AntPathRequestMatcher("/api/**"),
                         request -> {
                             String header = request.getHeader("Authorization");
                             return header != null && header.startsWith("Bearer qf_");
@@ -56,8 +55,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/v1/auth/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                // The legacy quiz API remains open until M3 replaces it.
-                .requestMatchers("/api/**").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) -> {
                 // Serialised by Jackson rather than composed as a string.

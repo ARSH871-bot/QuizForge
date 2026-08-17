@@ -13,7 +13,7 @@ what is safe to do with the code.
 | M0 | Foundation & remediation | **Complete** | merged to `main`, CI green |
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
-| M3 | Tournament & play engine | **6 of 7** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 tasks; Task 7 is irreversible |
+| M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 tasks; Task 7 is irreversible |
 | M4 | Public API & SDKs | Not started | no plan written |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
@@ -26,15 +26,18 @@ ahead of a plan produces fiction, not tracking.
 
 **Safe:** run it locally, develop against it, run the test suite.
 
-**Not safe:** deploy it anywhere reachable. One reason remains:
+**Deployable, with the caveats below.** The legacy unauthenticated surface is
+gone: every `/api/**` route now returns 401, verified against a running
+instance. Every endpoint requires credentials except `/v1/auth/**` and
+`/actuator/health`.
 
-1. The legacy `/api/**` endpoints are still completely unauthenticated. They
-   are retired by #45, the last open task in M3. Until then, anyone reachable
-   can read and modify quiz data without credentials.
+Remaining caveats before a real deployment — none of them security holes, all
+of them missing polish:
 
-The replacement is complete and tested: a player can start a tournament,
-answer question by question, submit, and appear on a leaderboard entirely
-through authenticated `/v1` endpoints. Only the deletion remains.
+- No public API contract or SDKs yet (M4)
+- No web interface (M5)
+- No billing, observability, backups or runbooks (M7)
+- Email is disabled by default; a provider is wired in M4
 
 Tenant isolation is now enforced by PostgreSQL itself (#23, ADR 0008), so a
 missing `WHERE workspace_id = ?` returns nothing rather than another
@@ -47,7 +50,6 @@ customer's data.
 | [#2](https://github.com/ARSH871-bot/QuizForge/issues/2) | Mail credential in git history; referenced by no code | **repo owner** | nothing |
 | — | Branch protection is advisory only (private repo, Free plan) | accepted | see ADR 0007 |
 | — | 2 commits in history carry a tooling trailer; removed by the same purge as #2 | **repo owner** | nothing |
-| — | Legacy `cs.quizzapp` package still serves quiz traffic unauthenticated | M3 | deployment |
 
 ## Last audit
 

@@ -11,6 +11,11 @@ that is not worth a line here is not worth shipping.
 
 ### Added
 
+- **Play endpoints (M3).** `POST /v1/tournaments/{id}/attempts`,
+  `GET|POST /v1/attempts/{id}/questions/{n}`, `POST /v1/attempts/{id}/submit`,
+  `GET /v1/tournaments/{id}/standings`, and a tournament listing. All
+  authenticated and workspace-scoped; another account's attempt returns 404
+  rather than 403.
 - **Expiry sweep (M3).** Closes attempts abandoned past their time limit so
   leaderboards settle, coordinated across instances by a Postgres advisory
   lock. The sweep is *not* what enforces the limit — that is checked on every

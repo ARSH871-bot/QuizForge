@@ -234,6 +234,11 @@ existence itself is not disclosed across tenants.
 
 ## Task 7: Retire the legacy package
 
+> **Status: not started.** Tasks 1-6 are merged and green (161 tests). This
+> task is blocked on the repository owner confirming that the legacy `quiz`,
+> `score`, `participation` and `users` tables hold no data worth migrating —
+> see #45.
+
 > **Do not start until Tasks 1–6 are complete, merged, and green.** This removes
 > the product's only currently-working play path.
 
@@ -298,13 +303,13 @@ the product's safety in exactly the direction that matters.
 
 ## Definition of done for M3
 
-- [ ] `./mvnw verify` passes from a clean clone
-- [ ] An attempt can be started, answered question by question, resumed after a simulated disconnect, and submitted
-- [ ] Submitting twice returns the same result and does not double-count
-- [ ] No response mid-attempt contains a correct answer, asserted for all five types
-- [ ] Score denominator is the frozen question count, not the bank size
-- [ ] Expiry is enforced on access, not only by the sweep
-- [ ] Standings are correct for each scoring policy, and the listener is idempotent
+- [x] `./mvnw verify` passes from a clean clone
+- [x] An attempt can be started, answered question by question, resumed after a simulated disconnect, and submitted
+- [x] Submitting twice returns the same result and does not double-count
+- [x] No response mid-attempt contains a correct answer, asserted for all five types
+- [x] Score denominator is the frozen question count, not the bank size
+- [x] Expiry is enforced on access, not only by the sweep
+- [x] Standings are correct for each scoring policy, and the listener is idempotent
 - [ ] `cs.quizzapp` does not exist and `/api/**` returns 404
 - [ ] `STATUS.md` no longer lists the legacy package as a deployment blocker
 - [ ] `CHANGELOG.md`, plan checkboxes and issues are current

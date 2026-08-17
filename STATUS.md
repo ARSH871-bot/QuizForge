@@ -13,7 +13,7 @@ what is safe to do with the code.
 | M0 | Foundation & remediation | **Complete** | merged to `main`, CI green |
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
-| M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 tasks; Task 7 is irreversible |
+| M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
 | M4 | Public API & SDKs | Not started | no plan written |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
@@ -47,11 +47,42 @@ customer's data.
 
 | # | Gap | Owner | Blocking |
 |---|---|---|---|
-| [#2](https://github.com/ARSH871-bot/QuizForge/issues/2) | Mail credential in git history; referenced by no code | **repo owner** | nothing |
-| — | GitHub still serves pre-rewrite commits by SHA via pull-request refs | open | needs Support-side GC; the credential in them is revoked |
-| — | 2 commits in history carry a tooling trailer; removed by the same purge as #2 | **repo owner** | nothing |
+| [#67](https://github.com/ARSH871-bot/QuizForge/issues/67) | GitHub still serves 4 pre-rewrite commits by SHA through `refs/pull/*/head` | **repo owner** | nothing — the credential in them is revoked, so it is dead text |
+
+Nothing else is open. The mail credential, the unrelated 1.1 MB binary and the
+tooling trailers are gone from every ref, verified by cloning the remote fresh
+and searching it rather than by inspecting this repository — which looked clean
+even when the release tags still pointed at the old history.
+
+## Security controls
+
+All native, all verified rather than assumed. See
+[ADR 0009](docs/adr/0009-public-repository-and-native-security-controls.md).
+
+| Control | State | How it was verified |
+|---|---|---|
+| Ruleset on `main` | active, **no bypass actors** | a direct push was attempted and rejected with `GH013` |
+| Required checks | `build`, `secret-scan`, `docs-current`, `conventional-title`, `CodeQL` | all 5 reported on the last merged pull request |
+| Secret scanning + push protection | enabled | — |
+| CodeQL, extended query suite | enabled | `Analyze (java-kotlin)` and `Analyze (actions)` both pass |
+| Private vulnerability reporting | enabled | the `SECURITY.md` advisory URL now resolves |
+| Dependabot alerts + security updates | enabled | — |
+| gitleaks, SpotBugs + FindSecBugs | retained alongside the above | SpotBugs bar proven with a vulnerable canary |
+
+Two limits worth knowing: **generic secret patterns** and **validity checks**
+remain disabled. They are Secret Protection features, not part of free
+public-repo secret scanning. Provider-pattern scanning — which is what detects
+a Google app password — is on.
 
 ## Last audit
+
+**2026-08-17.** The repository was made public after purging its history, and
+every security control it had been substituting for was replaced with the
+native one. Two things were caught by verifying instead of assuming: the purge
+had left the three release tags pointing at pre-rewrite commits, so a fresh
+clone still contained the credential; and an in-repository CodeQL job would have
+turned permanently red against CodeQL default setup, which refuses results from
+an advanced configuration.
 
 **2026-08-13.** Verified rather than assumed: every numeric claim below was
 re-measured, every README command executed, and the secret and attribution
@@ -76,9 +107,9 @@ Semantic versioning of the public API begins at M4. `1.0.0` is launch.
 ## Numbers
 
 - **Tests:** 161, all passing
-- **Migrations:** V1–V10
+- **Migrations:** V1–V11
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
-- **ADRs:** 8
+- **ADRs:** 9 (0007 superseded by 0009)
 - **Monthly cost:** $0
 
 ## Where to look

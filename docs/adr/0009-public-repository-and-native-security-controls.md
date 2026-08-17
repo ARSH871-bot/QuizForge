@@ -70,10 +70,16 @@ rejected by GitHub itself, not by a hook the pusher can skip. This was verified
 by attempting one and confirming the rejection, rather than assumed from the
 ruleset's existence.
 
-Required status checks on `main` are `build`, `secret-scan`, and
-`conventional-title`. `docs-current` is deliberately **not** required: it only
-runs on pull requests, and a check that never reports on a direct-merge path
-blocks the queue rather than protecting it.
+Required status checks on `main` are `build`, `secret-scan`, `docs-current`,
+`conventional-title`, and `CodeQL`.
+
+`docs-current` is required even though it runs only on pull requests. That
+looked like a reason to exclude it — a check that never reports would block the
+queue forever — until the ruleset itself removed the concern: direct pushes are
+rejected, so **every** change to `main` arrives as a pull request, where the
+check always runs. The conditional is safe precisely because the protection is
+in place. This is the check that enforces the changelog discipline, so leaving
+it advisory would have been the wrong half to drop.
 
 Review approval is set to **zero required**. GitHub does not permit approving
 one's own pull request, and this is a solo project; requiring one approval

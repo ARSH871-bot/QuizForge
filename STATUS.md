@@ -48,7 +48,7 @@ customer's data.
 | # | Gap | Owner | Blocking |
 |---|---|---|---|
 | [#2](https://github.com/ARSH871-bot/QuizForge/issues/2) | Mail credential in git history; referenced by no code | **repo owner** | nothing |
-| — | Branch protection is advisory only (private repo, Free plan) | accepted | see ADR 0007 |
+| — | GitHub still serves pre-rewrite commits by SHA via pull-request refs | open | needs Support-side GC; the credential in them is revoked |
 | — | 2 commits in history carry a tooling trailer; removed by the same purge as #2 | **repo owner** | nothing |
 
 ## Last audit

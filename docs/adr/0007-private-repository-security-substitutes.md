@@ -4,7 +4,11 @@ Date: 2026-08-12
 
 ## Status
 
-Accepted
+Superseded by [ADR 0009](0009-public-repository-and-native-security-controls.md)
+on 2026-08-17. The repository is now public and each substitute below has been
+replaced by, or demoted beneath, the native control it stood in for. The
+reasoning is kept because the substitutes were not all discarded — gitleaks and
+SpotBugs are still in use, for reasons ADR 0009 records.
 
 ## Context
 

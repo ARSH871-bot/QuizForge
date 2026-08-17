@@ -147,6 +147,20 @@ that is not worth a line here is not worth shipping.
   `@CollectionTable` so Hibernate still finds `question_options`. The legacy
   table is deleted outright in M3.
 
+### Security
+
+- **The repository is public, and every native GitHub control is on**: a
+  ruleset protecting `main` server-side, secret scanning with push protection,
+  CodeQL default setup on the extended query suite, private vulnerability
+  reporting, and Dependabot. ADR 0009 supersedes ADR 0007; gitleaks and
+  SpotBugs are kept alongside the native controls rather than removed, for
+  reasons recorded there.
+- **History rewritten.** A mail credential present since the initial commit, a
+  1.1 MB unrelated binary, and every authoring-tool trailer are gone from all
+  refs. The credential was revoked at the provider first. Verified by cloning
+  the remote fresh and searching it, not by inspecting the local repository.
+  A mirror backup was taken before the rewrite.
+
 ### Removed
 
 - **The legacy `cs.quizzapp` package and all 41 `/api/**` endpoints.** This was

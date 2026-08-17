@@ -1,6 +1,7 @@
 # QuizForge
 
 [![CI](https://github.com/ARSH871-bot/QuizForge/actions/workflows/ci.yml/badge.svg)](https://github.com/ARSH871-bot/QuizForge/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ARSH871-bot/QuizForge/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ARSH871-bot/QuizForge/security/code-scanning)
 [![Release](https://img.shields.io/github/v/release/ARSH871-bot/QuizForge?sort=semver)](https://github.com/ARSH871-bot/QuizForge/releases)
 [![Java 21](https://img.shields.io/badge/Java-21-blue)](https://adoptium.net/)
 [![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F)](https://spring.io/projects/spring-boot)
@@ -15,8 +16,11 @@ product surface.
 
 ## Status
 
-Pre-launch. Milestones M0 (foundation) and M1 (identity and tenancy) are
-complete.
+Pre-launch. M0 (foundation), M1 (identity and tenancy), M2 (content and
+authoring) and M3 (tournaments and play) are complete: a player can start a
+tournament, answer question by question, submit, and appear on a leaderboard,
+entirely through authenticated `/v1` endpoints. M4 (the public API contract and
+SDKs) is next.
 
 **[STATUS.md](STATUS.md) is the single source of truth** for where the product
 stands, what is safe to do with the code, and every known gap. Read it before

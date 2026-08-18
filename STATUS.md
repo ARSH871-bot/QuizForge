@@ -98,11 +98,12 @@ milestones; six stale merged branches; and five closed issues stuck at
 
 | Tag | Milestone |
 |---|---|
+| [v0.4.0](https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.4.0) | M3 — Tournaments and play |
 | [v0.3.0](https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.3.0) | M2 — Content and authoring |
 | [v0.2.0](https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.2.0) | M1 — Identity and tenancy |
 | [v0.1.0](https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.1.0) | M0 — Foundation |
 
-Semantic versioning of the public API begins at M4. `1.0.0` is launch.
+Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 

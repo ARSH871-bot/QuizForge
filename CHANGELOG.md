@@ -5,12 +5,44 @@ All notable changes to this project are recorded here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 This file is updated in the same commit as the change it describes. A change
-that is not worth a line here is not worth shipping.
+that is not worth a line here is not worth shipping. `[Unreleased]` is rolled
+into a version section when a release is tagged — see
+[CONTRIBUTING.md](CONTRIBUTING.md#cutting-a-release).
+
+Semantic versioning of the **public API** begins at 0.5.0 (M4). Until then
+these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.4.0] — 2026-08-17
+
+Milestone M3: tournaments and the play engine. Also the milestone in which the
+repository became public and stopped substituting for the security controls it
+could not have while private.
+
 ### Added
 
+- **Tournaments (M3).** A scheduled run of questions drawn from a bank, open
+  for a window. State (SCHEDULED/OPEN/CLOSED) is derived from the clock rather
+  than stored, so no scheduled job transitions it and a row can never disagree
+  with the calendar. A tournament asking for more questions than its bank holds
+  is rejected at creation, not discovered by the first player.
+- **The `Attempt` aggregate (M3).** One player's run at a tournament, as
+  durable state rather than a marker row. Replaces the prototype's
+  disconnected `Participation` and `Score`, fixing six defects at once:
+  resumability after a disconnect, idempotent submission, a score denominator
+  frozen at creation so a player is never graded against questions they did
+  not see, per-question responses that the paginated flow can persist,
+  server-side grading, and a time limit computed from the server clock rather
+  than accepted from a request.
+- **Playing an attempt (M3).** Start, per-question retrieval, answer and
+  submit. Answers are graded and persisted as the player advances, so an
+  attempt survives a disconnect and submission merely aggregates stored
+  outcomes. Options are shuffled per attempt and the order stored, so a
+  refresh does not reshuffle under the player while two players still get
+  different orders.
 - **Play endpoints (M3).** `POST /v1/tournaments/{id}/attempts`,
   `GET|POST /v1/attempts/{id}/questions/{n}`, `POST /v1/attempts/{id}/submit`,
   `GET /v1/tournaments/{id}/standings`, and a tournament listing. All
@@ -24,94 +56,22 @@ that is not worth a line here is not worth shipping.
   the tournament's scoring policy (BEST/FIRST/LAST/AVERAGE) applied at read
   time so changing a policy takes effect without recomputing history. Ties
   break in favour of whoever finished first.
-- **`PlayAccess` and the `AttemptGraded` event**, so leaderboards react to play
-  without either module reaching into the other.
-- **Playing an attempt (M3).** Start, per-question retrieval, answer and
-  submit. Answers are graded and persisted as the player advances, so an
-  attempt survives a disconnect and submission merely aggregates stored
-  outcomes. Options are shuffled per attempt and the order stored, so a
-  refresh does not reshuffle under the player while two players still get
-  different orders.
-- **`TournamentAccess`**, the tournament module's published API, so `play` can
-  read a tournament without reaching into its internals.
-- **The `Attempt` aggregate (M3).** One player's run at a tournament, as
-  durable state rather than a marker row. Replaces the prototype's
-  disconnected `Participation` and `Score`, fixing six defects at once:
-  resumability after a disconnect, idempotent submission, a score denominator
-  frozen at creation so a player is never graded against questions they did
-  not see, per-question responses that the paginated flow can persist,
-  server-side grading, and a time limit computed from the server clock rather
-  than accepted from a request.
-- **Tournaments (M3).** A scheduled run of questions drawn from a bank, open
-  for a window. State (SCHEDULED/OPEN/CLOSED) is derived from the clock rather
-  than stored, so no scheduled job transitions it and a row can never disagree
-  with the calendar. A tournament asking for more questions than its bank holds
-  is rejected at creation, not discovered by the first player.
 - **`QuestionAccess`**, the content module's published API, so `tournament`
   (and later `play`) can ask about questions without reaching into
   `content.app` or `content.domain`.
+- **`TournamentAccess`**, the tournament module's published API, so `play` can
+  read a tournament without reaching into its internals.
+- **`PlayAccess` and the `AttemptGraded` event**, so leaderboards react to play
+  without either module reaching into the other.
+- M3 (tournament and play engine) implementation plan, including the retirement
+  of the legacy package.
 - `LICENSE` (proprietary), `CODE_OF_CONDUCT.md`, `SUPPORT.md`, and README
   status badges — completing GitHub's community standards checklist.
 - Milestone tags and GitHub Releases: `v0.1.0` (M0), `v0.2.0` (M1), `v0.3.0`
   (M2). Three milestones had shipped with no tags at all, so there were no
   restore points and no visible version history.
-
-- **Identity and tenancy (M1).** Accounts with Argon2id hashing at OWASP
-  parameters, workspaces with an OWNER/ADMIN/EDITOR/VIEWER permission matrix,
-  hashed sessions and API keys, an append-only audit log, and Postgres
-  Row-Level Security policies.
-- `POST /v1/auth/register`, `/login`, `/logout`; `GET /v1/auth/me`;
-  `POST /v1/auth/request-password-reset`.
-- Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
-  at the API boundary.
-- RFC 9457 Problem Details for every error, with stable machine-readable codes.
-- **OpenTDB import (M2).** Replaces the legacy `OpenTDBService`. Requests
-  base64 rather than URL encoding (the legacy path double-decoded any answer
-  containing a percent sign), fails fast on rate limiting instead of sleeping
-  six seconds per category, and de-duplicates through the same content hash as
-  every other import.
-- **CSV import (M2).** Partial success is the normal case: one malformed row
-  does not discard the rest, failures are reported with the line number a human
-  sees in a spreadsheet, and re-importing the same file is a no-op rather than
-  an error.
-- **Server-side grading (M2).** A grader per question type behind a registry.
-  Multi-choice requires set equality; numeric compares within absolute
-  tolerance; short text normalises without fuzzy matching. A null or
-  unparseable answer is incorrect, never an error.
-- **Tenant isolation for content.** RLS policies on `question_bank` and
-  `question`, proven by a test that asks for another workspace's rows and gets
-  nothing.
-- **Question banks and immutable authoring (M2).** Authoring writes version 1;
-  revising inserts a new row sharing the lineage and supersedes the previous
-  one, leaving it byte-identical so a tournament can pin exactly what a player
-  saw. Duplicates are rejected per bank by normalised content hash.
-- **`WorkspaceAccess`**, identity's published authorization API. Other modules
-  ask permission questions through it rather than reaching into
-  `identity.app` or `identity.domain`, so the permission matrix stays internal.
-- **Question types (M2).** Five types — SINGLE_CHOICE, MULTI_CHOICE,
-  TRUE_FALSE, NUMERIC, SHORT_TEXT — with immutable payload records that
-  validate on write, since a JSONB column cannot enforce shape itself.
-- **Content schema (M2).** `question_bank` and `question` tables, with
-  lineage/version uniqueness, per-bank content-hash de-duplication, and a
-  partial index on the current version of each lineage.
-- **Runtime enforcement of Row-Level Security.** Every transaction carrying a
-  tenant now assumes the `NOBYPASSRLS` role `quizforge_app` and sets
-  `app.workspace_id`, both transaction-locally. Proven by a test asserting a
-  workspace cannot read another's rows even when explicitly asking for them.
-- **Foundation (M0).** Monorepo layout, Flyway-owned schema on PostgreSQL,
-  Testcontainers harness, Spring Modulith module skeleton with ArchUnit
-  guardrails, CI with build, gitleaks and PR-title linting.
-- SpotBugs with FindSecBugs, replacing CodeQL on a private repository.
-- Mailpit in the local stack, so email paths can be developed with no account.
-- Eight ADRs in `docs/adr/`.
-- M3 (tournament and play engine) implementation plan, including the retirement of the legacy package.
-- M2 (content and authoring) implementation plan: immutable versioned
-  questions, five question types with server-side grading, and a CSV/OpenTDB
-  import pipeline.
-- `STATUS.md` and `CHANGELOG.md`, plus a "Definition of done for any change"
-  in `CONTRIBUTING.md` and a `docs-current` CI job that fails a pull request
-  touching application source without updating the changelog, and blocks edits
-  to already-applied Flyway migrations.
+- ADR 0009, recording the move to public and what replaced each substituted
+  control.
 
 ### Changed
 
@@ -126,15 +86,94 @@ that is not worth a line here is not worth shipping.
   Framework 7 with breaking changes across Security and Data and drops
   testcontainers from its managed dependencies — a migration to schedule
   deliberately, not to merge from a green bot PR.
+- `.githooks/pre-push` is no longer the branch protection, only a fast local
+  failure ahead of it. Its comments said server-side protection was impossible;
+  that is no longer true and would have misled the next reader.
 
-- `/v1/**` now requires authentication. `/api/**` (legacy) remains open until
-  M3 retires it.
-- CSRF protection enabled for cookie-authenticated requests, exempting
-  bearer-token calls and the pre-session auth path.
-- Passwords: minimum length raised from 6 to 12, per NIST SP 800-63B.
-- Email is optional and disabled by default; the application starts with no
-  mail configuration at all.
-- Java 17 → 21, Spring Boot 3.3.5 → 3.5.6.
+### Removed
+
+- **The legacy `cs.quizzapp` package and all 41 `/api/**` endpoints.** This was
+  the last unauthenticated surface in the product. V11 drops the coursework
+  schema (`quiz`, `score`, `participation`, `users` and friends) — confirmed by
+  the owner as holding no data worth keeping.
+- Hand-declared component, entity and repository scanning on the entry point,
+  and the bean-name qualifiers on `QuestionService` and `AuthController`. All
+  existed only to coexist with the legacy package.
+- The `codeql` job in `ci.yml`. CodeQL default setup and an in-repository
+  CodeQL workflow cannot coexist — GitHub refuses results uploaded from an
+  advanced configuration while default setup is enabled — so keeping both would
+  have meant a permanently failing check rather than a second opinion.
+
+### Security
+
+- **The repository is public, and every native GitHub control is on**: a
+  ruleset protecting `main` server-side, secret scanning with push protection,
+  CodeQL default setup on the extended query suite, private vulnerability
+  reporting, and Dependabot. ADR 0009 supersedes ADR 0007; gitleaks and
+  SpotBugs are kept alongside the native controls rather than removed, for
+  reasons recorded there. The ruleset was verified by attempting a direct push
+  to `main` and confirming `GH013`, not by trusting its configuration.
+- **History rewritten.** A mail credential present since the initial commit, a
+  1.1 MB unrelated binary, and every authoring-tool trailer are gone from all
+  refs. The credential was revoked at the provider first. Verified by cloning
+  the remote fresh and searching it, not by inspecting the local repository —
+  which stayed clean even while the three release tags still pointed at
+  pre-rewrite commits. A mirror backup was taken before the rewrite.
+- FindSecBugs 1.13.0 → 1.14.0, which flagged `XSS_SERVLET` in the
+  authentication entry point. A false positive — the only interpolated value is
+  a compile-time constant — but the hand-written JSON it pointed at is now
+  serialised by Jackson, which removes the smell rather than suppressing the
+  finding.
+- Bumped `bcprov-jdk18on` 1.78.1 → 1.84, closing a CRITICAL and a MEDIUM
+  advisory. Actual exposure was nil (BouncyCastle is used only as the Argon2
+  provider; the flaws are in GOST ciphers and LDAP handling) but the security
+  PR had been blocked by this repository's own PR-title lint.
+- Replaced the never-installed Renovate configuration with Dependabot, which
+  runs without an app install and now emits Conventional Commit titles.
+
+## [0.3.0] — 2026-08-13
+
+Milestone M2: content and authoring.
+
+### Added
+
+- **Question banks and immutable authoring (M2).** Authoring writes version 1;
+  revising inserts a new row sharing the lineage and supersedes the previous
+  one, leaving it byte-identical so a tournament can pin exactly what a player
+  saw. Duplicates are rejected per bank by normalised content hash.
+- **Question types (M2).** Five types — SINGLE_CHOICE, MULTI_CHOICE,
+  TRUE_FALSE, NUMERIC, SHORT_TEXT — with immutable payload records that
+  validate on write, since a JSONB column cannot enforce shape itself.
+- **Content schema (M2).** `question_bank` and `question` tables, with
+  lineage/version uniqueness, per-bank content-hash de-duplication, and a
+  partial index on the current version of each lineage.
+- **Server-side grading (M2).** A grader per question type behind a registry.
+  Multi-choice requires set equality; numeric compares within absolute
+  tolerance; short text normalises without fuzzy matching. A null or
+  unparseable answer is incorrect, never an error.
+- **CSV import (M2).** Partial success is the normal case: one malformed row
+  does not discard the rest, failures are reported with the line number a human
+  sees in a spreadsheet, and re-importing the same file is a no-op rather than
+  an error.
+- **OpenTDB import (M2).** Replaces the legacy `OpenTDBService`. Requests
+  base64 rather than URL encoding (the legacy path double-decoded any answer
+  containing a percent sign), fails fast on rate limiting instead of sleeping
+  six seconds per category, and de-duplicates through the same content hash as
+  every other import.
+- **Tenant isolation for content.** RLS policies on `question_bank` and
+  `question`, proven by a test that asks for another workspace's rows and gets
+  nothing.
+- **Runtime enforcement of Row-Level Security.** Closes the gap `0.2.0` shipped
+  with. Every transaction carrying a tenant now assumes the `NOBYPASSRLS` role
+  `quizforge_app` and sets `app.workspace_id`, both transaction-locally. Proven
+  by a test asserting a workspace cannot read another's rows even when
+  explicitly asking for them.
+- **`WorkspaceAccess`**, identity's published authorization API. Other modules
+  ask permission questions through it rather than reaching into
+  `identity.app` or `identity.domain`, so the permission matrix stays internal.
+- M2 (content and authoring) implementation plan: immutable versioned
+  questions, five question types with server-side grading, and a CSV/OpenTDB
+  import pipeline.
 
 ### Changed
 
@@ -147,51 +186,44 @@ that is not worth a line here is not worth shipping.
   `@CollectionTable` so Hibernate still finds `question_options`. The legacy
   table is deleted outright in M3.
 
+## [0.2.0] — 2026-08-12
+
+Milestone M1: identity and tenancy.
+
+### Added
+
+- **Identity and tenancy (M1).** Accounts with Argon2id hashing at OWASP
+  parameters, workspaces with an OWNER/ADMIN/EDITOR/VIEWER permission matrix,
+  hashed sessions and API keys, an append-only audit log, and Postgres
+  Row-Level Security policies.
+- `POST /v1/auth/register`, `/login`, `/logout`; `GET /v1/auth/me`;
+  `POST /v1/auth/request-password-reset`.
+- Typed prefixed identifiers (`acc_…`, `wsp_…`) backed by UUIDv7, rendered only
+  at the API boundary.
+- RFC 9457 Problem Details for every error, with stable machine-readable codes.
+- SpotBugs with FindSecBugs, replacing CodeQL on a private repository. The bar
+  was proven rather than assumed: a deliberately vulnerable canary class was
+  added, confirmed to produce `SQL_INJECTION_JDBC` and `PREDICTABLE_RANDOM`
+  findings, and removed.
+- Mailpit in the local stack, so email paths can be developed with no account.
+- `STATUS.md` and `CHANGELOG.md`, plus a "Definition of done for any change"
+  in `CONTRIBUTING.md` and a `docs-current` CI job that fails a pull request
+  touching application source without updating the changelog, and blocks edits
+  to already-applied Flyway migrations.
+- ADRs 0007 and 0008, bringing the total to eight.
+
+### Changed
+
+- `/v1/**` now requires authentication. `/api/**` (legacy) remains open until
+  M3 retires it.
+- CSRF protection enabled for cookie-authenticated requests, exempting
+  bearer-token calls and the pre-session auth path.
+- Passwords: minimum length raised from 6 to 12, per NIST SP 800-63B.
+- Email is optional and disabled by default; the application starts with no
+  mail configuration at all. Previously `MAIL_USERNAME` and `MAIL_PASSWORD`
+  had no defaults, so a missing mail account blocked startup entirely.
+
 ### Security
-
-- **The repository is public, and every native GitHub control is on**: a
-  ruleset protecting `main` server-side, secret scanning with push protection,
-  CodeQL default setup on the extended query suite, private vulnerability
-  reporting, and Dependabot. ADR 0009 supersedes ADR 0007; gitleaks and
-  SpotBugs are kept alongside the native controls rather than removed, for
-  reasons recorded there.
-- **History rewritten.** A mail credential present since the initial commit, a
-  1.1 MB unrelated binary, and every authoring-tool trailer are gone from all
-  refs. The credential was revoked at the provider first. Verified by cloning
-  the remote fresh and searching it, not by inspecting the local repository.
-  A mirror backup was taken before the rewrite.
-
-### Removed
-
-- **The legacy `cs.quizzapp` package and all 41 `/api/**` endpoints.** This was
-  the last unauthenticated surface in the product. V11 drops the coursework
-  schema (`quiz`, `score`, `participation`, `users` and friends) — confirmed by
-  the owner as holding no data worth keeping.
-- Hand-declared component, entity and repository scanning on the entry point,
-  and the bean-name qualifiers on `QuestionService` and `AuthController`. All
-  existed only to coexist with the legacy package.
-
-- `spring.jpa.hibernate.ddl-auto=update`. Flyway owns the schema; Hibernate
-  validates only.
-- MySQL driver and dialect configuration. PostgreSQL only.
-- Hardcoded default admin and player credentials from application startup.
-- Committed mail credentials from the working tree.
-- Tracked build artifacts (`target/`) and IDE configuration (`.idea/`).
-
-### Security
-
-- FindSecBugs 1.13.0 → 1.14.0, which flagged `XSS_SERVLET` in the
-  authentication entry point. A false positive — the only interpolated value is
-  a compile-time constant — but the hand-written JSON it pointed at is now
-  serialised by Jackson, which removes the smell rather than suppressing the
-  finding.
-
-- Bumped `bcprov-jdk18on` 1.78.1 → 1.84, closing a CRITICAL and a MEDIUM
-  advisory. Actual exposure was nil (BouncyCastle is used only as the Argon2
-  provider; the flaws are in GOST ciphers and LDAP handling) but the security
-  PR had been blocked by this repository's own PR-title lint.
-- Replaced the never-installed Renovate configuration with Dependabot, which
-  runs without an app install and now emits Conventional Commit titles.
 
 - Legacy BCrypt password encoder replaced with Argon2id. Existing BCrypt
   hashes remain verifiable, so accounts upgrade on next login.
@@ -201,10 +233,47 @@ that is not worth a line here is not worth shipping.
 - Password reset no longer returns the token in the HTTP response. A
   regression test enforces this.
 
-### Known gaps
+### Known issues
 
-- A mail credential remains in git history. It is referenced by no code and
-  revoking it breaks nothing. Tracked in
-  [#2](https://github.com/ARSH871-bot/QuizForge/issues/2).
-- Branch protection is advisory only (a local `pre-push` hook), because
-  server-side protection requires a public repository. See ADR 0007.
+- **Row-Level Security is not enforced at runtime.** The policies exist and are
+  proven, but the application connects as a superuser, for which Postgres
+  silently skips RLS. Fixed in `0.3.0`; recorded here because this release
+  shipped with it.
+
+## [0.1.0] — 2026-08-12
+
+Milestone M0: foundation and remediation of the inherited coursework project.
+
+> This file did not exist at `0.1.0` — it was created during M1, which is how
+> the whole history came to sit under `[Unreleased]`. The entries below were
+> reconstructed by checking each claim against the `v0.1.0` tree rather than
+> inferred from wording, so several items previously grouped with M0
+> (SpotBugs, Mailpit, `STATUS.md`, the `docs-current` job) are listed under
+> `0.2.0`, where they actually shipped.
+
+### Added
+
+- **Foundation (M0).** Monorepo layout, Flyway-owned schema on PostgreSQL,
+  Testcontainers harness, Spring Modulith module skeleton with ArchUnit
+  guardrails, CI with build, gitleaks and PR-title linting.
+- ADRs 0001–0006 in `docs/adr/`.
+
+### Changed
+
+- Java 17 → 21, Spring Boot 3.3.5 → 3.5.6.
+
+### Removed
+
+- `spring.jpa.hibernate.ddl-auto=update`. Flyway owns the schema; Hibernate
+  validates only.
+- MySQL driver and dialect configuration. PostgreSQL only.
+- Hardcoded default admin and player credentials from application startup.
+- Committed mail credentials from the working tree. Removing them from the
+  history took until `0.4.0`.
+- Tracked build artifacts (`target/`) and IDE configuration (`.idea/`).
+
+[Unreleased]: https://github.com/ARSH871-bot/QuizForge/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ARSH871-bot/QuizForge/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/ARSH871-bot/QuizForge/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/ARSH871-bot/QuizForge/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/ARSH871-bot/QuizForge/releases/tag/v0.1.0

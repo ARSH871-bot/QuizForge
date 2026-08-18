@@ -101,9 +101,40 @@ Semantic versioning of the public API starts at M4, when the OpenAPI contract
 and SDKs exist and the number means something to a consumer. Before then the
 numbers track milestones and serve as restore points.
 
-The `CHANGELOG.md` is maintained by hand rather than generated. It carries a
-`Known gaps` section and the reasoning behind decisions — neither of which can
-be derived from commit messages.
+The `CHANGELOG.md` is maintained by hand rather than generated. It carries the
+reasoning behind decisions, which cannot be derived from commit messages.
+
+### Cutting a release
+
+Work accumulates under `## [Unreleased]`. Releasing means moving it into a
+version section — **in the same pull request that tags the release**, not
+afterwards:
+
+1. Rename `## [Unreleased]` to `## [X.Y.0] — YYYY-MM-DD` and add a one-line
+   note naming the milestone.
+2. Merge duplicate subsection headings. Keep a Changelog allows one `Added`,
+   one `Changed`, one `Removed`, one `Security` per version. Prepending a new
+   heading instead of merging into the existing one is how a reader ends up
+   finding the first `Security` block and stopping.
+3. Add a fresh empty `## [Unreleased]` at the top reading `Nothing yet.`
+4. Add the comparison link at the foot of the file:
+   `[X.Y.0]: https://github.com/ARSH871-bot/QuizForge/compare/v(previous)...vX.Y.0`
+   and repoint `[Unreleased]` at `vX.Y.0...HEAD`.
+5. Merge, then tag the merge commit and publish the release with notes written
+   by hand.
+
+Anything that is a *current* limitation belongs in `STATUS.md`, not here. A
+changelog records what happened in a version; a limitation that outlives the
+version is not a changelog entry. The exception is a `Known issues` block
+recording something a released version genuinely shipped with — that stays,
+because it was true of that release forever after.
+
+**Why this is spelled out:** it was not, and so it never happened. Releases
+`v0.1.0` through `v0.3.0` were tagged while every entry stayed under
+`[Unreleased]`, leaving a changelog that could not answer what changed in the
+version you are running. The file was only rolled into version sections at
+`0.4.0`, by checking each claim against the tagged trees. A step nobody wrote
+down is a step nobody takes.
 
 ## Architecture decisions
 

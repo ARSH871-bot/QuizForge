@@ -61,6 +61,40 @@ jobs:
         # state this contract exists to avoid.
         run: npx --yes @stoplight/spectral-cli lint openapi.yaml --ruleset .spectral.yaml --fail-severity=hint
 
+  openapi-breaking:
+    name: openapi-breaking
+    # Pull requests only: the check compares this branch's contract against the
+    # base branch's, and on a push to main there is nothing to compare against.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Stage both contracts
+        id: stage
+        run: |
+          git fetch --quiet origin "${{ github.base_ref }}"
+          # A pull request that introduces openapi.yaml has no base version to
+          # compare against, which is not a breaking change.
+          if git cat-file -e "origin/${{ github.base_ref }}:openapi.yaml" 2>/dev/null; then
+            git show "origin/${{ github.base_ref }}:openapi.yaml" > /tmp/base-openapi.yaml
+            cp openapi.yaml /tmp/head-openapi.yaml
+            echo "compare=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No contract on ${{ github.base_ref }} yet; nothing to compare."
+            echo "compare=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fail on a breaking change to /v1
+        if: steps.stage.outputs.compare == 'true'
+        # /v1 is additive-only: no field removed, no type changed, no enum value
+        # removed, no required request field added. A breaking change waits for
+        # /v2, which does not exist and should not for a long time.
+        run: |
+          docker run --rm -v /tmp:/specs tufin/oasdiff breaking /specs/base-openapi.yaml /specs/head-openapi.yaml --fail-on ERR
+
   secret-scan:
     name: secret-scan
     runs-on: ubuntu-latest

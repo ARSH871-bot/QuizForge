@@ -14,6 +14,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -119,5 +120,41 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.token").doesNotExist())
                 .andExpect(jsonPath("$.resetToken").doesNotExist());
+    }
+
+    @Test
+    void aPasswordResetRequestMustNameAWellFormedAddress() throws Exception {
+        // Previously the handler took a raw Map, so an empty body and a
+        // misspelled field were both answered 202 - a success status for a
+        // request that named no address at all.
+        for (String body : new String[]{"{}", "{\"emial\":\"a@b.test\"}", "{\"email\":\"nonsense\"}"}) {
+            mvc.perform(post("/v1/auth/request-password-reset")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+    }
+
+    @Test
+    void aPasswordResetRequestRevealsNothingAboutWhoIsRegistered() throws Exception {
+        // The property that must survive the added validation: a well-formed
+        // request is 202 whether or not the address exists, with an empty body.
+        String registered = "reset-" + java.util.UUID.randomUUID() + "@example.test";
+        mvc.perform(post("/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of(
+                                "email", registered,
+                                "password", "correct horse battery",
+                                "displayName", "Reset Probe"))))
+                .andExpect(status().isCreated());
+
+        for (String email : new String[]{registered, "definitely-nobody@example.test"}) {
+            mvc.perform(post("/v1/auth/request-password-reset")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json.writeValueAsString(Map.of("email", email))))
+                    .andExpect(status().isAccepted())
+                    .andExpect(content().string(""));
+        }
     }
 }

@@ -69,4 +69,22 @@
         <Bug pattern="PREDICTABLE_RANDOM"/>
     </Match>
 
+    <!--
+      Everything under com.quizforge.api is generated from openapi.yaml by
+      openapi-generator at build time. It is not in version control, nobody
+      wrote it, and any edit would be discarded by the next build.
+
+      This is an exclusion of generated code, not a suppression of a finding.
+      The models do expose mutable lists - EI_EXPOSE_REP is technically correct
+      about them - but the only way to act on it would be to stop generating
+      them. Reporting a defect nobody can fix trains readers to skim the report,
+      which is the failure ADR 0007 recorded for the legacy package.
+
+      The hand-written code that builds these models is still analysed, so a
+      leak introduced by a controller is still caught.
+    -->
+    <Match>
+        <Class name="~com\.quizforge\.api\..*"/>
+    </Match>
+
 </FindBugsFilter>

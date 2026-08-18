@@ -1,178 +1,145 @@
-# Known API inconsistencies
+# API inconsistencies found, and what happened to them
 
-Found while writing `openapi.yaml` for M4 Task 1. Every one of these is
-**documented in the contract as it actually behaves**, not as it ought to
-behave — a contract that describes an intention is worse than no contract,
-because it is believed.
+Found while writing `openapi.yaml` for M4 Task 1, and **all fixed in Task 2**
+before anything consumed the contract.
 
-They are recorded here rather than fixed on the spot because fixing them
-changes response shapes, and the point of Task 1 was to find out what the
-shapes are. They should be fixed in **Task 2**, while the fix is still free.
+Kept as a record rather than deleted, because the reasoning is what matters:
+each was cheap to fix on the day it was found and would have been a breaking
+change a milestone later. The gate that now prevents a repeat is described in
+[ADR 0011](../adr/0011-generated-interfaces-not-generated-controllers.md).
 
-## Why the timing matters
+## Why they were fixed immediately
 
 `/v1` is additive-only: no field removed, no field's type changed. That rule
-starts biting the moment something consumes the contract.
+starts binding the moment something consumes the contract.
 
-Right now **nothing does.** No SDK exists, the spec is not published, and there
-are no external users. Changing `attemptId` from a bare UUID to `att_…` today
-costs one commit. After Task 9 ships an SDK it is a breaking change to
-somebody's integration, and after Task 10 publishes the spec it is a breaking
-change to somebody's hand-written client too.
+When these were found, nothing did. No SDK existed, the spec was not published,
+there were no external users. Changing `attemptId` from a bare UUID to `att_…`
+cost one commit.
 
-So the cheapest moment to fix all of these is before Task 2 generates
-interfaces from this document.
+`oasdiff` scores the same set of changes like this:
+
+```
+7 changes: 7 error, 0 warning, 0 info
+```
+
+Every one of those would have been a breaking change to somebody's integration
+had they been left until after the SDK shipped in Task 9.
 
 ---
 
-## 1. Identifiers are prefixed in some responses and bare UUIDs in others
+## 1. Identifiers were prefixed in some responses and bare UUIDs in others — **fixed**
 
-Three response fields return raw UUIDs where every other identifier in the API
-is a prefixed `TypeId`:
-
-| Field | Returns | Should return |
+| Field | Was | Now |
 |---|---|---|
-| `AttemptResult.attemptId` | `018f3a5c-1c2b-7d3e-…` | `att_018f3a5c1c2b7d3e…` |
+| `AttemptResult.attemptId` | `018f3a5c-1c2b-…` | `att_…` |
 | `PlayableQuestion.questionId` | bare UUID | `qst_…` |
 | `LeaderboardEntry.accountId` | bare UUID | `acc_…` |
 
-The worst of these is `attemptId`, because **the same attempt is identified two
-different ways within one workflow**:
+The worst was `attemptId`, because the same attempt was identified two ways
+inside one workflow:
 
 ```
 POST /v1/tournaments/{id}/attempts   -> { "id": "att_01a0136f…" }
 GET  /v1/attempts/att_01a0136f…      -> { "attemptId": "018f3a5c-1c2b-…" }
 ```
 
-A client cannot round-trip the value it was just handed. It has to know that
-one field is prefixed and the other is not, and convert between them.
+A client could not round-trip the value it had just been handed.
 
-The cause is mechanical: `AttemptStarted` is a web DTO built in the controller,
-which calls `TypeId.render`. `AttemptResult`, `PlayableQuestion` and
-`LeaderboardEntry` are **application-layer records returned directly from the
-controller**, so they serialise their internal `UUID` fields verbatim. The
-boundary rule — identifiers are rendered only at the API boundary — is real,
-but these three types are not at the boundary; they leaked through it.
+The cause was mechanical: `AttemptResult`, `PlayableQuestion` and
+`LeaderboardEntry` were **application-layer records returned straight from
+controllers**, so their internal `UUID` fields serialised verbatim. The
+boundary rule — identifiers are rendered only at the API boundary — was real;
+those three types were not at the boundary, they leaked through it.
 
-**Fix:** give each a web DTO, as `AccountResponse` already has. That also stops
-internal types being part of the public contract, which is the underlying
-problem.
+Now every response body is a model generated from the contract, and controllers
+map into it explicitly. The class of defect is closed, not just the three
+instances: an internal type can no longer *be* the public contract, because the
+public contract is generated.
 
-## 2. A valid session with the wrong workspace returns 401, not 403
+## 2. A valid session with the wrong workspace returned 401 — **fixed**
 
-Naming a workspace the account does not belong to, or sending a malformed
-`X-QuizForge-Workspace` value, returns `401 AUTHENTICATION_REQUIRED`.
+Naming a workspace the account was not a member of returned
+`401 AUTHENTICATION_REQUIRED`. The filter returned before setting a principal,
+so a caller holding a perfectly good session was told they were not
+authenticated — and would re-authenticate, get `401` again, with nothing
+pointing at the header that was actually wrong.
 
-```java
-if (workspaceId != null && role == null) {
-    return;   // membership is required to act in a workspace
-}
+Now `403 PERMISSION_DENIED`. The session authenticates; the workspace is
+refused separately.
+
+Deliberately not `404`: the workspace id came from the caller, so declining to
+confirm it exists protects nothing they did not already know.
+
+## 3. List endpoints returned bare arrays — **fixed**
+
+`GET /v1/tournaments` and `GET /v1/tournaments/{id}/standings` returned `[...]`.
+
+They now return `{ "data": [...], "nextCursor": null }`.
+
+`nextCursor` is always `null` — cursor pagination arrives in Task 6. The field
+exists now so that filling it in will be additive. Had the envelope waited for
+Task 6, adopting it would have changed the **top-level type** of two live
+endpoints, which is the one breaking change no client survives. `oasdiff` names
+it exactly:
+
+```
+the response's body `type` changed from `array<object>` to `object`
 ```
 
-The filter returns before setting the principal, so the request is
-indistinguishable from one with no credential at all. The caller has a
-perfectly good session and is told they are not authenticated.
+## 4. `limit` was silently clamped — **fixed**
 
-The practical cost is a developer who sees `401`, concludes their session
-expired, re-authenticates, and gets `401` again — with nothing pointing at the
-header, which is the actual problem.
+`?limit=1000` returned 100 rows with no indication of correction, so a client
+could not distinguish "clamped" from "only 100 exist" — and concluded it held
+the whole leaderboard. `limit=0` and `limit=-5` silently became 1.
 
-`403 PERMISSION_DENIED` is the accurate answer. Note it must not be `404`: the
-workspace id came from the caller, so refusing to confirm its existence
-protects nothing they did not already know.
+Now `400 INVALID_REQUEST`. Silent correction of input produces wrong answers
+instead of errors, which is the worse failure.
 
-**Fix:** authenticate the session first, then reject the workspace separately.
+The constraint is enforced twice, deliberately: the generated interface carries
+`@Min(1) @Max(100)` from the contract, and the controller checks again. The
+first is the contract's; the second survives if the endpoint is ever called
+from somewhere the generated interface does not cover.
 
-## 3. List endpoints return bare arrays
+## 5. `POST /v1/auth/request-password-reset` validated nothing — **fixed**
 
-`GET /v1/tournaments` and `GET /v1/tournaments/{id}/standings` return
-`[...]` directly.
+The handler took `Map<String, String>`, so `{}` and `{"emial": …}` were both
+`202` — a success status for a request that named no address.
 
-Task 6 introduces `{ "data": [...], "nextCursor": "..." }` for every list
-endpoint. Applied to these two afterwards, that is a **breaking change to the
-top-level type** of an existing response — the most disruptive kind, because no
-client survives it.
+Now a typed `PasswordResetRequest` with `@Email @NotBlank`. A malformed request
+is `400`.
 
-**Fix:** adopt the envelope now, while these two endpoints are the only ones
-that have to change. Doing this in Task 2 rather than Task 6 costs almost
-nothing and removes a breaking change from the middle of the milestone.
+The always-`202` behaviour is unchanged and must stay: distinguishing a
+registered from an unregistered address would make this an account-enumeration
+oracle. Only the *shape* is validated; the *existence* of the account is still
+concealed. A test asserts both halves.
 
-## 4. `limit` is silently clamped
+## 6. `MessageResponse` carried nothing machine-readable — **fixed**
 
-`GET /v1/tournaments/{id}/standings?limit=1000` returns 100 rows with no
-indication that the request was altered:
+The endpoint returned one English sentence intended for display. Any client
+needing to react had to match on prose that would be reworded or localised.
 
-```java
-Math.clamp(limit, 1, MAX_LIMIT)
-```
+Now `202` with an empty body, and the schema is deleted so the shape cannot be
+copied into the twenty-five endpoints M4 still has to build.
 
-A client asking for 1000 and receiving 100 has no way to distinguish "clamped"
-from "only 100 exist" — so it concludes it has the whole leaderboard. Silent
-correction of input is the failure mode that produces wrong results rather than
-errors.
+## 7. `emailVerified` is always false — **not a defect, left alone**
 
-`limit=0` and `limit=-5` are also silently turned into 1.
+Populated from `getEmailVerifiedAt() != null`, and nothing sets that column
+because email verification is not implemented.
 
-**Fix:** reject out-of-range values with `400 INVALID_REQUEST`. Clamping is
-defensible for a maximum if it is advertised in a response header; it is not
-defensible when the response is indistinguishable from a complete one.
-
-## 5. `POST /v1/auth/request-password-reset` accepts and validates nothing
-
-The handler signature is `Map<String, String>`, so:
-
-- `{}` is accepted and returns `202`
-- `{"emial": "..."}` — a typo — is accepted and returns `202`
-- any JSON object at all is accepted and returns `202`
-
-It also does nothing: token generation and delivery are not implemented. So it
-returns a success status for a request that had no effect and may not even have
-named an address.
-
-The always-`202` behaviour is **correct and must be kept** — distinguishing
-registered from unregistered addresses would make this an account-enumeration
-oracle. The problem is only that a malformed request is also `202`.
-
-**Fix:** a typed `PasswordResetRequest` record with `@Email @NotBlank`, so a
-malformed request is `400` while every well-formed one stays `202` regardless
-of whether the address exists.
-
-## 6. `MessageResponse` carries nothing machine-readable
-
-`request-password-reset` returns:
-
-```json
-{ "message": "If that address has an account, password reset instructions have been sent." }
-```
-
-There is nothing here a client can branch on, and the string is display text
-that will be reworded or localised. Any client that needs to react has to match
-on English prose.
-
-**Fix:** for this endpoint, `202` with an empty body says the same thing more
-honestly. More importantly, no new endpoint should adopt this shape — noted in
-the contract so the pattern is not copied twenty-five times in M4.
-
-## 7. `emailVerified` is always false
-
-The field exists and is populated from `getEmailVerifiedAt() != null`, but
-nothing ever sets that column — email verification is not implemented.
-
-It is documented as always `false` rather than removed, because it is genuinely
-reserved and will become meaningful. But a client that gates behaviour on it
-today will gate it off forever.
-
-**Fix:** none needed. Keep it documented as inert until verification exists.
+Documented as inert rather than removed. It is genuinely reserved. A client
+that gates behaviour on it today gates it off forever, which is why the
+contract says so plainly instead of leaving the reader to infer it.
 
 ---
 
-## Not an inconsistency, but found the same way
+## What found them
 
-Two **cross-tenant defects** were found while trying to describe the
-authorization of each endpoint, and were fixed immediately rather than
-documented. Recorded in `CHANGELOG.md` under Security and in ADR 0010.
+Not a code review. Writing the contract.
 
-Writing down what an endpoint's authorization *is* turned out to be a better
-audit than reading the code for bugs — because the contract forces you to
-answer the question for every endpoint, including the ones nobody thought
-about.
+Documenting an endpoint forces you to state its response shape, its parameters
+and its authorization — for every endpoint in turn, including the ones nobody
+has thought about since they were written. Reviewing the same code for defects
+had not surfaced any of these, and had not surfaced the two cross-tenant
+defects recorded in [ADR 0010](../adr/0010-workspace-scope-is-required-before-a-handler-runs.md)
+either.

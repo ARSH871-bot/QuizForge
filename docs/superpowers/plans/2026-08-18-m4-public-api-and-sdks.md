@@ -85,11 +85,11 @@ Write `openapi.yaml` describing the **existing** surface first — the 12 endpoi
 
 ## Task 2: Generate server interfaces and fail on drift
 
-- [ ] Add `openapi-generator-maven-plugin`, `generatorName=spring`, `interfaceOnly=true`, `useSpringBoot3=true`, output to `target/generated-sources`
-- [ ] Retrofit all five existing controllers to `implements` their generated interface
-- [ ] Resolve every mismatch the compiler surfaces **by fixing the code or the contract deliberately** — recording which, and why, for any case where the contract was wrong
-- [ ] Add `oasdiff` CI job comparing the PR's `openapi.yaml` against `main`'s, failing on breaking changes
-- [ ] Verify the breaking-change gate actually gates: open a throwaway PR removing a required response field, confirm CI goes red, close it
+- [x] Add `openapi-generator-maven-plugin`, `generatorName=spring`, `interfaceOnly=true`, `useSpringBoot3=true`, output to `target/generated-sources`
+- [x] Retrofit all five existing controllers to `implements` their generated interface
+- [x] Resolve every mismatch the compiler surfaces **by fixing the code or the contract deliberately** — recording which, and why, for any case where the contract was wrong
+- [x] Add `oasdiff` CI job comparing the PR's `openapi.yaml` against `main`'s, failing on breaking changes
+- [x] Verify the breaking-change gate actually gates: open a throwaway PR removing a required response field, confirm CI goes red, close it
 
 **Verification:** `./mvnw verify` compiles with generated interfaces. The drift gate has been *seen* rejecting a breaking change — a configured gate nobody has watched fail is not a gate, which is the lesson from ADR 0007's Renovate entry and ADR 0009's ruleset test.
 

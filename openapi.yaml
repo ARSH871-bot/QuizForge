@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: QuizForge API
-  version: 0.4.0
+  version: 0.5.0-dev
   summary: Asynchronous quiz and assessment tournaments.
   description: |
     QuizForge runs asynchronous quiz tournaments. A tournament opens for a
@@ -12,11 +12,22 @@ info:
 
     ## Status of this document
 
-    This describes the API **exactly as it behaves today**, including the parts
-    that are awkward. Where a shape is known to be wrong it is documented as it
-    is and recorded in `docs/api/known-inconsistencies.md`, rather than
-    documented as it ought to be. A contract that describes an intention is
-    worse than no contract, because it is believed.
+    This describes the API **exactly as it behaves today**.
+
+    The shapes it first described were not all ones worth keeping. Six were
+    corrected before anything consumed this document — while doing so was one
+    commit rather than a breaking change — and are recorded in
+    `docs/api/known-inconsistencies.md` with what they were and why they moved.
+
+    ## Conventions
+
+    - Every identifier is a prefixed `TypeId`: `acc_`, `wsp_`, `trn_`, `att_`,
+      `qst_`. Bare UUIDs never appear in a response.
+    - Every list endpoint returns `{ "data": [...], "nextCursor": ... }`. The
+      envelope exists before cursor pagination does, so that filling in
+      `nextCursor` will be an additive change rather than a change of
+      top-level type.
+    - Out-of-range parameters are **rejected**, never silently corrected.
 
     Creation endpoints for workspaces, API keys, question banks, questions and
     tournaments do not exist yet — they arrive in M4. Today those objects can
@@ -243,10 +254,14 @@ paths:
         The reset token is delivered by email and never appears in the
         response.
 
-        **Not yet functional.** Token generation and delivery are wired to the
-        `notify` module in a later milestone; today this endpoint validates
-        nothing and sends nothing. It is documented because it exists and
-        returns `202`, which a client would otherwise read as success.
+        A malformed request — no address, a misspelled field, an address that
+        is not an address — is `400`. Only the *existence* of the account is
+        concealed, not the shape of the request.
+
+        **Delivery is not yet implemented.** Token generation is wired to the
+        `notify` module in a later milestone, so a well-formed request today is
+        accepted and nothing is sent. Documented because the `202` would
+        otherwise read as a promise.
       security: []
       requestBody:
         required: true
@@ -257,12 +272,10 @@ paths:
       responses:
         '202':
           description: |
-            Accepted. Returned identically for a registered and an unregistered
-            address.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageResponse'
+            Accepted, with an empty body. Returned identically for a registered
+            and an unregistered address.
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -287,14 +300,13 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                maxItems: 10000
-                items:
-                  $ref: '#/components/schemas/TournamentSummary'
+                $ref: '#/components/schemas/TournamentPage'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -327,9 +339,10 @@ paths:
           description: |
             How many rows to return.
 
-            Values outside 1–100 are **silently clamped** into range rather
-            than rejected, so a request for 1000 returns 100 with no indication
-            that it was reduced.
+            A value outside 1–100 is rejected with `400 INVALID_REQUEST`. It is
+            deliberately not clamped: answering a request for 1000 with 100 rows
+            is indistinguishable from a tournament that only has 100, so a
+            client would conclude it held the whole leaderboard.
           schema:
             type: integer
             format: int32
@@ -344,14 +357,19 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                maxItems: 100
-                items:
-                  $ref: '#/components/schemas/LeaderboardEntry'
+                $ref: '#/components/schemas/StandingPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          description: |
+            The workspace is not in scope, or `limit` is outside 1–100. Carries
+            `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -434,6 +452,8 @@ paths:
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -544,6 +564,8 @@ paths:
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -586,12 +608,9 @@ components:
         Documented as `required: false` because it is genuinely optional for
         key-authenticated callers, not because it is safe to leave out.
 
-        Naming a workspace you are not a member of, or sending a malformed
-        value, returns **`401 AUTHENTICATION_REQUIRED`** rather than `403`. The
-        authentication filter abandons the request entirely when membership
-        cannot be established, so a perfectly valid session reads as no session
-        at all. Surprising, and documented as it behaves; see
-        `docs/api/known-inconsistencies.md`.
+        Naming a workspace you are not a member of returns
+        **`403 PERMISSION_DENIED`**: the credential is valid, the workspace is
+        not yours. A malformed value is `400 INVALID_REQUEST`.
       schema:
         $ref: '#/components/schemas/WorkspaceId'
 
@@ -641,6 +660,19 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+    WorkspaceForbidden:
+      description: |
+        The credential is valid but the account is not a member of the workspace
+        it named. Carries `code: PERMISSION_DENIED`.
+
+        Distinct from `401` deliberately: re-authenticating cannot fix this, so
+        telling the caller they are unauthenticated would send them to the wrong
+        remedy.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
     AuthenticationRequired:
       description: |
         No valid credential was presented. Carries
@@ -652,9 +684,8 @@ components:
         - A path that does not exist. Authentication is evaluated before
           routing, so an anonymous caller learns nothing about which paths are
           real.
-        - A valid session naming a workspace the account does not belong to, or
-          a malformed workspace header. `403` would be the accurate answer;
-          see `docs/api/known-inconsistencies.md`.
+        It is **not** returned for a workspace you are not a member of — that
+        is `403`, because the credential itself is valid.
       content:
         application/problem+json:
           schema:
@@ -809,6 +840,55 @@ components:
       maxLength: 36
       examples: ['trn_01a0136fb3937209a5719e8fb7db26bf']
 
+    QuestionId:
+      type: string
+      title: QuestionId
+      description: A question identifier. UUIDv7 rendered as 32 lowercase hex characters with a `qst_` prefix.
+      pattern: '^qst_[0-9a-f]{32}$'
+      maxLength: 36
+      examples: ['qst_01a0136fb3937209a5719e8fb7db26bf']
+
+    Cursor:
+      type: [string, 'null']
+      title: Cursor
+      description: |
+        An opaque cursor for the next page, or `null` on the last page.
+
+        **Always `null` today.** Cursor pagination is not implemented; the field
+        exists so that implementing it is an additive change rather than a
+        change of every list endpoint's top-level type.
+
+        Treat the value as opaque. It encodes a sort key and is not a page
+        number, an offset, or an identifier.
+      maxLength: 500
+      examples: [null]
+
+    TournamentPage:
+      type: object
+      title: TournamentPage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/TournamentSummary'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+
+    StandingPage:
+      type: object
+      title: StandingPage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+
     AttemptId:
       type: string
       title: AttemptId
@@ -829,23 +909,6 @@ components:
           description: Always `ok`; a failing instance does not respond at all.
       examples:
         - status: ok
-
-    MessageResponse:
-      type: object
-      title: MessageResponse
-      description: |
-        A human-readable acknowledgement carrying no machine-readable field.
-
-        Used only by `request-password-reset`. New endpoints should not adopt
-        this shape — there is nothing here a client can branch on.
-      required: [message]
-      properties:
-        message:
-          type: string
-          maxLength: 500
-          description: Text intended for display, not for parsing.
-      examples:
-        - message: If that address has an account, password reset instructions have been sent.
 
     RegisterRequest:
       type: object
@@ -898,10 +961,8 @@ components:
     PasswordResetRequest:
       type: object
       title: PasswordResetRequest
-      description: |
-        The body is currently **not validated** — an empty object is accepted
-        and returns `202`, because the endpoint is not yet wired to delivery.
-        `email` is documented as the field this will read once it is.
+      description: The address to send reset instructions to.
+      required: [email]
       properties:
         email:
           type: string
@@ -1005,13 +1066,7 @@ components:
       required: [accountId, score, outOf, attempts, firstGradedAt, rank]
       properties:
         accountId:
-          type: string
-          format: uuid
-          maxLength: 36
-          description: |
-            **Inconsistent with the rest of the API**: a bare UUID rather than
-            an `acc_…` identifier. Documented as it behaves; see
-            `docs/api/known-inconsistencies.md`.
+          $ref: '#/components/schemas/AccountId'
         score:
           type: number
           format: double
@@ -1043,7 +1098,7 @@ components:
           maximum: 100000
           description: 1-based, assigned after sorting so it always matches the order shown.
       examples:
-        - accountId: 018f3a5c-1c2b-7d3e-9f10-2a3b4c5d6e7f
+        - accountId: acc_01a0136fb3937209a5719e8fb7db26bf
           score: 8
           outOf: 10
           attempts: 1
@@ -1094,13 +1149,7 @@ components:
       required: [questionId, type, prompt, options]
       properties:
         questionId:
-          type: string
-          format: uuid
-          maxLength: 36
-          description: |
-            **Inconsistent with the rest of the API**: a bare UUID rather than a
-            prefixed identifier. Documented as it behaves; see
-            `docs/api/known-inconsistencies.md`.
+          $ref: '#/components/schemas/QuestionId'
         type:
           $ref: '#/components/schemas/QuestionType'
         prompt:
@@ -1116,7 +1165,7 @@ components:
             type: string
             maxLength: 1000
       examples:
-        - questionId: 018f3a5c-1c2b-7d3e-9f10-2a3b4c5d6e7f
+        - questionId: qst_01a0136fb3937209a5719e8fb7db26bf
           type: SINGLE_CHOICE
           prompt: What is the capital of France?
           options: [Paris, Lyon, Marseille, Toulouse]
@@ -1192,14 +1241,10 @@ components:
       required: [attemptId, state, score, outOf, percentage]
       properties:
         attemptId:
-          type: string
-          format: uuid
-          maxLength: 36
+          $ref: '#/components/schemas/AttemptId'
           description: |
-            **Inconsistent with `AttemptStarted.id`**, which returns the same
-            attempt as `att_…`. This one is a bare UUID, so a client cannot
-            round-trip the value it was given. Documented as it behaves; see
-            `docs/api/known-inconsistencies.md`.
+            The same string `POST /v1/tournaments/{id}/attempts` returned, so a
+            client can use the identifier it was given without translating it.
         state:
           $ref: '#/components/schemas/AttemptState'
         score:
@@ -1222,7 +1267,7 @@ components:
           minimum: 0
           maximum: 100
       examples:
-        - attemptId: 018f3a5c-1c2b-7d3e-9f10-2a3b4c5d6e7f
+        - attemptId: att_01a0136fb3937209a5719e8fb7db26bf
           state: GRADED
           score: 8
           outOf: 10

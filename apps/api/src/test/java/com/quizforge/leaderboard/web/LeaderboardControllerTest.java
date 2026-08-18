@@ -110,7 +110,8 @@ class LeaderboardControllerTest extends AbstractIntegrationTest {
                         .cookie(owner.session())
                         .header(SessionAuthFilter.WORKSPACE_HEADER, owner.workspaceHeader()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].rank").value(1));
+                .andExpect(jsonPath("$.data[0].rank").value(1))
+                .andExpect(jsonPath("$.nextCursor").doesNotExist());
     }
 
     @Test
@@ -160,5 +161,66 @@ class LeaderboardControllerTest extends AbstractIntegrationTest {
         mvc.perform(get("/v1/tournaments/" + owner.tournamentId() + "/standings"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void aStandingIdentifiesItsAccountWithThePrefixedForm() throws Exception {
+        // The same account id `GET /v1/auth/me` returns. Previously this was a
+        // bare UUID, so the two were different strings for the same account and
+        // a client had to know to reconcile them.
+        var owner = actorWithAStanding();
+
+        mvc.perform(get("/v1/tournaments/" + owner.tournamentId() + "/standings")
+                        .cookie(owner.session())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, owner.workspaceHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].accountId").value(org.hamcrest.Matchers
+                        .matchesPattern("^acc_[0-9a-f]{32}$")));
+    }
+
+    @Test
+    void anOutOfRangeLimitIsRejectedRatherThanClamped() throws Exception {
+        // Clamping answered a request for 1000 with 100 rows, which a client
+        // cannot tell apart from a tournament that only has 100 - so it
+        // concluded it had the whole leaderboard.
+        var owner = actorWithAStanding();
+
+        for (String bad : new String[]{"1000", "0", "-5"}) {
+            mvc.perform(get("/v1/tournaments/" + owner.tournamentId() + "/standings")
+                            .param("limit", bad)
+                            .cookie(owner.session())
+                            .header(SessionAuthFilter.WORKSPACE_HEADER, owner.workspaceHeader()))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+    }
+
+    @Test
+    void theBoundaryLimitsAreAccepted() throws Exception {
+        var owner = actorWithAStanding();
+
+        for (String ok : new String[]{"1", "100"}) {
+            mvc.perform(get("/v1/tournaments/" + owner.tournamentId() + "/standings")
+                            .param("limit", ok)
+                            .cookie(owner.session())
+                            .header(SessionAuthFilter.WORKSPACE_HEADER, owner.workspaceHeader()))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    void namingAWorkspaceYouAreNotAMemberOfIsForbiddenNotUnauthenticated()
+            throws Exception {
+        // 403, not 401. The caller holds a perfectly valid session; what is
+        // wrong is the workspace they named. Answering 401 sent them off to
+        // re-authenticate, which could never fix it.
+        var owner = actorWithAStanding();
+        var stranger = actorWithAStanding();
+
+        mvc.perform(get("/v1/tournaments/" + owner.tournamentId() + "/standings")
+                        .cookie(stranger.session())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, owner.workspaceHeader()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
     }
 }

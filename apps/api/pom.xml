@@ -22,6 +22,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-modulith.version>1.4.12</spring-modulith.version>
         <archunit.version>1.5.0</archunit.version>
+        <openapi-generator.version>7.19.0</openapi-generator.version>
     </properties>
 
     <dependencyManagement>
@@ -123,6 +124,59 @@
 
     <build>
         <plugins>
+            <!--
+                Generates Spring interfaces from ../../openapi.yaml.
+
+                interfaceOnly: the generator produces the interface and the
+                models; the controllers implement the interface and keep their
+                own bodies. Generating controller bodies would put generated
+                code in src/main/java, which nobody can debug and everybody
+                eventually edits by hand - at which point regeneration silently
+                discards their work.
+
+                The point is compile-time enforcement: a controller whose path,
+                verb, parameters, status or response type disagrees with the
+                published contract no longer compiles. Drift stops being a thing
+                review has to catch.
+            -->
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>${openapi-generator.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-api-interfaces</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../openapi.yaml</inputSpec>
+                            <generatorName>spring</generatorName>
+                            <library>spring-boot</library>
+                            <apiPackage>com.quizforge.api</apiPackage>
+                            <modelPackage>com.quizforge.api.model</modelPackage>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <configOptions>
+                                <interfaceOnly>true</interfaceOnly>
+                                <useSpringBoot3>true</useSpringBoot3>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useTags>true</useTags>
+                                <openApiNullable>false</openApiNullable>
+                                <useOptional>false</useOptional>
+                                <skipDefaultInterface>true</skipDefaultInterface>
+                                <documentationProvider>none</documentationProvider>
+                                <annotationLibrary>none</annotationLibrary>
+                                <sourceFolder>src/gen/java</sourceFolder>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
@@ -139,9 +193,11 @@
                             <version>1.14.0</version>
                         </plugin>
                     </plugins>
-                    <!-- The legacy package is frozen and is deleted in M3.
-                         Analysing it would produce hundreds of findings nobody
-                         intends to fix, which trains you to ignore the report. -->
+                    <!-- Scoped to hand-written code. Originally this excluded the
+                         legacy package, which M3 deleted; it now excludes the
+                         interfaces generated from openapi.yaml. A finding in code
+                         nobody wrote and nobody can edit trains you to ignore the
+                         report, which is the same failure either way. -->
                     <onlyAnalyze>com.quizforge.-</onlyAnalyze>
                     <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
                 </configuration>

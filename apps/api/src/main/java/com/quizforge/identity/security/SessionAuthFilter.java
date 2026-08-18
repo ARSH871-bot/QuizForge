@@ -28,6 +28,17 @@ public class SessionAuthFilter extends OncePerRequestFilter {
     public static final String COOKIE_NAME = "qf_session";
     public static final String WORKSPACE_HEADER = "X-QuizForge-Workspace";
 
+    /**
+     * Set when a valid session named a workspace the account is not a member
+     * of. {@code WorkspaceScopeFilter} turns it into a {@code 403}.
+     *
+     * <p>A request attribute rather than an exception because this filter runs
+     * before the dispatcher, so a thrown {@link com.quizforge.platform.error.ApiException}
+     * would never reach {@code GlobalExceptionHandler}.
+     */
+    public static final String WORKSPACE_DENIED =
+            SessionAuthFilter.class.getName() + ".WORKSPACE_DENIED";
+
     private final SessionService sessions;
     private final WorkspaceService workspaces;
 
@@ -67,7 +78,17 @@ public class SessionAuthFilter extends OncePerRequestFilter {
                     : workspaces.roleOf(workspaceId, session.getAccountId());
 
             if (workspaceId != null && role == null) {
-                return;   // membership is required to act in a workspace
+                // The session is valid; the workspace is not the caller's.
+                // Authenticate them anyway, without the workspace, and flag the
+                // refusal so it surfaces as 403 rather than 401.
+                //
+                // Returning early here used to leave the principal unset, so a
+                // caller holding a perfectly good session was told they were not
+                // authenticated. They would then re-authenticate, get the same
+                // 401, and have nothing pointing at the header that was actually
+                // wrong.
+                request.setAttribute(WORKSPACE_DENIED, Boolean.TRUE);
+                workspaceId = null;
             }
 
             Principal principal = new Principal(

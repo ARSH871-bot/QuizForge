@@ -66,7 +66,19 @@ public class WorkspaceScopeFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
 
         if (requiresWorkspace(request) && TenantContext.current() == null) {
-            reject(request, response);
+            boolean denied = Boolean.TRUE.equals(request.getAttribute(
+                    SessionAuthFilter.WORKSPACE_DENIED));
+
+            if (denied) {
+                // A workspace was named and refused, which is an authorization
+                // failure, not a missing-parameter one.
+                reject(request, response, ErrorCode.PERMISSION_DENIED,
+                        "you are not a member of that workspace");
+            } else {
+                reject(request, response, ErrorCode.INVALID_REQUEST,
+                        "select a workspace with the "
+                                + SessionAuthFilter.WORKSPACE_HEADER + " header");
+            }
             return;
         }
 
@@ -87,18 +99,16 @@ public class WorkspaceScopeFilter extends OncePerRequestFilter {
         return SecurityContextHolder.getContext().getAuthentication() != null;
     }
 
-    private void reject(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+    private void reject(HttpServletRequest request, HttpServletResponse response,
+                        ErrorCode code, String detail) throws IOException {
 
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                ErrorCode.INVALID_REQUEST.status(),
-                "select a workspace with the " + SessionAuthFilter.WORKSPACE_HEADER + " header");
-        problem.setType(URI.create(ErrorCode.INVALID_REQUEST.type()));
-        problem.setTitle(ErrorCode.INVALID_REQUEST.name());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(code.status(), detail);
+        problem.setType(URI.create(code.type()));
+        problem.setTitle(code.name());
         problem.setInstance(URI.create(request.getRequestURI()));
-        problem.setProperty("code", ErrorCode.INVALID_REQUEST.name());
+        problem.setProperty("code", code.name());
 
-        response.setStatus(ErrorCode.INVALID_REQUEST.status().value());
+        response.setStatus(code.status().value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         objectMapper.writeValue(response.getOutputStream(), problem);
     }

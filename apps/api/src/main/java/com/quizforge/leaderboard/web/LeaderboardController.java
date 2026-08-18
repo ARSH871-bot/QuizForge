@@ -1,26 +1,31 @@
 package com.quizforge.leaderboard.web;
 
+import com.quizforge.api.LeaderboardsApi;
+import com.quizforge.api.model.LeaderboardEntry;
+import com.quizforge.api.model.StandingPage;
+import com.quizforge.identity.CurrentPrincipal;
 import com.quizforge.identity.Principal;
-import com.quizforge.leaderboard.app.LeaderboardEntry;
 import com.quizforge.leaderboard.app.LeaderboardService;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import java.time.ZoneOffset;
 
+/**
+ * Ranked standings. Implements {@link LeaderboardsApi}, generated from
+ * {@code openapi.yaml}.
+ */
 @RestController
-@RequestMapping("/v1/tournaments")
-public class LeaderboardController {
+public class LeaderboardController implements LeaderboardsApi {
 
-    /** Capped so a caller cannot ask for an unbounded page. */
+    /** The largest page a caller may request. Asking for more is an error. */
     private static final int MAX_LIMIT = 100;
+
+    /** What the contract documents as the default when no limit is sent. */
+    private static final int DEFAULT_LIMIT = 20;
 
     private final LeaderboardService leaderboard;
 
@@ -29,30 +34,53 @@ public class LeaderboardController {
     }
 
     /**
-     * A tournament's ranked standings, scoped to the caller's workspace.
-     *
-     * <p>The workspace requirement is load-bearing, not ceremony. Tenant
-     * isolation here rests on Row-Level Security, and RLS only engages once
-     * {@code TenantContext} is populated - which happens only when the
-     * workspace header is present. Without it the connection runs as the owning
-     * role, PostgreSQL skips RLS for superusers, and this query would return any
-     * tournament's standings to any authenticated caller.
-     *
-     * <p>So this check is the difference between isolated and not. It is not a
-     * convenience for selecting which workspace to read.
+     * The workspace requirement is load-bearing, not ceremony. Tenant isolation
+     * here rests on Row-Level Security, and RLS only engages once
+     * {@code TenantContext} is populated, which happens only when the workspace
+     * header is present. Without it the connection runs as the owning role,
+     * PostgreSQL skips RLS for superusers, and this query would return the
+     * standings of any tournament to any authenticated caller.
      */
-    @GetMapping("/{tournamentId}/standings")
-    public List<LeaderboardEntry> standings(
-            @PathVariable String tournamentId,
-            @RequestParam(defaultValue = "20") int limit,
-            @AuthenticationPrincipal Principal principal) {
-
+    @Override
+    public ResponseEntity<StandingPage> getStandings(String tournamentId,
+                                                     String workspaceHeader,
+                                                     Integer limit) {
+        Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.workspaceId() == null) {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "select a workspace with the X-QuizForge-Workspace header");
         }
 
-        return leaderboard.standings(TypeId.parse("trn", tournamentId),
-                Math.clamp(limit, 1, MAX_LIMIT));
+        int requested = limit == null ? DEFAULT_LIMIT : limit;
+        if (requested < 1 || requested > MAX_LIMIT) {
+            // Rejected rather than clamped. Clamping answered a request for
+            // 1000 with 100 rows, which is indistinguishable from a tournament
+            // that only has 100 - so a client concluded it held the whole
+            // leaderboard when it held a prefix. Silently correcting input
+            // produces wrong answers rather than errors.
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "limit must be between 1 and " + MAX_LIMIT);
+        }
+
+        StandingPage page = new StandingPage(
+                leaderboard.standings(TypeId.parse("trn", tournamentId), requested).stream()
+                        .map(this::represent)
+                        .toList());
+        page.setNextCursor(null);
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * Renders the account with its {@code acc_} prefix, so it matches the
+     * identifier {@code GET /v1/auth/me} returns for the same account.
+     */
+    private LeaderboardEntry represent(com.quizforge.leaderboard.app.LeaderboardEntry entry) {
+        return new LeaderboardEntry(
+                TypeId.render("acc", entry.accountId()),
+                entry.score(),
+                entry.outOf(),
+                entry.attempts(),
+                entry.firstGradedAt().atOffset(ZoneOffset.UTC),
+                entry.rank());
     }
 }

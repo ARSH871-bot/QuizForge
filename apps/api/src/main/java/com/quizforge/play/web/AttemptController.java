@@ -1,42 +1,37 @@
 package com.quizforge.play.web;
 
+import com.quizforge.api.PlayApi;
+import com.quizforge.api.model.AnswerFeedback;
+import com.quizforge.api.model.AnswerRequest;
+import com.quizforge.api.model.AttemptResult;
+import com.quizforge.api.model.AttemptStarted;
+import com.quizforge.api.model.AttemptState;
+import com.quizforge.api.model.PlayableQuestion;
+import com.quizforge.api.model.QuestionType;
 import com.quizforge.content.QuestionAccess;
+import com.quizforge.identity.CurrentPrincipal;
 import com.quizforge.identity.Principal;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
-import com.quizforge.play.app.AnswerFeedback;
-import com.quizforge.play.app.AttemptResult;
 import com.quizforge.play.app.AttemptService;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
- * Playing a tournament.
+ * Playing a tournament. Implements {@link PlayApi}, generated from
+ * {@code openapi.yaml}.
  *
- * <p>Identifiers arrive prefixed (`trn_…`, `att_…`) and are parsed by
- * {@link TypeId}, which rejects an id of the wrong type outright — passing a
- * tournament id where an attempt id belongs is a 400 rather than a confusing
- * 404 later.
+ * <p>Identifiers arrive prefixed and are parsed by {@link TypeId}. The contract
+ * additionally constrains their shape with a regular expression, so an
+ * identifier of the wrong type is rejected before this class runs.
  */
 @RestController
-@RequestMapping("/v1")
-public class AttemptController {
-
-    /** The player's answer. A record so the field name is part of the contract. */
-    public record AnswerRequest(@NotBlank String answer) {
-    }
+public class AttemptController implements PlayApi {
 
     private final AttemptService attempts;
 
@@ -44,56 +39,86 @@ public class AttemptController {
         this.attempts = attempts;
     }
 
-    @PostMapping("/tournaments/{tournamentId}/attempts")
-    @ResponseStatus(HttpStatus.CREATED)
-    public AttemptStarted start(@PathVariable String tournamentId,
-                                @AuthenticationPrincipal Principal principal) {
-        UUID accountId = requireAccount(principal);
+    @Override
+    public ResponseEntity<AttemptStarted> startAttempt(String tournamentId,
+                                                       String workspaceHeader) {
+        UUID accountId = requireAccount();
         var attempt = attempts.start(TypeId.parse("trn", tournamentId), accountId);
 
-        return new AttemptStarted(TypeId.render("att", attempt.getId()),
-                attempt.getScoreDenominator(), attempt.getExpiresAt());
+        AttemptStarted body = new AttemptStarted(
+                TypeId.render("att", attempt.getId()), attempt.getScoreDenominator());
+        body.setExpiresAt(attempt.getExpiresAt() == null
+                ? null
+                : attempt.getExpiresAt().atOffset(ZoneOffset.UTC));
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
-    @GetMapping("/attempts/{attemptId}/questions/{position}")
-    public QuestionAccess.PlayableQuestion question(@PathVariable String attemptId,
-                                                    @PathVariable int position,
-                                                    @AuthenticationPrincipal Principal principal) {
-        return attempts.question(TypeId.parse("att", attemptId), position,
-                requireAccount(principal));
+    @Override
+    public ResponseEntity<PlayableQuestion> getAttemptQuestion(String attemptId,
+                                                               Integer position,
+                                                               String workspaceHeader) {
+        var question = attempts.question(TypeId.parse("att", attemptId), position,
+                requireAccount());
+        return ResponseEntity.ok(represent(question));
     }
 
-    @PostMapping("/attempts/{attemptId}/questions/{position}/answer")
-    public AnswerFeedback answer(@PathVariable String attemptId,
-                                 @PathVariable int position,
-                                 @Valid @RequestBody AnswerRequest request,
-                                 @AuthenticationPrincipal Principal principal) {
-        return attempts.answer(TypeId.parse("att", attemptId), position,
-                request.answer(), requireAccount(principal));
+    @Override
+    public ResponseEntity<AnswerFeedback> answerAttemptQuestion(String attemptId,
+                                                                Integer position,
+                                                                AnswerRequest request,
+                                                                String workspaceHeader) {
+        var feedback = attempts.answer(TypeId.parse("att", attemptId), position,
+                request.getAnswer(), requireAccount());
+
+        return ResponseEntity.ok(new AnswerFeedback(
+                feedback.position(), feedback.correct(), feedback.answered(),
+                feedback.total(), feedback.hasNext()));
     }
 
-    @PostMapping("/attempts/{attemptId}/submit")
-    public AttemptResult submit(@PathVariable String attemptId,
-                                @AuthenticationPrincipal Principal principal) {
-        return attempts.submit(TypeId.parse("att", attemptId), requireAccount(principal));
+    @Override
+    public ResponseEntity<AttemptResult> submitAttempt(String attemptId, String workspaceHeader) {
+        return ResponseEntity.ok(represent(
+                attempts.submit(TypeId.parse("att", attemptId), requireAccount())));
     }
 
-    @GetMapping("/attempts/{attemptId}")
-    public AttemptResult result(@PathVariable String attemptId,
-                                @AuthenticationPrincipal Principal principal) {
-        return attempts.result(TypeId.parse("att", attemptId), requireAccount(principal));
+    @Override
+    public ResponseEntity<AttemptResult> getAttemptResult(String attemptId,
+                                                          String workspaceHeader) {
+        return ResponseEntity.ok(represent(
+                attempts.result(TypeId.parse("att", attemptId), requireAccount())));
     }
 
-    /** What a player needs to begin. Carries no question content. */
-    public record AttemptStarted(String id, int questions, java.time.Instant expiresAt) {
+    /**
+     * Renders {@code attemptId} with its {@code att_} prefix, so the identifier
+     * returned here is the same string {@link #startAttempt} returned. The two
+     * used to disagree, and a client could not use the value it had been given.
+     */
+    private AttemptResult represent(com.quizforge.play.app.AttemptResult result) {
+        return new AttemptResult(
+                TypeId.render("att", result.attemptId()),
+                AttemptState.fromValue(result.state()),
+                result.score(),
+                result.outOf(),
+                result.percentage());
+    }
+
+    /** Never carries the correct answer, for any question type. */
+    private PlayableQuestion represent(QuestionAccess.PlayableQuestion question) {
+        return new PlayableQuestion(
+                TypeId.render("qst", question.questionId()),
+                QuestionType.fromValue(question.type()),
+                question.prompt(),
+                question.options());
     }
 
     /**
      * Playing is something an <em>account</em> does. An API key authenticates a
-     * workspace, not a person, so it cannot start or submit an attempt — there
+     * workspace, not a person, so it cannot start or submit an attempt - there
      * would be nobody to attribute the score to.
      */
-    private UUID requireAccount(Principal principal) {
+    private UUID requireAccount() {
+        Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.accountId() == null) {
             throw new ApiException(ErrorCode.AUTHENTICATION_REQUIRED,
                     "playing requires a signed-in account, not an API key");

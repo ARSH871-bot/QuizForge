@@ -14,6 +14,36 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
+### Changed
+
+- **Controllers implement interfaces generated from `openapi.yaml`.** A
+  controller whose path, verb, parameters, status or response type disagrees
+  with the published contract no longer compiles. `interfaceOnly=true` — the
+  generator produces the interface and the models, controllers keep their own
+  bodies. ADR 0011.
+- **Six contract shapes corrected**, while nothing consumed the contract and
+  the changes were still free. `oasdiff` scores them as seven breaking changes,
+  which is the argument for having made them on the day they were found rather
+  than after an SDK shipped:
+  - `attemptId`, `questionId` and `accountId` are now prefixed identifiers, not
+    bare UUIDs. Previously `POST .../attempts` returned `att_…` and
+    `GET /v1/attempts/{id}` returned a bare UUID for the same attempt, so a
+    client could not use the value it had just been handed.
+  - List endpoints return `{data, nextCursor}`. Adopted before cursor
+    pagination exists, because adding it afterwards would have changed the
+    top-level type of a live endpoint.
+  - `limit` outside 1–100 is rejected rather than silently clamped.
+  - `POST /v1/auth/request-password-reset` takes a typed, validated body and
+    returns an empty `202`. It still cannot be used to discover which addresses
+    are registered.
+  - Naming a workspace you are not a member of is `403 PERMISSION_DENIED`, not
+    `401`. Re-authenticating could never have fixed a `401` there.
+- Parameter validation failures now return `400 INVALID_REQUEST`. The
+  constraints the generator takes from the contract raise
+  `HandlerMethodValidationException`, which was unhandled and fell through to
+  the catch-all — so a caller sending `limit=1000` was told the server had
+  failed when it had correctly refused them.
+
 ### Security
 
 - **Two cross-tenant defects closed.** With the `X-QuizForge-Workspace` header
@@ -40,9 +70,12 @@ these are milestone markers, and the minor number tracks the milestone.
   adopting it now would mean suppressing them.
 - **Contract drift guard** in `docs-current`: a change under a module's `web`
   package without a change to `openapi.yaml` fails the build.
-- `docs/api/known-inconsistencies.md` — seven shapes that are wrong but
-  documented as-is, with the reasoning for fixing them in Task 2 while nothing
-  consumes the contract and the change is still free.
+- `docs/api/known-inconsistencies.md` — the seven shapes found while writing
+  the contract, and what happened to each.
+- **`openapi-breaking` CI job** (`oasdiff`), failing any pull request that makes
+  a breaking change to `/v1`. Verified by watching it reject one — and the
+  rejection was real rather than staged: the change that introduced the gate is
+  itself the last permitted break.
 
 - M4 (public API and SDKs) implementation plan: `openapi.yaml` as the source of
   truth with server interfaces generated from it, the CRUD surfaces M1–M3 never

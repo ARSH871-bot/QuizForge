@@ -191,8 +191,8 @@ class AttemptControllerTest extends AbstractIntegrationTest {
                         .header(SessionAuthFilter.WORKSPACE_HEADER, p.workspaceHeader())
                         .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].rank").value(1))
-                .andExpect(jsonPath("$[0].score").value(1.0));
+                .andExpect(jsonPath("$.data[0].rank").value(1))
+                .andExpect(jsonPath("$.data[0].score").value(1.0));
     }
 
     @Test
@@ -267,5 +267,60 @@ class AttemptControllerTest extends AbstractIntegrationTest {
                         .with(csrf()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void theAttemptIdentifierRoundTripsBetweenStartAndResult() throws Exception {
+        // The defect this closes: start returned `att_…` while result returned a
+        // bare UUID, so a client could not use the value it had just been given.
+        var p = player();
+
+        var started = mvc.perform(post("/v1/tournaments/" + p.tournamentId() + "/attempts")
+                        .cookie(p.session())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, p.workspaceHeader())
+                        .with(csrf()))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String attemptId = json.readTree(started.getResponse().getContentAsString())
+                .get("id").asText();
+
+        mvc.perform(get("/v1/attempts/" + attemptId)
+                        .cookie(p.session())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, p.workspaceHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attemptId").value(attemptId));
+    }
+
+    @Test
+    void aQuestionIdentifiesItselfWithThePrefixedForm() throws Exception {
+        var p = player();
+
+        var started = mvc.perform(post("/v1/tournaments/" + p.tournamentId() + "/attempts")
+                        .cookie(p.session())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, p.workspaceHeader())
+                        .with(csrf()))
+                .andReturn();
+        String attemptId = json.readTree(started.getResponse().getContentAsString())
+                .get("id").asText();
+
+        mvc.perform(get("/v1/attempts/" + attemptId + "/questions/1")
+                        .cookie(p.session())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, p.workspaceHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questionId").value(org.hamcrest.Matchers
+                        .matchesPattern("^qst_[0-9a-f]{32}$")));
+    }
+
+    @Test
+    void aTournamentListIsWrappedInThePageEnvelope() throws Exception {
+        var p = player();
+
+        mvc.perform(get("/v1/tournaments")
+                        .cookie(p.session())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, p.workspaceHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].id").value(p.tournamentId()))
+                .andExpect(jsonPath("$.nextCursor").doesNotExist());
     }
 }

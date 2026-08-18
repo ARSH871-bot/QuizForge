@@ -47,6 +47,20 @@ jobs:
   # adding one back would produce a permanently red check, not a second opinion.
   # See ADR 0009.
 
+  openapi-lint:
+    name: openapi-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Lint the API contract
+        # --fail-severity=hint so warnings and hints fail too. A lint job that
+        # only fails on errors accumulates warnings nobody reads, which is the
+        # state this contract exists to avoid.
+        run: npx --yes @stoplight/spectral-cli lint openapi.yaml --ruleset .spectral.yaml --fail-severity=hint
+
   secret-scan:
     name: secret-scan
     runs-on: ubuntu-latest
@@ -75,6 +89,20 @@ jobs:
           base="origin/${{ github.base_ref }}"
           git fetch --quiet origin "${{ github.base_ref }}"
           changed=$(git diff --name-only "$base"...HEAD)
+
+          if echo "$changed" | grep -qE '^apps/api/src/main/java/com/quizforge/[a-z]+/web/'; then
+            if ! echo "$changed" | grep -q '^openapi.yaml$'; then
+              echo "::error::A web layer changed but openapi.yaml did not."
+              echo ""
+              echo "openapi.yaml is the source of truth for the public API."
+              echo "A controller that changes without it is drift, and drift is"
+              echo "what the contract exists to prevent."
+              echo ""
+              echo "Changed files:"
+              echo "$changed" | sed 's/^/  /'
+              exit 1
+            fi
+          fi
 
           if echo "$changed" | grep -qE '^apps/api/src/main/'; then
             if ! echo "$changed" | grep -q '^CHANGELOG.md$'; then

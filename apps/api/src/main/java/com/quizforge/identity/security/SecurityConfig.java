@@ -27,7 +27,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            SessionAuthFilter sessionAuth,
-                                           ApiKeyAuthFilter apiKeyAuth) throws Exception {
+                                           ApiKeyAuthFilter apiKeyAuth,
+                                           WorkspaceScopeFilter workspaceScope) throws Exception {
         http
             // Stateless: authentication comes from an opaque cookie or bearer
             // token resolved against the database, never from an HTTP session.
@@ -75,7 +76,10 @@ public class SecurityConfig {
                 objectMapper.writeValue(response.getOutputStream(), problem);
             }))
             .addFilterBefore(apiKeyAuth, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(sessionAuth, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(sessionAuth, UsernamePasswordAuthenticationFilter.class)
+            // After both authentication filters: it inspects the tenant they
+            // established, so it cannot run before them.
+            .addFilterAfter(workspaceScope, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

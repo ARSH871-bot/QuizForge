@@ -69,15 +69,15 @@ Recorded so they can be revisited rather than rediscovered.
 
 Write `openapi.yaml` describing the **existing** surface first — the 12 endpoints that already work — before adding anything new. Describing what exists is how you find out what the contract has to be able to express.
 
-- [ ] Create `openapi.yaml` at the repository root, OpenAPI 3.1
-- [ ] Describe every existing `/v1` endpoint: auth (5), tournaments list, standings, attempts (5)
-- [ ] Model `Problem` once (RFC 9457) with the `code` extension, and reference it from every error response
-- [ ] Document every `ErrorCode` value as an enum on `Problem.code` — the machine-readable codes are the contract's most valuable part and are currently discoverable only by reading Java
-- [ ] Model typed identifiers as `string` with `pattern` and `example` (`acc_`, `wsp_`, `trn_`, `att_`)
-- [ ] Add `securitySchemes`: `bearerApiKey` (Bearer `qf_…`) and `sessionCookie`
-- [ ] Add Spectral (`.spectral.yaml`) with the OWASP and standard OAS rulesets; fix every finding rather than suppressing it
-- [ ] CI job `openapi-lint` running Spectral, wired into `ci.yml`
-- [ ] Add `openapi.yaml` to the `docs-current` guard: a change under `apps/api/src/main/java/**/web/**` without a change to `openapi.yaml` fails the build
+- [x] Create `openapi.yaml` at the repository root, OpenAPI 3.1
+- [x] Describe every existing `/v1` endpoint: auth (5), tournaments list, standings, attempts (5)
+- [x] Model `Problem` once (RFC 9457) with the `code` extension, and reference it from every error response
+- [x] Document every `ErrorCode` value as an enum on `Problem.code` — the machine-readable codes are the contract's most valuable part and are currently discoverable only by reading Java
+- [x] Model typed identifiers as `string` with `pattern` and `example` (`acc_`, `wsp_`, `trn_`, `att_`)
+- [x] Add `securitySchemes`: `bearerApiKey` (Bearer `qf_…`) and `sessionCookie`
+- [x] Add Spectral (`.spectral.yaml`) with the OWASP and standard OAS rulesets; fix every finding rather than suppressing it
+- [x] CI job `openapi-lint` running Spectral, wired into `ci.yml`
+- [x] Add `openapi.yaml` to the `docs-current` guard: a change under `apps/api/src/main/java/**/web/**` without a change to `openapi.yaml` fails the build
 
 **Verification:** Spectral passes clean. The spec renders in Swagger UI. Every documented example request, executed by hand against a running instance, returns the documented status and shape.
 

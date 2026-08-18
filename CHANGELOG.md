@@ -14,7 +14,35 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
+### Security
+
+- **Two cross-tenant defects closed.** With the `X-QuizForge-Workspace` header
+  simply omitted, an authenticated account could read another workspace's
+  standings (`200` with their rows) and start an attempt on another workspace's
+  tournament (`201` — a write). Tenant isolation depends on Row-Level Security,
+  and RLS only engages once a workspace is in scope; without one the connection
+  ran unfiltered. Both were confirmed by test before being fixed.
+- **`WorkspaceScopeFilter`** now refuses any authenticated `/v1` request with no
+  workspace in scope, before it reaches a handler. Isolation no longer depends
+  on each controller remembering to check — it was correct in three of five
+  places, and M4 adds roughly twenty-five more. ADR 0010.
+
 ### Added
+
+- **`openapi.yaml`** — the public API contract, describing all 13 `/v1`
+  endpoints exactly as they behave today, with `Problem` modelled once and every
+  `ErrorCode` documented as an enum with its HTTP status. Verified against a
+  running instance rather than written from the source alone.
+- **Spectral linting** (`.spectral.yaml`, CI job `openapi-lint`), failing on
+  hints as well as errors. Verified by breaking the spec and watching the job
+  reject it. The OWASP ruleset is deliberately deferred to Task 8, because
+  several of its rules require `RateLimit-*` headers that do not exist yet and
+  adopting it now would mean suppressing them.
+- **Contract drift guard** in `docs-current`: a change under a module's `web`
+  package without a change to `openapi.yaml` fails the build.
+- `docs/api/known-inconsistencies.md` — seven shapes that are wrong but
+  documented as-is, with the reasoning for fixing them in Task 2 while nothing
+  consumes the contract and the change is still free.
 
 - M4 (public API and SDKs) implementation plan: `openapi.yaml` as the source of
   truth with server interfaces generated from it, the CRUD surfaces M1–M3 never

@@ -1,0 +1,23 @@
+# Lint rules for openapi.yaml.
+#
+# Extends the standard OAS ruleset. Findings are fixed, never suppressed - a
+# rule that is switched off to make a report green is a rule that was never
+# doing anything.
+#
+# The OWASP ruleset is deliberately NOT extended yet. Several of its rules
+# require behaviour that does not exist until later in M4 - notably RateLimit-*
+# headers on every response - so adopting it now would mean either documenting
+# headers the API does not send, or disabling the rules that catch it. Both are
+# worse than adding the ruleset in Task 8, alongside the rate limiting it
+# checks for.
+extends: ["spectral:oas"]
+
+rules:
+  # An operation without a description is an operation somebody has to read the
+  # source to understand, which is the thing this file exists to prevent.
+  operation-description: error
+  operation-operationId: error
+  operation-tags: error
+  info-contact: error
+  info-description: error
+  info-license: error

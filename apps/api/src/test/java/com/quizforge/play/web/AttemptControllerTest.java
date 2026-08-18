@@ -253,4 +253,19 @@ class AttemptControllerTest extends AbstractIntegrationTest {
                         .with(csrf()))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void aStrangerCannotStartAnAttemptOnAnotherWorkspacesTournament() throws Exception {
+        // Probe for the same defect found in the standings endpoint: with no
+        // workspace header there is no tenant, so RLS does not engage and
+        // `requireOpen` resolves a tournament the caller has no claim to.
+        var owner = player();
+        var stranger = player();
+
+        mvc.perform(post("/v1/tournaments/" + owner.tournamentId() + "/attempts")
+                        .cookie(stranger.session())
+                        .with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
 }

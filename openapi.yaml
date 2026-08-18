@@ -1,0 +1,1229 @@
+openapi: 3.1.0
+
+info:
+  title: QuizForge API
+  version: 0.4.0
+  summary: Asynchronous quiz and assessment tournaments.
+  description: |
+    QuizForge runs asynchronous quiz tournaments. A tournament opens for a
+    window, players enter on their own schedule, and results roll up to a
+    leaderboard. There is no synchronous "everyone answers at once" mode, by
+    design.
+
+    ## Status of this document
+
+    This describes the API **exactly as it behaves today**, including the parts
+    that are awkward. Where a shape is known to be wrong it is documented as it
+    is and recorded in `docs/api/known-inconsistencies.md`, rather than
+    documented as it ought to be. A contract that describes an intention is
+    worse than no contract, because it is believed.
+
+    Creation endpoints for workspaces, API keys, question banks, questions and
+    tournaments do not exist yet — they arrive in M4. Today those objects can
+    only be created from inside the application.
+
+    ## Authentication
+
+    Two mechanisms, both resolved against the database on every request:
+
+    - **Session cookie** (`qf_session`) — issued by `POST /v1/auth/login`,
+      `HttpOnly`, `Secure`, `SameSite=Lax`. Used by browsers. Because a cookie
+      is sent automatically, mutating requests using it are CSRF-protected and
+      require the `X-XSRF-TOKEN` header.
+    - **API key** (`Authorization: Bearer qf_…`) — used by servers. A custom
+      header cannot be set cross-origin without a preflight the browser will
+      refuse, so these requests are exempt from CSRF.
+
+    An API key authenticates a *workspace*, not a person. Endpoints that record
+    who did something — starting or submitting an attempt — therefore require a
+    session and reject an API key.
+
+    ## Selecting a workspace
+
+    Every endpoint outside `/v1/auth` operates on exactly one workspace, and
+    **the workspace must be in scope or the request is refused with 400**.
+
+    With a session cookie, name it in the `X-QuizForge-Workspace` header. With
+    an API key the workspace is implied by the key itself.
+
+    This is not a convenience. Tenant isolation is enforced by PostgreSQL
+    Row-Level Security, and those policies only engage once a workspace is in
+    scope; a request without one would run unfiltered. The check is therefore
+    the difference between isolated and not.
+
+    ## Errors
+
+    Every error is an RFC 9457 Problem Details document with a stable
+    `code`. **Branch on `code`, never on `detail`** — `detail` is written for
+    humans and may be reworded at any time, while a `code` that exists will
+    never change its meaning or its HTTP status.
+  contact:
+    name: QuizForge support
+    url: https://github.com/ARSH871-bot/QuizForge/blob/main/SUPPORT.md
+  license:
+    name: Proprietary
+    url: https://github.com/ARSH871-bot/QuizForge/blob/main/LICENSE
+
+servers:
+  - url: http://localhost:8080
+    description: Local development instance started by `docker compose up`.
+
+tags:
+  - name: Authentication
+    description: Accounts, sessions and password reset.
+  - name: Tournaments
+    description: Scheduled runs of questions drawn from a bank.
+  - name: Play
+    description: Taking part in a tournament.
+  - name: Leaderboards
+    description: Ranked standings for a tournament.
+
+security:
+  - sessionCookie: []
+  - bearerApiKey: []
+
+paths:
+  /v1/auth/health:
+    get:
+      tags: [Authentication]
+      operationId: authHealth
+      summary: Confirm the API is reachable without authentication
+      description: |
+        Confirms that `/v1/auth/**` is reachable unauthenticated. Exists to
+        verify the security configuration itself, so it deliberately does not
+        touch the database and is not a substitute for `/actuator/health`.
+      security: []
+      responses:
+        '200':
+          description: The API is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/auth/register:
+    post:
+      tags: [Authentication]
+      operationId: register
+      summary: Create an account
+      description: |
+        Creates an account. Does **not** sign the caller in — no session cookie
+        is issued, so a client that wants an authenticated session must call
+        `POST /v1/auth/login` afterwards.
+
+        The account has no workspace. Until workspace creation exists (M4),
+        a newly registered account cannot reach any endpoint outside
+        `/v1/auth`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: The account was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '409':
+          description: |
+            An account with that email already exists. Carries
+            `code: ALREADY_EXISTS`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      summary: Sign in and receive a session cookie
+      description: |
+        Authenticates an email and password and issues a session cookie.
+
+        An unknown email and a wrong password are deliberately
+        indistinguishable: both return `INVALID_CREDENTIALS`, and the work done
+        is equalised so the two cannot be told apart by timing either.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Signed in. The session cookie is set on the response.
+          headers:
+            Set-Cookie:
+              description: |
+                The `qf_session` cookie: `HttpOnly`, `Secure`, `SameSite=Lax`,
+                `Path=/`.
+              schema:
+                type: string
+                maxLength: 500
+                examples:
+                  - qf_session=…; Path=/; Secure; HttpOnly; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          description: |
+            The email or the password was wrong. Carries
+            `code: INVALID_CREDENTIALS`. Which of the two is never disclosed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      summary: Revoke the current session
+      description: |
+        Revokes the session named by the cookie.
+
+        Succeeds with `204` whether or not a cookie was sent and whether or not
+        the session existed, so logging out is always safe to retry.
+      security: []
+      responses:
+        '204':
+          description: The session is revoked, or there was none to revoke.
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/auth/me:
+    get:
+      tags: [Authentication]
+      operationId: currentAccount
+      summary: The signed-in account
+      description: |
+        Returns the account behind the current credential.
+
+        Requires a session: an API key authenticates a workspace rather than a
+        person, so there is no account to return.
+      responses:
+        '200':
+          description: The signed-in account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/auth/request-password-reset:
+    post:
+      tags: [Authentication]
+      operationId: requestPasswordReset
+      summary: Request a password reset email
+      description: |
+        Always returns `202` with the same message, whether or not the address
+        has an account. Confirming which addresses are registered would make
+        this an account-enumeration oracle, so it does not.
+
+        The reset token is delivered by email and never appears in the
+        response.
+
+        **Not yet functional.** Token generation and delivery are wired to the
+        `notify` module in a later milestone; today this endpoint validates
+        nothing and sends nothing. It is documented because it exists and
+        returns `202`, which a client would otherwise read as success.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '202':
+          description: |
+            Accepted. Returned identically for a registered and an unregistered
+            address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tournaments:
+    get:
+      tags: [Tournaments]
+      operationId: listTournaments
+      summary: List tournaments in the selected workspace
+      description: |
+        Every tournament in the workspace, in no guaranteed order, with no
+        pagination — the whole collection is returned.
+
+        `state` is derived from the server clock at the moment of the request
+        rather than stored, so a tournament transitions from `SCHEDULED` to
+        `OPEN` to `CLOSED` without any job running, and a row can never
+        disagree with the calendar.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      responses:
+        '200':
+          description: The workspace's tournaments.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 10000
+                items:
+                  $ref: '#/components/schemas/TournamentSummary'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tournaments/{tournamentId}/standings:
+    get:
+      tags: [Leaderboards]
+      operationId: getStandings
+      summary: Ranked standings for a tournament
+      description: |
+        The leaderboard, highest score first. Ties break in favour of whoever
+        got there first, so the order is stable between reads.
+
+        The tournament's scoring policy is applied when this is read rather
+        than when a score is stored, so changing a policy takes effect
+        immediately without recomputing history.
+
+        A tournament in another workspace returns `404`, not `403` — its
+        existence is not disclosed.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: tournamentId
+          in: path
+          required: true
+          description: The tournament, as a prefixed identifier.
+          schema:
+            $ref: '#/components/schemas/TournamentId'
+        - name: limit
+          in: query
+          required: false
+          description: |
+            How many rows to return.
+
+            Values outside 1–100 are **silently clamped** into range rather
+            than rejected, so a request for 1000 returns 100 with no indication
+            that it was reduced.
+          schema:
+            type: integer
+            format: int32
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: |
+            The ranked standings. Empty if the tournament exists but nobody has
+            a graded attempt yet.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items:
+                  $ref: '#/components/schemas/LeaderboardEntry'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tournaments/{tournamentId}/attempts:
+    post:
+      tags: [Play]
+      operationId: startAttempt
+      summary: Start an attempt at a tournament
+      description: |
+        Begins an attempt and freezes its question set immediately, so the
+        player is never graded against questions they were not shown, even if
+        the bank changes mid-tournament.
+
+        Requires a **session**, not an API key: an attempt is attributed to a
+        person, and a key identifies only a workspace.
+
+        Rejected with `400` if the tournament is not currently open, or if the
+        account has already used its allowed attempts.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: tournamentId
+          in: path
+          required: true
+          description: The tournament to attempt.
+          schema:
+            $ref: '#/components/schemas/TournamentId'
+      responses:
+        '201':
+          description: The attempt was started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptStarted'
+        '400':
+          description: |
+            The workspace is not in scope, the tournament is not open, or the
+            attempt allowance is used up. Carries `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfOrPermission'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/attempts/{attemptId}/questions/{position}:
+    get:
+      tags: [Play]
+      operationId: getAttemptQuestion
+      summary: Retrieve one question of an attempt
+      description: |
+        Returns the question at a 1-based position in this attempt's frozen
+        set, with options in the order this attempt fixed at creation — so a
+        refresh does not reshuffle under the player, while two players still
+        see different orders.
+
+        **The correct answer is never included**, in any question type, at any
+        point during play.
+
+        Someone else's attempt returns `404` rather than `403`.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/AttemptIdPath'
+        - $ref: '#/components/parameters/PositionPath'
+      responses:
+        '200':
+          description: The question, without its answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayableQuestion'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/attempts/{attemptId}/questions/{position}/answer:
+    post:
+      tags: [Play]
+      operationId: answerAttemptQuestion
+      summary: Answer one question
+      description: |
+        Grades the answer on the server and stores the outcome immediately, so
+        an attempt survives a disconnect and submission only has to aggregate
+        what is already recorded.
+
+        Answering the same position again replaces the stored response, until
+        the attempt is closed.
+
+        The response says **whether** the answer was right but never **what**
+        the right answer was — otherwise the whole answer key could be
+        extracted by submitting one wrong answer per question.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/AttemptIdPath'
+        - $ref: '#/components/parameters/PositionPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerRequest'
+      responses:
+        '200':
+          description: The answer was recorded and graded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerFeedback'
+        '400':
+          description: |
+            The workspace is not in scope, the answer was blank, or the attempt
+            has expired or is already closed. Carries `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfOrPermission'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/attempts/{attemptId}/submit:
+    post:
+      tags: [Play]
+      operationId: submitAttempt
+      summary: Submit an attempt
+      description: |
+        Closes the attempt and returns its result.
+
+        Submission only aggregates outcomes already stored by each answer, so
+        it is naturally idempotent: submitting an already-submitted attempt
+        returns the same result rather than an error, and unanswered questions
+        count against the score.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/AttemptIdPath'
+      responses:
+        '200':
+          description: The attempt is closed and graded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptResult'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfOrPermission'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/attempts/{attemptId}:
+    get:
+      tags: [Play]
+      operationId: getAttemptResult
+      summary: The result of an attempt
+      description: |
+        The attempt's current score. Readable while the attempt is still in
+        progress, in which case it reflects what has been answered so far.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/AttemptIdPath'
+      responses:
+        '200':
+          description: The attempt's result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptResult'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+components:
+
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: qf_session
+      description: |
+        Opaque session token issued by `POST /v1/auth/login`, stored only as a
+        SHA-256 digest on the server. Mutating requests authenticated this way
+        are CSRF-protected and additionally require the `X-XSRF-TOKEN` header.
+    bearerApiKey:
+      type: http
+      scheme: bearer
+      description: |
+        A workspace API key, sent as `Authorization: Bearer qf_…`. Shown once
+        when created and stored only as a SHA-256 digest thereafter.
+
+        Authenticates a workspace rather than a person, so endpoints that
+        attribute an action to an account — starting and submitting attempts —
+        reject it.
+
+  parameters:
+    WorkspaceHeader:
+      name: X-QuizForge-Workspace
+      in: header
+      required: false
+      description: |
+        The workspace to operate on, as a `wsp_…` identifier.
+
+        Required for every endpoint outside `/v1/auth` when authenticating with
+        a session cookie; omitting it fails with `400 INVALID_REQUEST`. With an
+        API key the workspace comes from the key and this header is ignored.
+
+        Documented as `required: false` because it is genuinely optional for
+        key-authenticated callers, not because it is safe to leave out.
+
+        Naming a workspace you are not a member of, or sending a malformed
+        value, returns **`401 AUTHENTICATION_REQUIRED`** rather than `403`. The
+        authentication filter abandons the request entirely when membership
+        cannot be established, so a perfectly valid session reads as no session
+        at all. Surprising, and documented as it behaves; see
+        `docs/api/known-inconsistencies.md`.
+      schema:
+        $ref: '#/components/schemas/WorkspaceId'
+
+    AttemptIdPath:
+      name: attemptId
+      in: path
+      required: true
+      description: |
+        The attempt, as a prefixed identifier. Passing an identifier of another
+        type — a `trn_…` where an `att_…` belongs — is a `400`, not a
+        confusing `404` further along.
+      schema:
+        $ref: '#/components/schemas/AttemptId'
+
+    PositionPath:
+      name: position
+      in: path
+      required: true
+      description: |
+        1-based position within this attempt's frozen question set. Not a
+        question identifier, and not stable across attempts — two players'
+        position 1 are usually different questions.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 1000
+
+  responses:
+    InvalidRequest:
+      description: The request was malformed or failed validation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    WorkspaceRequired:
+      description: |
+        No workspace is in scope. Carries `code: INVALID_REQUEST`.
+
+        Sent when a session-authenticated request omits
+        `X-QuizForge-Workspace`. Tenant isolation depends on a workspace being
+        selected, so such a request is refused before it reaches a handler
+        rather than being served unfiltered.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    AuthenticationRequired:
+      description: |
+        No valid credential was presented. Carries
+        `code: AUTHENTICATION_REQUIRED`.
+
+        Also returned in two cases that are not obviously authentication
+        failures:
+
+        - A path that does not exist. Authentication is evaluated before
+          routing, so an anonymous caller learns nothing about which paths are
+          real.
+        - A valid session naming a workspace the account does not belong to, or
+          a malformed workspace header. `403` would be the accurate answer;
+          see `docs/api/known-inconsistencies.md`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    CsrfOrPermission:
+      description: |
+        Either the CSRF token was missing on a cookie-authenticated write, or
+        the credential lacks the required role.
+
+        The CSRF filter runs **before** authentication, so an unauthenticated
+        write returns `403` here rather than `401`. That ordering is
+        deliberate; the request is refused either way.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    NotFound:
+      description: |
+        No such object, **or** it belongs to another workspace or another
+        account. The two are deliberately indistinguishable, so this endpoint
+        cannot be used to discover that an identifier exists.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    Internal:
+      description: |
+        Something failed unexpectedly. The cause is logged server-side and
+        never included in the response.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+
+    Problem:
+      type: object
+      title: Problem
+      description: |
+        An RFC 9457 Problem Details document. Every error in the API has this
+        shape.
+
+        Clients should branch on `code`. It is the only field with a stability
+        guarantee: a code that exists will never change meaning or HTTP status,
+        and new codes are added rather than existing ones repurposed.
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+          maxLength: 200
+          description: Stable URI identifying the error class.
+          examples: ['https://quizforge.dev/errors/not-found']
+        title:
+          type: string
+          maxLength: 100
+          description: The error code, repeated as a human-readable title.
+          examples: ['NOT_FOUND']
+        status:
+          type: integer
+          format: int32
+          minimum: 100
+          maximum: 599
+          description: The HTTP status code, repeated in the body.
+          examples: [404]
+        detail:
+          type: string
+          maxLength: 2000
+          description: |
+            Human-readable explanation. **Not stable** — reworded freely. Never
+            parse it.
+          examples: ['no such attempt']
+        instance:
+          type: string
+          format: uri-reference
+          maxLength: 2000
+          description: The path that produced the error.
+          examples: ['/v1/attempts/att_01a0136fb3937209a5719e8fb7db26bf']
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+
+    ErrorCode:
+      type: string
+      title: ErrorCode
+      description: |
+        The machine-readable error code. Exhaustive: every error the API can
+        produce carries one of these.
+
+        Each maps to exactly one HTTP status, and that mapping is part of the
+        contract.
+      enum:
+        - INVALID_REQUEST
+        - INVALID_CREDENTIALS
+        - AUTHENTICATION_REQUIRED
+        - PERMISSION_DENIED
+        - NOT_FOUND
+        - ALREADY_EXISTS
+        - RATE_LIMITED
+        - INTERNAL
+      examples: ['NOT_FOUND']
+      x-error-codes:
+        INVALID_REQUEST:
+          status: 400
+          meaning: Malformed input, a failed validation rule, or an operation the current state does not allow.
+        INVALID_CREDENTIALS:
+          status: 401
+          meaning: The email or password was wrong. Which one is never disclosed.
+        AUTHENTICATION_REQUIRED:
+          status: 401
+          meaning: No credential was presented, or it has expired or been revoked.
+        PERMISSION_DENIED:
+          status: 403
+          meaning: Authenticated, but the role is insufficient for this action.
+        NOT_FOUND:
+          status: 404
+          meaning: No such object, or it belongs to another tenant. Deliberately ambiguous.
+        ALREADY_EXISTS:
+          status: 409
+          meaning: A uniqueness constraint would be violated.
+        RATE_LIMITED:
+          status: 429
+          meaning: Too many requests. Not yet emitted — rate limiting arrives with M4.
+        INTERNAL:
+          status: 500
+          meaning: An unhandled failure. The cause is logged and never returned.
+
+    AccountId:
+      type: string
+      title: AccountId
+      description: An account identifier. UUIDv7 rendered as 32 lowercase hex characters with an `acc_` prefix.
+      pattern: '^acc_[0-9a-f]{32}$'
+      maxLength: 36
+      examples: ['acc_01a0136fb3937209a5719e8fb7db26bf']
+
+    WorkspaceId:
+      type: string
+      title: WorkspaceId
+      description: A workspace identifier. UUIDv7 rendered as 32 lowercase hex characters with a `wsp_` prefix.
+      pattern: '^wsp_[0-9a-f]{32}$'
+      maxLength: 36
+      examples: ['wsp_01a0136fb3937209a5719e8fb7db26bf']
+
+    TournamentId:
+      type: string
+      title: TournamentId
+      description: A tournament identifier. UUIDv7 rendered as 32 lowercase hex characters with a `trn_` prefix.
+      pattern: '^trn_[0-9a-f]{32}$'
+      maxLength: 36
+      examples: ['trn_01a0136fb3937209a5719e8fb7db26bf']
+
+    AttemptId:
+      type: string
+      title: AttemptId
+      description: An attempt identifier. UUIDv7 rendered as 32 lowercase hex characters with an `att_` prefix.
+      pattern: '^att_[0-9a-f]{32}$'
+      maxLength: 36
+      examples: ['att_01a0136fb3937209a5719e8fb7db26bf']
+
+    HealthStatus:
+      type: object
+      title: HealthStatus
+      required: [status]
+      properties:
+        status:
+          type: string
+          maxLength: 20
+          enum: [ok]
+          description: Always `ok`; a failing instance does not respond at all.
+      examples:
+        - status: ok
+
+    MessageResponse:
+      type: object
+      title: MessageResponse
+      description: |
+        A human-readable acknowledgement carrying no machine-readable field.
+
+        Used only by `request-password-reset`. New endpoints should not adopt
+        this shape — there is nothing here a client can branch on.
+      required: [message]
+      properties:
+        message:
+          type: string
+          maxLength: 500
+          description: Text intended for display, not for parsing.
+      examples:
+        - message: If that address has an account, password reset instructions have been sent.
+
+    RegisterRequest:
+      type: object
+      title: RegisterRequest
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 3
+          maxLength: 254
+          description: Must be unique across the whole system.
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 200
+          description: |
+            Minimum 12 characters, per NIST SP 800-63B. No composition rules —
+            length is what matters. Hashed with Argon2id at OWASP parameters.
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Shown to other players. Not unique.
+      examples:
+        - email: player@example.com
+          password: correct horse battery staple
+          displayName: Alex Doe
+
+    LoginRequest:
+      type: object
+      title: LoginRequest
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 3
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 200
+      examples:
+        - email: player@example.com
+          password: correct horse battery staple
+
+    PasswordResetRequest:
+      type: object
+      title: PasswordResetRequest
+      description: |
+        The body is currently **not validated** — an empty object is accepted
+        and returns `202`, because the endpoint is not yet wired to delivery.
+        `email` is documented as the field this will read once it is.
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 3
+          maxLength: 254
+          description: The address to send reset instructions to.
+      examples:
+        - email: player@example.com
+
+    Account:
+      type: object
+      title: Account
+      description: |
+        A user account. Never carries the password hash, MFA secret or lockout
+        state.
+      required: [id, email, displayName, emailVerified]
+      properties:
+        id:
+          $ref: '#/components/schemas/AccountId'
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        displayName:
+          type: string
+          maxLength: 120
+        emailVerified:
+          type: boolean
+          description: |
+            Whether the address has been confirmed. Always `false` today —
+            verification is not implemented, so this is reserved rather than
+            meaningful.
+      examples:
+        - id: acc_01a0136fb3937209a5719e8fb7db26bf
+          email: player@example.com
+          displayName: Alex Doe
+          emailVerified: false
+
+    TournamentState:
+      type: string
+      title: TournamentState
+      description: |
+        Derived from the server clock on every read, never stored — so it
+        cannot disagree with the schedule.
+      enum: [SCHEDULED, OPEN, CLOSED]
+      examples: ['OPEN']
+
+    TournamentSummary:
+      type: object
+      title: TournamentSummary
+      description: What a player needs in order to choose a tournament. Reveals no question content.
+      required: [id, name, state, opensAt, closesAt, questions, maxAttempts]
+      properties:
+        id:
+          $ref: '#/components/schemas/TournamentId'
+        name:
+          type: string
+          maxLength: 200
+        state:
+          $ref: '#/components/schemas/TournamentState'
+        opensAt:
+          type: string
+          format: date-time
+          maxLength: 40
+        closesAt:
+          type: string
+          format: date-time
+          maxLength: 40
+        questions:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          description: How many questions an attempt will contain.
+        timeLimitSeconds:
+          type: [integer, 'null']
+          format: int32
+          minimum: 1
+          maximum: 86400
+          description: Per-attempt time limit. `null` means no limit.
+        maxAttempts:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+      examples:
+        - id: trn_01a0136fb3937209a5719e8fb7db26bf
+          name: Geography Weekly
+          state: OPEN
+          opensAt: '2026-08-18T09:00:00Z'
+          closesAt: '2026-08-25T09:00:00Z'
+          questions: 10
+          timeLimitSeconds: 600
+          maxAttempts: 1
+
+    LeaderboardEntry:
+      type: object
+      title: LeaderboardEntry
+      description: One row of a ranked leaderboard.
+      required: [accountId, score, outOf, attempts, firstGradedAt, rank]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: |
+            **Inconsistent with the rest of the API**: a bare UUID rather than
+            an `acc_…` identifier. Documented as it behaves; see
+            `docs/api/known-inconsistencies.md`.
+        score:
+          type: number
+          format: double
+          minimum: 0
+          description: |
+            Resolved with the tournament's scoring policy at read time. A
+            fraction when the policy is `AVERAGE`, whole otherwise.
+        outOf:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+        attempts:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+        firstGradedAt:
+          type: string
+          format: date-time
+          maxLength: 40
+          description: |
+            When this player first completed an attempt. Carried because it is
+            the tie-break, so a client rendering ties can explain the order.
+        rank:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100000
+          description: 1-based, assigned after sorting so it always matches the order shown.
+      examples:
+        - accountId: 018f3a5c-1c2b-7d3e-9f10-2a3b4c5d6e7f
+          score: 8
+          outOf: 10
+          attempts: 1
+          firstGradedAt: '2026-08-18T10:15:00Z'
+          rank: 1
+
+    AttemptStarted:
+      type: object
+      title: AttemptStarted
+      description: What a player needs to begin. Carries no question content.
+      required: [id, questions]
+      properties:
+        id:
+          $ref: '#/components/schemas/AttemptId'
+        questions:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          description: |
+            The **number** of questions in this attempt, not a list of them.
+            Frozen now, so later changes to the bank cannot alter this
+            attempt's denominator.
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          maxLength: 40
+          description: |
+            When this attempt stops accepting answers. `null` when the
+            tournament sets no time limit.
+      examples:
+        - id: att_01a0136fb3937209a5719e8fb7db26bf
+          questions: 10
+          expiresAt: '2026-08-18T10:25:00Z'
+
+    QuestionType:
+      type: string
+      title: QuestionType
+      enum: [SINGLE_CHOICE, MULTI_CHOICE, TRUE_FALSE, NUMERIC, SHORT_TEXT]
+      examples: ['SINGLE_CHOICE']
+
+    PlayableQuestion:
+      type: object
+      title: PlayableQuestion
+      description: |
+        A question as shown to a player. **Never carries the correct answer**,
+        for any type, at any point during the attempt.
+      required: [questionId, type, prompt, options]
+      properties:
+        questionId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: |
+            **Inconsistent with the rest of the API**: a bare UUID rather than a
+            prefixed identifier. Documented as it behaves; see
+            `docs/api/known-inconsistencies.md`.
+        type:
+          $ref: '#/components/schemas/QuestionType'
+        prompt:
+          type: string
+          maxLength: 4000
+        options:
+          type: array
+          maxItems: 26
+          description: |
+            Selectable options, in the order this attempt fixed at creation.
+            Empty for `NUMERIC` and `SHORT_TEXT`, which are free-entry.
+          items:
+            type: string
+            maxLength: 1000
+      examples:
+        - questionId: 018f3a5c-1c2b-7d3e-9f10-2a3b4c5d6e7f
+          type: SINGLE_CHOICE
+          prompt: What is the capital of France?
+          options: [Paris, Lyon, Marseille, Toulouse]
+
+    AnswerRequest:
+      type: object
+      title: AnswerRequest
+      required: [answer]
+      properties:
+        answer:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: |
+            The player's answer, always a string regardless of question type.
+
+            For `MULTI_CHOICE`, the selected options separated by `|`. For
+            `NUMERIC`, the number as text, compared within the question's
+            tolerance. Blank is rejected as `400`, not graded as incorrect.
+      examples:
+        - answer: Paris
+
+    AnswerFeedback:
+      type: object
+      title: AnswerFeedback
+      description: |
+        What a player learns after answering. Deliberately never includes the
+        correct answer, even when the given answer was wrong.
+      required: [position, correct, answered, total, hasNext]
+      properties:
+        position:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          description: The position just answered.
+        correct:
+          type: boolean
+        answered:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+          description: How many distinct positions have been answered so far.
+        total:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+        hasNext:
+          type: boolean
+          description: Whether a further position exists in this attempt.
+      examples:
+        - position: 1
+          correct: true
+          answered: 1
+          total: 10
+          hasNext: true
+
+    AttemptState:
+      type: string
+      title: AttemptState
+      description: |
+        `EXPIRED` means the time limit passed; such an attempt is still scored
+        on what was answered and still appears on the leaderboard.
+      enum: [STARTED, GRADED, EXPIRED]
+      examples: ['GRADED']
+
+    AttemptResult:
+      type: object
+      title: AttemptResult
+      description: The outcome of an attempt.
+      required: [attemptId, state, score, outOf, percentage]
+      properties:
+        attemptId:
+          type: string
+          format: uuid
+          maxLength: 36
+          description: |
+            **Inconsistent with `AttemptStarted.id`**, which returns the same
+            attempt as `att_…`. This one is a bare UUID, so a client cannot
+            round-trip the value it was given. Documented as it behaves; see
+            `docs/api/known-inconsistencies.md`.
+        state:
+          $ref: '#/components/schemas/AttemptState'
+        score:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+          description: Questions answered correctly.
+        outOf:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          description: |
+            The denominator frozen when the attempt started. Unanswered
+            questions count against the player.
+        percentage:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+      examples:
+        - attemptId: 018f3a5c-1c2b-7d3e-9f10-2a3b4c5d6e7f
+          state: GRADED
+          score: 8
+          outOf: 10
+          percentage: 80

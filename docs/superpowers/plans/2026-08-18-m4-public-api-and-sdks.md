@@ -97,19 +97,45 @@ Write `openapi.yaml` describing the **existing** surface first — the 12 endpoi
 
 ## Task 3: Workspaces, members and API keys
 
-The credential-issuing gap. Highest priority of the CRUD tasks: without it every other endpoint is unreachable by an API consumer.
+The credential-issuing gap. Highest priority of the CRUD tasks: without it every
+other endpoint is unreachable by an API consumer.
 
-- [ ] `POST /v1/workspaces` — create; caller becomes `OWNER`
-- [ ] `GET /v1/workspaces` — list the caller's workspaces
-- [ ] `GET /v1/workspaces/{id}`, `PATCH /v1/workspaces/{id}` — read, rename
-- [ ] `GET /v1/workspaces/{id}/members`, `POST` (invite by email), `PATCH` (change role), `DELETE` (remove)
-- [ ] `POST /v1/workspaces/{id}/api-keys` — mint with `qf_live_` prefix, **return the plaintext exactly once**, persist only the SHA-256 digest
-- [ ] `GET /v1/workspaces/{id}/api-keys` — list metadata only: prefix, label, created, last used. Never the key
-- [ ] `DELETE /v1/workspaces/{id}/api-keys/{keyId}` — revoke, effective immediately
-- [ ] Every one of these writes an audit entry via `AuditService`
-- [ ] Enforce the permission matrix through `WorkspaceAccess`, not by reading roles in the controller
+**Paths differ from the sketch below as originally written.** It proposed
+`/v1/workspaces/{id}/members` and `/v1/workspaces/{id}/api-keys`. Those were
+built without the id: the workspace is already in scope, selected by header or
+implied by the API key, and repeating it in the path creates a second way to
+name a tenant — which then has to be reconciled when the two disagree. Having
+two tenant-selection mechanisms is how the cross-tenant defects in ADR 0010 were
+written. `/v1/workspaces` itself stays account-scoped, because a new account has
+no workspace and must still be able to create one.
 
-**Tests:** the last `OWNER` cannot be demoted or removed. A revoked key is rejected on the very next request. A key's plaintext appears in exactly one response body across its lifetime, asserted by a test that greps every other response. A `VIEWER` cannot mint a key.
+- [x] `POST /v1/workspaces` — create; caller becomes `OWNER`
+- [x] `GET /v1/workspaces` — list the caller's workspaces
+- [x] `GET /v1/workspaces/current`, `PATCH /v1/workspaces/current` — read, rename
+- [x] `GET /v1/members`, `POST` (add by email), `PATCH /v1/members/{accountId}`
+      (change role), `DELETE /v1/members/{accountId}` (remove)
+- [x] `POST /v1/api-keys` — mint with `qf_live_` prefix, **return the plaintext
+      exactly once**, persist only the SHA-256 digest
+- [x] `GET /v1/api-keys` — list metadata only: prefix, label, created, last used.
+      Never the key
+- [x] `DELETE /v1/api-keys/{keyId}` — revoke, effective immediately
+- [x] Every one of these writes an audit entry via `AuditService`
+- [x] Enforce the permission matrix through the identity module's services
+      rather than by reading roles in the controller
+
+**Tests:** the last `OWNER` cannot be demoted or removed. A revoked key is
+rejected on the very next request. A key's plaintext appears in exactly one
+response across its lifetime. A `VIEWER` cannot manage members, and an API key
+cannot mint another API key.
+
+**Found while doing this, both fixed here:**
+
+- The audit log had **no writers at all**. `AuditService` was complete and tested
+  since M1 and nothing called it.
+- **No cookie-authenticated write worked for any real client** — Spring
+  Security's default CSRF token masking against a cookie the client is meant to
+  echo. Invisible to the suite, because `.with(csrf())` builds the token it is
+  supposed to be verifying. ADR 0012.
 
 ## Task 4: Question banks, questions and imports
 

@@ -62,6 +62,8 @@ public class ApiKey {
     public String getTokenHash() { return tokenHash; }
     public String getLastFour() { return lastFour; }
     public String getEnvironment() { return environment; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getLastUsedAt() { return lastUsedAt; }
     public Instant getRevokedAt() { return revokedAt; }
 
     public boolean isActive() {

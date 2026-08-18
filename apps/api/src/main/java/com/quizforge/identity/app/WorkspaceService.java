@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -20,10 +21,13 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaces;
     private final MembershipRepository memberships;
+    private final AuditService audit;
 
-    public WorkspaceService(WorkspaceRepository workspaces, MembershipRepository memberships) {
+    public WorkspaceService(WorkspaceRepository workspaces, MembershipRepository memberships,
+                            AuditService audit) {
         this.workspaces = workspaces;
         this.memberships = memberships;
+        this.audit = audit;
     }
 
     @Transactional
@@ -38,6 +42,55 @@ public class WorkspaceService {
         memberships.save(new Membership(
                 UuidV7.generate(), ownerId, workspace.getId(), Role.OWNER));
 
+        audit.record(workspace.getId(), ownerId, "workspace.created", "workspace",
+                workspace.getId(), Map.of("name", workspace.getName(),
+                        "slug", workspace.getSlug()));
+
+        return workspace;
+    }
+
+    /** The workspace, or {@code NOT_FOUND}. Row-Level Security scopes the read. */
+    @Transactional(readOnly = true)
+    public Workspace require(UUID workspaceId) {
+        return workspaces.findById(workspaceId)
+                .orElseThrow(() -> ApiException.notFound("workspace"));
+    }
+
+    /**
+     * Every workspace this account belongs to, with the role it holds.
+     *
+     * <p>Reads memberships first and resolves workspaces from them, so an
+     * account can only ever see workspaces it is a member of - the query has no
+     * form in which it could return one it is not.
+     */
+    @Transactional(readOnly = true)
+    public List<Membership> membershipsOf(UUID accountId) {
+        return memberships.findByAccountId(accountId);
+    }
+
+    /** Resolves several workspaces by id, for rendering a membership list. */
+    @Transactional(readOnly = true)
+    public List<Workspace> byIds(List<UUID> ids) {
+        return workspaces.findAllById(ids);
+    }
+
+    @Transactional
+    public Workspace rename(UUID workspaceId, UUID actorId, String name) {
+        require(workspaceId, actorId, Role.Permission.MANAGE_WORKSPACE);
+        if (name == null || name.isBlank()) {
+            throw ApiException.invalid("workspace name is required");
+        }
+
+        Workspace workspace = require(workspaceId);
+        String previous = workspace.getName();
+        // The slug is deliberately not regenerated: it was unique at creation
+        // and anything already referring to it would break. A rename is
+        // cosmetic, not a re-identification.
+        workspace.rename(name);
+        workspaces.save(workspace);
+
+        audit.record(workspaceId, actorId, "workspace.renamed", "workspace", workspaceId,
+                Map.of("from", previous, "to", name));
         return workspace;
     }
 
@@ -62,7 +115,11 @@ public class WorkspaceService {
                     "that account is already a member of this workspace");
         });
 
-        return memberships.save(new Membership(UuidV7.generate(), accountId, workspaceId, role));
+        Membership membership = memberships.save(
+                new Membership(UuidV7.generate(), accountId, workspaceId, role));
+        audit.record(workspaceId, actorId, "member.added", "account", accountId,
+                Map.of("role", role.name()));
+        return membership;
     }
 
     @Transactional
@@ -77,8 +134,11 @@ public class WorkspaceService {
             guardLastOwner(workspaceId);
         }
 
+        Role previous = membership.getRole();
         membership.changeRole(role);
         memberships.save(membership);
+        audit.record(workspaceId, actorId, "member.role_changed", "account", accountId,
+                Map.of("from", previous.name(), "to", role.name()));
     }
 
     @Transactional
@@ -94,6 +154,8 @@ public class WorkspaceService {
         }
 
         memberships.delete(membership);
+        audit.record(workspaceId, actorId, "member.removed", "account", accountId,
+                Map.of("role", membership.getRole().name()));
     }
 
     private void guardLastOwner(UUID workspaceId) {

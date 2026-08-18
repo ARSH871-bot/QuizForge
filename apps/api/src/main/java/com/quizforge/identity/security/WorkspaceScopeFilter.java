@@ -47,13 +47,27 @@ import java.util.List;
 public class WorkspaceScopeFilter extends OncePerRequestFilter {
 
     /**
-     * Prefixes that operate on the account rather than a workspace.
+     * Path prefixes that operate on the account rather than a workspace.
      *
      * <p>{@code /v1/auth/**} covers registration, login, logout, {@code /me}
      * and password reset — none of which can have a workspace, because some of
      * them run before the account has one.
      */
-    private static final List<String> WORKSPACE_FREE = List.of("/v1/auth/");
+    private static final List<String> WORKSPACE_FREE_PREFIXES = List.of("/v1/auth/");
+
+    /**
+     * Exact paths that operate on the account rather than a workspace.
+     *
+     * <p>Matched exactly, not as a prefix, and the distinction is the whole
+     * point. {@code /v1/workspaces} lists and creates workspaces, which a new
+     * account must be able to do before it has one. Everything <em>below</em>
+     * that path — {@code /v1/workspaces/current} — acts on a specific workspace
+     * and must still be scoped.
+     *
+     * <p>A prefix match here would exempt the sub-paths too, which is exactly
+     * the cross-tenant hole this filter exists to close.
+     */
+    private static final List<String> WORKSPACE_FREE_EXACT = List.of("/v1/workspaces");
 
     private final ObjectMapper objectMapper;
 
@@ -91,12 +105,22 @@ public class WorkspaceScopeFilter extends OncePerRequestFilter {
         if (path == null || !path.startsWith("/v1/")) {
             return false;
         }
-        if (WORKSPACE_FREE.stream().anyMatch(path::startsWith)) {
+        if (WORKSPACE_FREE_PREFIXES.stream().anyMatch(path::startsWith)) {
+            return false;
+        }
+        if (WORKSPACE_FREE_EXACT.contains(stripTrailingSlash(path))) {
             return false;
         }
         // An unauthenticated request is refused by the entry point with a 401,
         // which is the more useful answer. Do not pre-empt it with a 400.
         return SecurityContextHolder.getContext().getAuthentication() != null;
+    }
+
+    /** So that {@code /v1/workspaces/} is treated as {@code /v1/workspaces}. */
+    private static String stripTrailingSlash(String path) {
+        return path.length() > 1 && path.endsWith("/")
+                ? path.substring(0, path.length() - 1)
+                : path;
     }
 
     private void reject(HttpServletRequest request, HttpServletResponse response,

@@ -14,7 +14,7 @@ what is safe to do with the code.
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
-| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 2 of 10 tasks |
+| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 3 of 10 tasks |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
 | M7 | Commercial & launch readiness | Not started | no plan written |
@@ -50,21 +50,20 @@ warrants. Services exist for everything; HTTP surfaces do not:
 
 | Module | Reachable over HTTP today |
 |---|---|
-| `identity` | register, login, logout, me, request-password-reset |
-| `content` | **nothing — the module has no `web` package** |
-| `tournament` | list only |
+| `identity` | auth, **workspaces, members, API keys** |
+| `content` | **nothing — the module has no `web` package** (M4 Task 4) |
+| `tournament` | list only (creation in M4 Task 5) |
 | `play` | full |
 | `leaderboard` | standings |
 
-A developer holding a valid credential cannot create a workspace, an API key, a
-question bank, a question or a tournament. There is no endpoint that mints an
-API key, so the API-first product cannot issue the credential its primary auth
-mechanism depends on — `ApiKeyService` has been complete since M1 and
-unreachable ever since.
+**The credential gap is closed.** A developer can register, create a workspace,
+mint a `qf_live_…` key and call the API with it, entirely over HTTP. Verified
+against a running server, not only in tests.
 
-Nothing is broken; the engine works and is tested. The surfaces were never
-built, because M1–M3 built downward through the domain rather than outward
-through HTTP. M4 is where that is corrected.
+What remains unreachable is content and tournament creation, so a workspace can
+be set up but not yet filled. Nothing is broken; the engine works and is tested.
+The surfaces were never built, because M1–M3 built downward through the domain
+rather than outward through HTTP. Tasks 4 and 5 finish the correction.
 
 ## Known gaps
 
@@ -130,10 +129,10 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 175, all passing
+- **Tests:** 196, all passing
 - **Migrations:** V1–V11
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
-- **ADRs:** 11 (0007 superseded by 0009)
+- **ADRs:** 12 (0007 superseded by 0009)
 - **Monthly cost:** $0
 
 ## Where to look

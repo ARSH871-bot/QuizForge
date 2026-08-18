@@ -1,0 +1,127 @@
+package com.quizforge.identity.web;
+
+import com.quizforge.api.WorkspacesApi;
+import com.quizforge.api.model.CreateWorkspaceRequest;
+import com.quizforge.api.model.RenameWorkspaceRequest;
+import com.quizforge.api.model.Role;
+import com.quizforge.api.model.Workspace;
+import com.quizforge.api.model.WorkspacePage;
+import com.quizforge.identity.CurrentPrincipal;
+import com.quizforge.identity.Principal;
+import com.quizforge.identity.app.WorkspaceService;
+import com.quizforge.identity.domain.Membership;
+import com.quizforge.platform.error.ApiException;
+import com.quizforge.platform.error.ErrorCode;
+import com.quizforge.platform.id.TypeId;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * Workspaces — the tenant everything else belongs to.
+ *
+ * <p>Two of these operations are deliberately <em>account</em>-scoped rather
+ * than workspace-scoped. Listing and creating workspaces cannot require one to
+ * already be in scope: a newly registered account has none, and requiring one
+ * would leave it permanently unable to use the API. {@code WorkspaceScopeFilter}
+ * exempts {@code /v1/workspaces} by exact path for that reason, and nothing
+ * below it.
+ */
+@RestController
+public class WorkspaceController implements WorkspacesApi {
+
+    private final WorkspaceService workspaces;
+
+    public WorkspaceController(WorkspaceService workspaces) {
+        this.workspaces = workspaces;
+    }
+
+    @Override
+    public ResponseEntity<WorkspacePage> listWorkspaces() {
+        UUID accountId = requireAccount();
+
+        List<Membership> memberships = workspaces.membershipsOf(accountId);
+        Map<UUID, Role> roles = memberships.stream()
+                .collect(Collectors.toMap(
+                        Membership::getWorkspaceId,
+                        m -> Role.fromValue(m.getRole().name())));
+
+        List<Workspace> data = workspaces
+                .byIds(memberships.stream().map(Membership::getWorkspaceId).toList())
+                .stream()
+                .map(w -> represent(w, roles.get(w.getId())))
+                .sorted(Comparator.comparing(Workspace::getName))
+                .toList();
+
+        WorkspacePage page = new WorkspacePage(data);
+        page.setNextCursor(null);
+        return ResponseEntity.ok(page);
+    }
+
+    @Override
+    public ResponseEntity<Workspace> createWorkspace(CreateWorkspaceRequest request) {
+        UUID accountId = requireAccount();
+        var created = workspaces.create(accountId, request.getName());
+
+        // The creator is the OWNER, so the role is known without a lookup.
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(represent(created, Role.OWNER));
+    }
+
+    @Override
+    public ResponseEntity<Workspace> getCurrentWorkspace(String workspaceHeader) {
+        Principal principal = requireWorkspace();
+        return ResponseEntity.ok(represent(
+                workspaces.require(principal.workspaceId()), roleOf(principal)));
+    }
+
+    @Override
+    public ResponseEntity<Workspace> renameWorkspace(RenameWorkspaceRequest request,
+                                                     String workspaceHeader) {
+        Principal principal = requireWorkspace();
+        var renamed = workspaces.rename(principal.workspaceId(), principal.accountId(),
+                request.getName());
+        return ResponseEntity.ok(represent(renamed, roleOf(principal)));
+    }
+
+    private Workspace represent(com.quizforge.identity.domain.Workspace workspace, Role role) {
+        return new Workspace(
+                TypeId.render("wsp", workspace.getId()),
+                workspace.getName(),
+                workspace.getSlug(),
+                role);
+    }
+
+    private Role roleOf(Principal principal) {
+        return principal.role() == null ? null : Role.fromValue(principal.role().name());
+    }
+
+    /**
+     * Listing and creating workspaces are things an <em>account</em> does. An
+     * API key names one workspace already, so there is no set to enumerate and
+     * nobody to attribute a new workspace to.
+     */
+    private UUID requireAccount() {
+        Principal principal = CurrentPrincipal.get();
+        if (principal == null || principal.accountId() == null) {
+            throw new ApiException(ErrorCode.AUTHENTICATION_REQUIRED,
+                    "managing workspaces requires a signed-in account, not an API key");
+        }
+        return principal.accountId();
+    }
+
+    private Principal requireWorkspace() {
+        Principal principal = CurrentPrincipal.get();
+        if (principal == null || principal.workspaceId() == null) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "select a workspace with the X-QuizForge-Workspace header");
+        }
+        return principal;
+    }
+}

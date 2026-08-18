@@ -29,9 +29,23 @@ info:
       top-level type.
     - Out-of-range parameters are **rejected**, never silently corrected.
 
-    Creation endpoints for workspaces, API keys, question banks, questions and
-    tournaments do not exist yet — they arrive in M4. Today those objects can
-    only be created from inside the application.
+    Creation endpoints for question banks, questions and tournaments do not
+    exist yet — they arrive later in M4. Workspaces, members and API keys can be
+    managed here.
+
+    ## Workspace-scoped paths carry no workspace id
+
+    `/v1/members` and `/v1/api-keys` operate on the workspace already in scope,
+    and do not repeat its id in the path. There is exactly one way to select a
+    workspace — the header, or the API key — and adding a second would mean
+    reconciling two answers when they disagree. Two tenant-selection mechanisms
+    is how cross-tenant defects get written.
+
+    `/v1/workspaces` is the exception, and is account-scoped rather than
+    workspace-scoped: it lists the workspaces you belong to and creates new
+    ones. Neither can require a workspace to already be in scope, because a new
+    account has none. `/v1/workspaces/current` reads and renames the one you
+    have selected.
 
     ## Authentication
 
@@ -39,8 +53,12 @@ info:
 
     - **Session cookie** (`qf_session`) — issued by `POST /v1/auth/login`,
       `HttpOnly`, `Secure`, `SameSite=Lax`. Used by browsers. Because a cookie
-      is sent automatically, mutating requests using it are CSRF-protected and
-      require the `X-XSRF-TOKEN` header.
+      is sent automatically, mutating requests using it are CSRF-protected.
+
+      Every response sets a readable `XSRF-TOKEN` cookie. Send its value back
+      **unchanged** in the `X-XSRF-TOKEN` header on every `POST`, `PATCH` and
+      `DELETE`. Reads need no token. The value is not transformed in any way —
+      echo exactly what the cookie contains.
     - **API key** (`Authorization: Bearer qf_…`) — used by servers. A custom
       header cannot be set cross-origin without a preflight the browser will
       refuse, so these requests are exempt from CSRF.
@@ -88,6 +106,12 @@ tags:
     description: Taking part in a tournament.
   - name: Leaderboards
     description: Ranked standings for a tournament.
+  - name: Workspaces
+    description: The tenant every other resource belongs to.
+  - name: Members
+    description: Who belongs to a workspace, and what they may do.
+  - name: API keys
+    description: Credentials that authenticate a workspace to a server.
 
 security:
   - sessionCookie: []
@@ -571,6 +595,393 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
 
+  /v1/workspaces:
+    get:
+      tags: [Workspaces]
+      operationId: listWorkspaces
+      summary: The workspaces you belong to
+      description: |
+        Every workspace the authenticated account is a member of, with the role
+        it holds in each.
+
+        Account-scoped: no workspace needs to be in scope, because this is how a
+        client discovers which ids it may select.
+
+        Requires a session. An API key already names exactly one workspace, so
+        there is no set to enumerate.
+      responses:
+        '200':
+          description: The caller's workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspacePage'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    post:
+      tags: [Workspaces]
+      operationId: createWorkspace
+      summary: Create a workspace
+      description: |
+        Creates a workspace and makes the caller its `OWNER`.
+
+        Account-scoped, necessarily: a new account belongs to no workspace, so
+        requiring one in scope would make this unreachable and the account
+        permanently unable to use the API.
+
+        The slug is derived from the name and made unique; it is not accepted
+        from the request, so a caller cannot squat on one.
+      responses:
+        '201':
+          description: The workspace was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '500':
+          $ref: '#/components/responses/Internal'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkspaceRequest'
+
+  /v1/workspaces/current:
+    get:
+      tags: [Workspaces]
+      operationId: getCurrentWorkspace
+      summary: The workspace currently in scope
+      description: |
+        The workspace named by `X-QuizForge-Workspace`, or implied by the API
+        key, together with the caller's role in it.
+
+        Useful for confirming which workspace a credential is acting in before
+        doing anything destructive with it.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      responses:
+        '200':
+          description: The workspace in scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    patch:
+      tags: [Workspaces]
+      operationId: renameWorkspace
+      summary: Rename the workspace in scope
+      description: |
+        Changes the display name. Requires `OWNER`.
+
+        The slug is **not** changed. It was unique when the workspace was
+        created and anything already referring to it would break — renaming a
+        workspace is a cosmetic act, not a re-identification.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameWorkspaceRequest'
+      responses:
+        '200':
+          description: The workspace was renamed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/members:
+    get:
+      tags: [Members]
+      operationId: listMembers
+      summary: Who belongs to this workspace
+      description: |
+        Every member of the workspace in scope, with their role.
+
+        Carries each member's email, so this is readable by any member rather
+        than only by administrators — a `VIEWER` who can see the leaderboard can
+        already see who is playing.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      responses:
+        '200':
+          description: The workspace's members.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberPage'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    post:
+      tags: [Members]
+      operationId: addMember
+      summary: Add an existing account to this workspace
+      description: |
+        Adds an account, identified by email, with the given role. Requires
+        `ADMIN` or `OWNER`.
+
+        **The account must already exist.** There is no invitation flow yet, so
+        an unregistered address is `404` rather than a pending invite.
+
+        That `404` is an account-enumeration signal, and is documented rather
+        than hidden: an administrator of any workspace can learn whether an
+        address has an account. The exposure is narrower than it looks — the
+        caller must already hold a privileged role somewhere — but it is real
+        and disappears when invitations land.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+      responses:
+        '201':
+          description: The account is now a member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          description: |
+            No account has that email address. Carries `code: NOT_FOUND`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: |
+            That account is already a member. Carries `code: ALREADY_EXISTS`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/members/{accountId}:
+    patch:
+      tags: [Members]
+      operationId: changeMemberRole
+      summary: Change a member's role
+      description: |
+        Requires `ADMIN` or `OWNER`.
+
+        Demoting the **last** `OWNER` is refused with `400`. A workspace with no
+        owner cannot issue keys, manage members or be renamed by anybody, and
+        nothing in the API could undo it.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/AccountIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRoleRequest'
+      responses:
+        '200':
+          description: The role was changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '400':
+          description: |
+            The role is invalid, or this would demote the last `OWNER`. Carries
+            `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    delete:
+      tags: [Members]
+      operationId: removeMember
+      summary: Remove a member from this workspace
+      description: |
+        Requires `ADMIN` or `OWNER`. Removing the last `OWNER` is refused with
+        `400`, for the same reason demoting one is.
+
+        The account itself is untouched — it keeps its login and any other
+        workspaces it belongs to.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/AccountIdPath'
+      responses:
+        '204':
+          description: The member was removed.
+        '400':
+          description: |
+            This would remove the last `OWNER`. Carries `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/api-keys:
+    get:
+      tags: [API keys]
+      operationId: listApiKeys
+      summary: The active API keys of this workspace
+      description: |
+        Metadata only. **The secret is never returned here**, and there is no
+        endpoint that returns it again — it exists in a response exactly once,
+        when the key is created.
+
+        Revoked keys are omitted rather than listed as revoked. Requires
+        `OWNER`.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      responses:
+        '200':
+          description: The workspace's active keys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyPage'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    post:
+      tags: [API keys]
+      operationId: createApiKey
+      summary: Mint an API key
+      description: |
+        Creates a key and returns its secret **once**. Only a SHA-256 digest is
+        stored, so the plaintext cannot be recovered, re-sent, or read out of a
+        database dump. A client that does not persist it must mint another.
+
+        Requires `OWNER`.
+
+        The `environment` decides the prefix: `qf_live_…` or `qf_test_…`. Both
+        currently reach the same data — sandbox isolation arrives later — so a
+        `test` key today is a labelling convention, not a safety boundary. It is
+        offered now so that keys issued today keep working when it becomes one.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '201':
+          description: |
+            The key was created. This is the only response that will ever
+            contain `secret`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedApiKey'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/api-keys/{keyId}:
+    delete:
+      tags: [API keys]
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      description: |
+        Revokes the key immediately. The **next** request presenting it is
+        rejected — keys are resolved against the database on every request, so
+        there is no cache to expire and no window in which a revoked key still
+        works.
+
+        Requires `OWNER`. A key belonging to another workspace is `404`, not
+        `403`: its existence elsewhere is not disclosed.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: keyId
+          in: path
+          required: true
+          description: The key to revoke.
+          schema:
+            $ref: '#/components/schemas/ApiKeyId'
+      responses:
+        '204':
+          description: The key is revoked.
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
 components:
 
   securitySchemes:
@@ -613,6 +1024,14 @@ components:
         not yours. A malformed value is `400 INVALID_REQUEST`.
       schema:
         $ref: '#/components/schemas/WorkspaceId'
+
+    AccountIdPath:
+      name: accountId
+      in: path
+      required: true
+      description: The account whose membership is being changed.
+      schema:
+        $ref: '#/components/schemas/AccountId'
 
     AttemptIdPath:
       name: attemptId
@@ -1272,3 +1691,285 @@ components:
           score: 8
           outOf: 10
           percentage: 80
+
+    ApiKeyId:
+      type: string
+      title: ApiKeyId
+      description: An API key identifier. UUIDv7 rendered as 32 lowercase hex characters with a `key_` prefix.
+      pattern: '^key_[0-9a-f]{32}$'
+      maxLength: 36
+      examples: ['key_01a0136fb3937209a5719e8fb7db26bf']
+
+    Role:
+      type: string
+      title: Role
+      description: |
+        What a member may do in a workspace, from most to least privileged.
+
+        - `OWNER` — everything, including managing API keys and renaming the
+          workspace. A workspace always has at least one.
+        - `ADMIN` — manage members, content and tournaments.
+        - `EDITOR` — manage content and tournaments.
+        - `VIEWER` — read only.
+      enum: [OWNER, ADMIN, EDITOR, VIEWER]
+      examples: ['OWNER']
+
+    KeyEnvironment:
+      type: string
+      title: KeyEnvironment
+      description: |
+        Decides the key's prefix: `qf_live_…` or `qf_test_…`.
+
+        Both currently reach the same data. Sandbox isolation arrives later; the
+        distinction exists now so keys issued today keep working when it becomes
+        a real boundary.
+      enum: [live, test]
+      default: live
+      examples: ['live']
+
+    Workspace:
+      type: object
+      title: Workspace
+      description: A tenant. Every question, tournament and attempt belongs to exactly one.
+      required: [id, name, slug, role]
+      properties:
+        id:
+          $ref: '#/components/schemas/WorkspaceId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        slug:
+          type: string
+          maxLength: 140
+          description: |
+            Derived from the name at creation and unique across the system. Not
+            changed by a rename, because anything already referring to it would
+            break.
+        role:
+          $ref: '#/components/schemas/Role'
+      examples:
+        - id: wsp_01a0136fb3937209a5719e8fb7db26bf
+          name: Acme Training
+          slug: acme-training
+          role: OWNER
+
+    WorkspacePage:
+      type: object
+      title: WorkspacePage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/Workspace'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+
+    Member:
+      type: object
+      title: Member
+      description: An account's membership of a workspace.
+      required: [accountId, email, displayName, role]
+      properties:
+        accountId:
+          $ref: '#/components/schemas/AccountId'
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        displayName:
+          type: string
+          maxLength: 120
+        role:
+          $ref: '#/components/schemas/Role'
+      examples:
+        - accountId: acc_01a0136fb3937209a5719e8fb7db26bf
+          email: player@example.com
+          displayName: Alex Doe
+          role: EDITOR
+
+    MemberPage:
+      type: object
+      title: MemberPage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/Member'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+
+    ApiKeySummary:
+      type: object
+      title: ApiKeySummary
+      description: |
+        An API key without its secret. This is everything the API will ever tell
+        you about an existing key.
+      required: [id, name, environment, lastFour, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/ApiKeyId'
+        name:
+          type: string
+          maxLength: 120
+          description: A label chosen when the key was created, so keys can be told apart.
+        environment:
+          $ref: '#/components/schemas/KeyEnvironment'
+        lastFour:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: |
+            The last four characters of the secret. Enough to match a key
+            against one a client already holds; not enough to use.
+        createdAt:
+          type: string
+          format: date-time
+          maxLength: 40
+        lastUsedAt:
+          type: [string, 'null']
+          format: date-time
+          maxLength: 40
+          description: |
+            When this key last authenticated a request, or `null` if it never
+            has. Updated on every use, so an unused key is easy to spot before
+            revoking it.
+      examples:
+        - id: key_01a0136fb3937209a5719e8fb7db26bf
+          name: CI pipeline
+          environment: live
+          lastFour: 'a9f3'
+          createdAt: '2026-08-18T10:00:00Z'
+          lastUsedAt: null
+
+    ApiKeyPage:
+      type: object
+      title: ApiKeyPage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/ApiKeySummary'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+
+    IssuedApiKey:
+      type: object
+      title: IssuedApiKey
+      description: |
+        A newly created key, **including its secret**.
+
+        This is the only place `secret` ever appears. Only a SHA-256 digest is
+        stored, so it cannot be recovered afterwards by any endpoint, support
+        request, or database dump. Store it now or mint another.
+      required: [id, name, environment, lastFour, createdAt, secret]
+      properties:
+        id:
+          $ref: '#/components/schemas/ApiKeyId'
+        name:
+          type: string
+          maxLength: 120
+        environment:
+          $ref: '#/components/schemas/KeyEnvironment'
+        lastFour:
+          type: string
+          minLength: 4
+          maxLength: 4
+        createdAt:
+          type: string
+          format: date-time
+          maxLength: 40
+        secret:
+          type: string
+          minLength: 8
+          maxLength: 200
+          description: |
+            Send as `Authorization: Bearer <secret>`. Shown once and never
+            again.
+
+            A real value is `qf_live_` or `qf_test_` followed by high-entropy
+            random characters. The example below is deliberately not of that
+            shape: a documentation sample that looks like a live credential
+            trips secret scanners, and worse, teaches readers to skim past the
+            one that is real.
+      examples:
+        - id: key_01a0136fb3937209a5719e8fb7db26bf
+          name: CI pipeline
+          environment: live
+          lastFour: 'a9f3'
+          createdAt: '2026-08-18T10:00:00Z'
+          secret: qf_live_example_value_not_a_real_key
+
+    CreateWorkspaceRequest:
+      type: object
+      title: CreateWorkspaceRequest
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: The slug is derived from this and is not accepted from the request.
+      examples:
+        - name: Acme Training
+
+    RenameWorkspaceRequest:
+      type: object
+      title: RenameWorkspaceRequest
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      examples:
+        - name: Acme Training EMEA
+
+    AddMemberRequest:
+      type: object
+      title: AddMemberRequest
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 3
+          maxLength: 254
+          description: Must belong to an existing account; there is no invitation flow yet.
+        role:
+          $ref: '#/components/schemas/Role'
+      examples:
+        - email: player@example.com
+          role: EDITOR
+
+    ChangeRoleRequest:
+      type: object
+      title: ChangeRoleRequest
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
+      examples:
+        - role: ADMIN
+
+    CreateApiKeyRequest:
+      type: object
+      title: CreateApiKeyRequest
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: A label, so keys can be told apart when it is time to revoke one.
+        environment:
+          $ref: '#/components/schemas/KeyEnvironment'
+      examples:
+        - name: CI pipeline
+          environment: live

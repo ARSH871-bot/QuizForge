@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,10 +23,13 @@ public class ApiKeyService {
 
     private final ApiKeyRepository apiKeys;
     private final WorkspaceService workspaces;
+    private final AuditService audit;
 
-    public ApiKeyService(ApiKeyRepository apiKeys, WorkspaceService workspaces) {
+    public ApiKeyService(ApiKeyRepository apiKeys, WorkspaceService workspaces,
+                         AuditService audit) {
         this.apiKeys = apiKeys;
         this.workspaces = workspaces;
+        this.audit = audit;
     }
 
     @Transactional
@@ -39,7 +43,13 @@ public class ApiKeyService {
         ApiKey key = new ApiKey(UuidV7.generate(), workspaceId, actorId, name,
                 TokenDigest.digest(secret), lastFour, environment);
 
-        return new IssuedApiKey(secret, apiKeys.save(key));
+        ApiKey saved = apiKeys.save(key);
+        // The audit entry records that a key was minted, never the secret or
+        // its digest - an audit log is read by more people than the table it
+        // describes.
+        audit.record(workspaceId, actorId, "api_key.created", "api_key", saved.getId(),
+                Map.of("name", name == null ? "" : name, "environment", environment));
+        return new IssuedApiKey(secret, saved);
     }
 
     @Transactional
@@ -76,6 +86,8 @@ public class ApiKeyService {
 
         key.revoke();
         apiKeys.save(key);
+        audit.record(workspaceId, actorId, "api_key.revoked", "api_key", keyId,
+                Map.of("name", key.getName() == null ? "" : key.getName()));
     }
 
     private void require(UUID workspaceId, UUID actorId) {

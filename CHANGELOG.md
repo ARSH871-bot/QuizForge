@@ -14,6 +14,29 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
+### Added
+
+- **Workspace, member and API key endpoints (M4).** `POST|GET /v1/workspaces`,
+  `GET|PATCH /v1/workspaces/current`, `GET|POST /v1/members`,
+  `PATCH|DELETE /v1/members/{accountId}`, `GET|POST /v1/api-keys` and
+  `DELETE /v1/api-keys/{keyId}`.
+
+  This closes the credential-issuing gap: `ApiKeyService` has been able to mint
+  keys since M1 and nothing exposed it, so an API-first product had no way to
+  issue the credential its primary authentication mechanism depends on. A
+  developer can now go from registration to a working `qf_live_…` key entirely
+  over HTTP.
+
+  A key's secret appears in exactly one response, when it is created. Only a
+  SHA-256 digest is stored, so no endpoint can return it again. Revocation takes
+  effect on the next request — keys are resolved against the database every
+  time, so there is no cache to expire.
+
+  Workspace-scoped paths carry no workspace id: `/v1/members` and `/v1/api-keys`
+  act on the workspace already in scope. Two ways to name a tenant would mean
+  reconciling them when they disagree, which is how cross-tenant defects get
+  written.
+
 ### Changed
 
 - **Controllers implement interfaces generated from `openapi.yaml`.** A
@@ -46,6 +69,25 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Security
 
+- **The audit log had no writers.** `AuditService` has been complete and tested
+  since M1, and nothing in the application ever called it — the append-only log
+  the security model describes recorded nothing. Workspace creation and rename,
+  member add/change/remove, and API key creation and revocation now all write an
+  entry. A test asserts the secret never reaches the log: an audit log is read by
+  more people than the table it describes.
+- **No cookie-authenticated write was possible for any real client.** Spring
+  Security 6 masks the CSRF token by default, so the `XSRF-TOKEN` cookie carried
+  a raw value while the header was expected to carry a masked one — a client
+  echoing the cookie back was rejected, and because CSRF runs before
+  authentication the symptom was a misleading `401`. Masking is now off (it
+  defends against BREACH, which needs the token in a response body; this
+  application never puts it there) and a filter ensures the cookie is issued on
+  reads too, so a client whose first request is a `GET` has a token to send.
+  ADR 0012.
+
+  The suite was green throughout: every write test uses `.with(csrf())`, which
+  builds a valid masked token internally and exercises a path no browser or
+  `curl` can take. Found by driving the API from a shell, not from a test.
 - **Two cross-tenant defects closed.** With the `X-QuizForge-Workspace` header
   simply omitted, an authenticated account could read another workspace's
   standings (`200` with their rows) and start an attempt on another workspace's

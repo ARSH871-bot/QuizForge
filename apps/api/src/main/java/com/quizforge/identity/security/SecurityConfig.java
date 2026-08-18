@@ -10,6 +10,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.net.URI;
@@ -22,6 +24,18 @@ public class SecurityConfig {
 
     public SecurityConfig(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Accepts the token exactly as the {@code XSRF-TOKEN} cookie carries it.
+     *
+     * <p>Setting the request attribute name to {@code null} is what disables
+     * the XOR masking; the handler otherwise behaves as the default does.
+     */
+    static CsrfTokenRequestAttributeHandler plainCsrfTokenHandler() {
+        CsrfTokenRequestAttributeHandler handler = new CsrfTokenRequestAttributeHandler();
+        handler.setCsrfRequestAttributeName(null);
+        return handler;
     }
 
     @Bean
@@ -47,6 +61,22 @@ public class SecurityConfig {
             //     bootstrap round-trip on every unauthenticated call.
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                // Opts out of Spring Security 6's XOR token masking.
+                //
+                // The masking exists to defeat BREACH, which reads a secret out
+                // of a compressed *response body*. This application never puts
+                // the token in a body - it exists only in the XSRF-TOKEN cookie
+                // the client reads and echoes back - so the protection guards
+                // nothing here.
+                //
+                // What it did do was break the documented pattern entirely. With
+                // masking on, the cookie holds the raw token while the header
+                // must carry a masked one, so a client that echoes the cookie
+                // back is rejected. No cookie-authenticated write was possible
+                // for any real client, and no test could see it: MockMvc's
+                // .with(csrf()) constructs a valid masked token internally, so
+                // the suite exercised a path no browser or curl can take.
+                .csrfTokenRequestHandler(plainCsrfTokenHandler())
                 .ignoringRequestMatchers(
                         new AntPathRequestMatcher("/v1/auth/**"),
                         request -> {
@@ -75,6 +105,8 @@ public class SecurityConfig {
                 response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
                 objectMapper.writeValue(response.getOutputStream(), problem);
             }))
+            // After the CSRF filter, so the token exists to be resolved.
+            .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
             .addFilterBefore(apiKeyAuth, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(sessionAuth, UsernamePasswordAuthenticationFilter.class)
             // After both authentication filters: it inspects the tenant they

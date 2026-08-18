@@ -80,6 +80,25 @@ public class AccountService {
         return accounts.save(account);
     }
 
+    /**
+     * The account with this email.
+     *
+     * <p>Used when adding a member, which identifies people by address rather
+     * than by an id nobody has seen. Throws {@code NOT_FOUND} when there is no
+     * such account - there is no invitation flow yet, so an unregistered
+     * address cannot become a pending member.
+     *
+     * <p>That 404 does tell a workspace administrator whether an address has an
+     * account. It is documented in the contract rather than concealed, because
+     * the alternative - reporting success for a member who was not added -
+     * would be a lie the caller acts on.
+     */
+    @Transactional(readOnly = true)
+    public Account requireByEmail(String email) {
+        return accounts.findByEmailIgnoreCase(email == null ? "" : email.trim())
+                .orElseThrow(() -> ApiException.notFound("account"));
+    }
+
     @Transactional(readOnly = true)
     public Account requireById(UUID accountId) {
         return accounts.findById(accountId)

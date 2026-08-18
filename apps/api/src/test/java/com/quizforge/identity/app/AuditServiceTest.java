@@ -1,6 +1,7 @@
 package com.quizforge.identity.app;
 
 import com.quizforge.AbstractIntegrationTest;
+import com.quizforge.identity.domain.AuditEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -32,9 +33,14 @@ class AuditServiceTest extends AbstractIntegrationTest {
 
         var events = audit.recentFor(workspace.getId());
 
-        assertThat(events).hasSize(1);
-        assertThat(events.get(0).getAction()).isEqualTo("member.role_changed");
-        assertThat(events.get(0).getDetail()).contains("VIEWER");
+        // Creating the workspace audits itself, so this is not the only event.
+        // Assert on the one under test rather than on the total, which would
+        // break again the next time something starts recording.
+        var recorded = events.stream()
+                .filter(e -> "member.role_changed".equals(e.getAction()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(recorded.getDetail()).contains("VIEWER");
     }
 
     @Test
@@ -43,10 +49,18 @@ class AuditServiceTest extends AbstractIntegrationTest {
         var a = workspaces.create(actor, "Acme");
         var b = workspaces.create(actor, "Globex");
 
-        audit.record(a.getId(), actor, "workspace.created", "workspace", a.getId(), Map.of());
+        UUID target = UUID.randomUUID();
+        audit.record(a.getId(), actor, "member.added", "account", target, Map.of());
 
-        assertThat(audit.recentFor(a.getId())).hasSize(1);
-        assertThat(audit.recentFor(b.getId())).isEmpty();
+        // The property is scoping, not counting: each workspace now has its own
+        // `workspace.created` event, so neither list is empty.
+        assertThat(audit.recentFor(a.getId()))
+                .extracting(AuditEvent::getAction)
+                .contains("member.added");
+        assertThat(audit.recentFor(b.getId()))
+                .as("one workspace's events must never appear under another")
+                .extracting(AuditEvent::getAction)
+                .doesNotContain("member.added");
     }
 
     @Test

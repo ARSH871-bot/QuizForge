@@ -14,9 +14,20 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
 
-## [0.4.0] — 2026-08-17
+- M4 (public API and SDKs) implementation plan: `openapi.yaml` as the source of
+  truth with server interfaces generated from it, the CRUD surfaces M1–M3 never
+  built, idempotency, cursor pagination, per-key rate limiting, and a TypeScript
+  SDK. Webhooks, sandbox mode and the Python/Go SDKs are deferred with reasons
+  recorded, rather than dropped silently.
+
+### Fixed
+
+- The `0.4.0` heading carried the date the work was done rather than the date
+  the release was tagged.
+
+## [0.4.0] — 2026-08-18
 
 Milestone M3: tournaments and the play engine. Also the milestone in which the
 repository became public and stopped substituting for the security controls it

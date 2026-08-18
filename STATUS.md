@@ -14,7 +14,7 @@ what is safe to do with the code.
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
-| M4 | Public API & SDKs | Not started | no plan written |
+| M4 | Public API & SDKs | **Planned** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 10 tasks |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
 | M7 | Commercial & launch readiness | Not started | no plan written |
@@ -42,6 +42,29 @@ of them missing polish:
 Tenant isolation is now enforced by PostgreSQL itself (#23, ADR 0008), so a
 missing `WHERE workspace_id = ?` returns nothing rather than another
 customer's data.
+
+## The API-first gap M4 closes
+
+Worth stating explicitly, because "M3 complete" reads better than the situation
+warrants. Services exist for everything; HTTP surfaces do not:
+
+| Module | Reachable over HTTP today |
+|---|---|
+| `identity` | register, login, logout, me, request-password-reset |
+| `content` | **nothing — the module has no `web` package** |
+| `tournament` | list only |
+| `play` | full |
+| `leaderboard` | standings |
+
+A developer holding a valid credential cannot create a workspace, an API key, a
+question bank, a question or a tournament. There is no endpoint that mints an
+API key, so the API-first product cannot issue the credential its primary auth
+mechanism depends on — `ApiKeyService` has been complete since M1 and
+unreachable ever since.
+
+Nothing is broken; the engine works and is tested. The surfaces were never
+built, because M1–M3 built downward through the domain rather than outward
+through HTTP. M4 is where that is corrected.
 
 ## Known gaps
 

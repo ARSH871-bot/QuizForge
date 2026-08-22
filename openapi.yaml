@@ -29,9 +29,20 @@ info:
       top-level type.
     - Out-of-range parameters are **rejected**, never silently corrected.
 
-    Creation endpoints for question banks, questions and tournaments do not
-    exist yet — they arrive later in M4. Workspaces, members and API keys can be
+    Tournament creation does not exist yet; it arrives later in M4. Everything
+    else — workspaces, members, API keys, question banks and questions — can be
     managed here.
+
+    ## Questions are immutable
+
+    A question is never edited in place. `PATCH /v1/questions/{id}` inserts a
+    **new version** sharing the previous one's `lineageId` and marks the old row
+    superseded, leaving it byte-identical. A tournament pins the exact version a
+    player saw, so results cannot be altered after the fact by editing a
+    question.
+
+    The identifier therefore addresses a *version*, not a question. To follow a
+    question through time, use `lineageId`.
 
     ## Workspace-scoped paths carry no workspace id
 
@@ -112,6 +123,12 @@ tags:
     description: Who belongs to a workspace, and what they may do.
   - name: API keys
     description: Credentials that authenticate a workspace to a server.
+  - name: Question banks
+    description: Collections of questions a tournament draws from.
+  - name: Questions
+    description: Immutable, versioned questions.
+  - name: Imports
+    description: Bulk loading questions into a bank.
 
 security:
   - sessionCookie: []
@@ -982,6 +999,466 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
 
+  /v1/question-banks:
+    get:
+      tags: [Question banks]
+      operationId: listQuestionBanks
+      summary: The question banks in this workspace
+      description: |
+        Active banks only. An archived bank is omitted rather than listed with a
+        flag: it cannot be drawn from, and a client filtering it out is a client
+        that could forget to.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      responses:
+        '200':
+          description: The workspace's active banks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionBankPage'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    post:
+      tags: [Question banks]
+      operationId: createQuestionBank
+      summary: Create a question bank
+      description: |
+        Requires `EDITOR` or above. Names are unique within a workspace, so a
+        duplicate is `409` rather than a second bank nobody can tell apart.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuestionBankRequest'
+      responses:
+        '201':
+          description: The bank was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionBank'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '409':
+          description: |
+            A bank with that name already exists here. Carries
+            `code: ALREADY_EXISTS`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/question-banks/{bankId}:
+    get:
+      tags: [Question banks]
+      operationId: getQuestionBank
+      summary: One question bank
+      description: |
+        Reads a single bank, archived or not. Unlike the listing, this does not
+        hide an archived bank: a client following an id it already holds should
+        get an answer rather than a 404 that looks like deletion.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/BankIdPath'
+      responses:
+        '200':
+          description: The bank.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionBank'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    delete:
+      tags: [Question banks]
+      operationId: archiveQuestionBank
+      summary: Archive a question bank
+      description: |
+        Archives rather than deletes. Tournaments that already drew from this
+        bank keep working, and their results stay explicable — deleting the
+        source of a played tournament would leave scores nobody could account
+        for.
+
+        Requires `EDITOR` or above. Archiving twice is not an error.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/BankIdPath'
+      responses:
+        '204':
+          description: The bank is archived.
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/question-banks/{bankId}/questions:
+    get:
+      tags: [Questions]
+      operationId: listQuestions
+      summary: The current version of every question in a bank
+      description: |
+        One entry per question, at its newest version. Superseded and retired
+        versions are not listed; reach them through
+        `GET /v1/questions/{questionId}/versions`.
+
+        **Includes the payload, and the payload names the correct answer.** That
+        is correct here — authoring requires `EDITOR` — and is the opposite of
+        what the play endpoints do. The two are different audiences reading the
+        same underlying row.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/BankIdPath'
+      responses:
+        '200':
+          description: The bank's current questions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionPage'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    post:
+      tags: [Questions]
+      operationId: authorQuestion
+      summary: Author a question
+      description: |
+        Writes version 1. Requires `EDITOR` or above.
+
+        The payload must match the question type — see `QuestionPayload` for the
+        shape each type takes and the rules each one enforces. A payload of the
+        wrong shape is rejected rather than stored with empty fields.
+
+        Duplicates are refused per bank by a normalised content hash, so the
+        same question cannot be added twice under a different identifier.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/BankIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorQuestionRequest'
+      responses:
+        '201':
+          description: Version 1 of the question.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            An identical question already exists in this bank. Carries
+            `code: ALREADY_EXISTS`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/questions/{questionId}:
+    get:
+      tags: [Questions]
+      operationId: getQuestion
+      summary: One version of a question
+      description: |
+        Addresses a **version**, not a question. A superseded version is still
+        readable and still byte-identical to what it was when a player saw it.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/QuestionIdPath'
+      responses:
+        '200':
+          description: The question version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    patch:
+      tags: [Questions]
+      operationId: reviseQuestion
+      summary: Revise a question, creating a new version
+      description: |
+        **Inserts a new row; it does not modify the one addressed.** The new
+        version shares the previous one's `lineageId`, takes the next version
+        number, and the previous row is marked superseded and left otherwise
+        untouched.
+
+        This is what lets a tournament pin exactly what a player saw. A revision
+        published mid-tournament cannot retroactively change a score.
+
+        Revising an already-superseded version is `400`: revise the current one,
+        which `GET /v1/questions/{id}/versions` will identify.
+
+        The type cannot change — a payload is only meaningful against its type,
+        so changing it would make every earlier version unreadable. Retire the
+        question and author a new one instead.
+
+        Requires `EDITOR` or above.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/QuestionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviseQuestionRequest'
+      responses:
+        '200':
+          description: |
+            The **new** version. Note the `id` differs from the one in the path:
+            the path named the version being revised, this is its replacement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          description: |
+            The payload is invalid for the type, or this version has already
+            been superseded. Carries `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    delete:
+      tags: [Questions]
+      operationId: retireQuestion
+      summary: Retire a question version
+      description: |
+        Retires rather than deletes, for the same reason banks are archived: a
+        tournament that drew this question keeps its results explicable.
+
+        A retired question is not drawn into new attempts and does not appear in
+        the bank listing. Requires `EDITOR` or above.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/QuestionIdPath'
+      responses:
+        '204':
+          description: The question is retired.
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/questions/{questionId}/versions:
+    get:
+      tags: [Questions]
+      operationId: listQuestionVersions
+      summary: Every version of a question
+      description: |
+        The whole lineage, oldest first. Exactly one entry has
+        `supersededBy: null`; that is the current version.
+
+        Accepts any version's id — they all share a lineage.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/QuestionIdPath'
+      responses:
+        '200':
+          description: The lineage, oldest version first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionPage'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/question-banks/{bankId}/imports/csv:
+    post:
+      tags: [Imports]
+      operationId: importCsv
+      summary: Import questions from CSV
+      description: |
+        **Partial success is the normal case.** One malformed row does not
+        discard the rest: good rows are imported, bad rows are reported, and the
+        response is `200` with a report rather than an error.
+
+        Each failure carries the **1-indexed line number including the header**,
+        so it matches the row number a spreadsheet shows. The line is a field,
+        not prose inside the message.
+
+        Re-importing the same file is a no-op rather than an error — duplicate
+        rows are counted as `skipped`, so a retried upload after a partial
+        failure does the right thing.
+
+        Requires `EDITOR` or above.
+
+        The first line is a header and is ignored. Columns, in order:
+
+        | Column | Meaning |
+        |---|---|
+        | `type` | one of the `QuestionType` values |
+        | `prompt` | the question text |
+        | `options` | pipe-separated; empty for `NUMERIC` and `SHORT_TEXT` |
+        | `correct` | the correct option's text, the numeric value, or a pipe-separated list of accepted answers |
+        | `difficulty` | free text, conventionally `EASY`, `MEDIUM` or `HARD` |
+
+        For example:
+
+        ```
+        type,prompt,options,correct,difficulty
+        SINGLE_CHOICE,Capital of France?,Paris|Lyon|Nice,Paris,EASY
+        NUMERIC,Value of pi to two places?,,3.14,MEDIUM
+        ```
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/BankIdPath'
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              maxLength: 5000000
+              description: The CSV document, including its header line.
+      responses:
+        '200':
+          description: |
+            The import ran. Check the report: a `200` means the file was
+            processed, not that every row succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportReport'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/question-banks/{bankId}/imports/opentdb:
+    post:
+      tags: [Imports]
+      operationId: importOpenTdb
+      summary: Import questions from the Open Trivia Database
+      description: |
+        Fetches from OpenTDB and imports what it returns, de-duplicating through
+        the same content hash as every other import.
+
+        Partial success again: questions OpenTDB returns that this API cannot
+        represent — its crossword-style entries, for instance — are reported as
+        failures while the rest import. Those failures carry no line number,
+        because the source is a JSON response rather than a file.
+
+        Requires `EDITOR` or above.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/BankIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenTdbImportRequest'
+      responses:
+        '200':
+          description: The import ran. Check the report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportReport'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
 components:
 
   securitySchemes:
@@ -1032,6 +1509,24 @@ components:
       description: The account whose membership is being changed.
       schema:
         $ref: '#/components/schemas/AccountId'
+
+    BankIdPath:
+      name: bankId
+      in: path
+      required: true
+      description: The question bank.
+      schema:
+        $ref: '#/components/schemas/QuestionBankId'
+
+    QuestionIdPath:
+      name: questionId
+      in: path
+      required: true
+      description: |
+        A question **version**. Every version has its own id; they share a
+        `lineageId`.
+      schema:
+        $ref: '#/components/schemas/QuestionId'
 
     AttemptIdPath:
       name: attemptId
@@ -1973,3 +2468,427 @@ components:
       examples:
         - name: CI pipeline
           environment: live
+
+    QuestionBankId:
+      type: string
+      title: QuestionBankId
+      description: A question bank identifier. UUIDv7 rendered as 32 lowercase hex characters with a `bnk_` prefix.
+      pattern: '^bnk_[0-9a-f]{32}$'
+      maxLength: 36
+      examples: ['bnk_01a0136fb3937209a5719e8fb7db26bf']
+
+    QuestionBank:
+      type: object
+      title: QuestionBank
+      description: A collection of questions a tournament draws from.
+      required: [id, name]
+      properties:
+        id:
+          $ref: '#/components/schemas/QuestionBankId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Unique within the workspace.
+        description:
+          type: [string, 'null']
+          maxLength: 500
+      examples:
+        - id: bnk_01a0136fb3937209a5719e8fb7db26bf
+          name: Geography
+          description: Capitals, rivers and borders.
+
+    QuestionBankPage:
+      type: object
+      title: QuestionBankPage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/QuestionBank'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+
+    CreateQuestionBankRequest:
+      type: object
+      title: CreateQuestionBankRequest
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 500
+      examples:
+        - name: Geography
+          description: Capitals, rivers and borders.
+
+    QuestionPayload:
+      title: QuestionPayload
+      description: |
+        A question's answer definition. **Only ever returned to authors** —
+        every play endpoint strips it, because it names the correct answer.
+
+        Discriminated by `kind`, so a typed client can narrow exhaustively.
+
+        **Five question types, three payload shapes.** The type decides the
+        rules; the kind decides the fields:
+
+        | `QuestionType` | `kind` | Rule |
+        |---|---|---|
+        | `SINGLE_CHOICE` | `choice` | at least two options, exactly one correct |
+        | `TRUE_FALSE` | `choice` | exactly two options, exactly one correct |
+        | `MULTI_CHOICE` | `choice` | at least two options, at least one correct |
+        | `NUMERIC` | `numeric` | a value, and a tolerance of zero or more |
+        | `SHORT_TEXT` | `shortText` | at least one accepted answer, none blank |
+
+        Discriminating on the shape rather than the type is deliberate: it gives
+        a client exhaustive narrowing over the shapes that actually exist,
+        instead of five branches where three are identical. The type is still
+        carried on the question itself, and is what the rules are checked
+        against.
+      oneOf:
+        - $ref: '#/components/schemas/ChoicePayload'
+        - $ref: '#/components/schemas/NumericPayload'
+        - $ref: '#/components/schemas/ShortTextPayload'
+
+    ChoicePayload:
+      type: object
+      title: ChoicePayload
+      description: |
+        Options to pick from. Used by `SINGLE_CHOICE`, `TRUE_FALSE` and
+        `MULTI_CHOICE`; the type decides how many may be correct.
+
+        The order stored here is **not** the order a player sees — every attempt
+        shuffles independently and remembers its own order.
+      required: [kind, options]
+      properties:
+        kind:
+          type: string
+          const: choice
+          description: Discriminator. Always `choice` for this shape.
+        options:
+          type: array
+          minItems: 2
+          maxItems: 26
+          items:
+            $ref: '#/components/schemas/ChoiceOption'
+      examples:
+        - kind: choice
+          options:
+            - text: Paris
+              correct: true
+            - text: Lyon
+              correct: false
+
+    ChoiceOption:
+      type: object
+      title: ChoiceOption
+      required: [text, correct]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        correct:
+          type: boolean
+      examples:
+        - text: Paris
+          correct: true
+
+    NumericPayload:
+      type: object
+      title: NumericPayload
+      description: |
+        A number, compared within an absolute tolerance. `SHORT_TEXT` normalises
+        instead; this does arithmetic.
+      required: [kind, value, tolerance]
+      properties:
+        kind:
+          type: string
+          const: numeric
+          description: Discriminator. Always `numeric` for this shape.
+        value:
+          type: number
+          format: double
+          description: The correct answer.
+        tolerance:
+          type: number
+          format: double
+          minimum: 0
+          description: |
+            How far from `value` still counts as correct, absolute rather than
+            relative. Zero means exact.
+      examples:
+        - kind: numeric
+          value: 3.14159
+          tolerance: 0.001
+
+    ShortTextPayload:
+      type: object
+      title: ShortTextPayload
+      description: |
+        Free text matched against a list of accepted answers, after
+        normalisation. There is no fuzzy matching: an answer either normalises
+        to something accepted or it does not.
+      required: [kind, accepted, ignoreCase]
+      properties:
+        kind:
+          type: string
+          const: shortText
+          description: Discriminator. Always `shortText` for this shape.
+        accepted:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: Any one of these counts as correct.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+        ignoreCase:
+          type: boolean
+          description: Whether case is disregarded when comparing.
+      examples:
+        - kind: shortText
+          accepted: [Paris, paris]
+          ignoreCase: true
+
+    Question:
+      type: object
+      title: Question
+      description: |
+        One **version** of a question. Versions are immutable; revising inserts
+        a new one rather than changing this.
+      required: [id, bankId, lineageId, version, type, prompt, payload]
+      properties:
+        id:
+          $ref: '#/components/schemas/QuestionId'
+        bankId:
+          $ref: '#/components/schemas/QuestionBankId'
+        lineageId:
+          allOf:
+            - $ref: '#/components/schemas/QuestionId'
+          description: |
+            Stable across every version of this question, and equal to the id of
+            version 1. Use it to follow a question through time; use `id` to
+            address one specific version.
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10000
+          description: 1 for the original, incrementing with each revision.
+        supersededBy:
+          allOf:
+            - $ref: '#/components/schemas/QuestionId'
+          description: |
+            The version that replaced this one, or absent when this is the
+            current version. Exactly one version in a lineage has it absent.
+        type:
+          $ref: '#/components/schemas/QuestionType'
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        payload:
+          $ref: '#/components/schemas/QuestionPayload'
+        difficulty:
+          type: [string, 'null']
+          maxLength: 40
+          description: Free text, not an enum. Imports use `EASY`, `MEDIUM`, `HARD`.
+        retired:
+          type: boolean
+          description: |
+            Retired questions are not drawn into new attempts and are omitted
+            from a bank listing. Existing results are unaffected.
+      examples:
+        - id: qst_01a0136fb3937209a5719e8fb7db26bf
+          bankId: bnk_01a0136fb3937209a5719e8fb7db26bf
+          lineageId: qst_01a0136fb3937209a5719e8fb7db26bf
+          version: 1
+          type: SINGLE_CHOICE
+          prompt: What is the capital of France?
+          payload:
+            kind: choice
+            options:
+              - text: Paris
+                correct: true
+              - text: Lyon
+                correct: false
+          difficulty: EASY
+          retired: false
+
+    QuestionPage:
+      type: object
+      title: QuestionPage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/Question'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+
+    AuthorQuestionRequest:
+      type: object
+      title: AuthorQuestionRequest
+      required: [type, prompt, payload]
+      properties:
+        type:
+          $ref: '#/components/schemas/QuestionType'
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        payload:
+          $ref: '#/components/schemas/QuestionPayload'
+        difficulty:
+          type: string
+          maxLength: 40
+      examples:
+        - type: SINGLE_CHOICE
+          prompt: What is the capital of France?
+          payload:
+            kind: choice
+            options:
+              - text: Paris
+                correct: true
+              - text: Lyon
+                correct: false
+          difficulty: EASY
+
+    ReviseQuestionRequest:
+      type: object
+      title: ReviseQuestionRequest
+      description: |
+        Carries no `type`: a payload is only meaningful against its type, so
+        changing it would make every earlier version of the lineage
+        unreadable. Retire the question and author a new one instead.
+      required: [prompt, payload]
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        payload:
+          $ref: '#/components/schemas/QuestionPayload'
+        difficulty:
+          type: string
+          maxLength: 40
+      examples:
+        - prompt: What is the capital city of France?
+          payload:
+            kind: choice
+            options:
+              - text: Paris
+                correct: true
+              - text: Marseille
+                correct: false
+          difficulty: EASY
+
+    ImportFailure:
+      type: object
+      title: ImportFailure
+      description: One row an import could not take, and why.
+      required: [message]
+      properties:
+        line:
+          type: [integer, 'null']
+          format: int32
+          minimum: 1
+          maximum: 1000000
+          description: |
+            The 1-indexed line in the source file, **counting the header**, so it
+            matches the row number a spreadsheet shows.
+
+            `null` for sources that have no lines, such as the OpenTDB import.
+        message:
+          type: string
+          maxLength: 1000
+          description: |
+            Why the row was rejected. Written for a human — do not parse it. The
+            line number is a field precisely so that nobody has to.
+      examples:
+        - line: 3
+          message: a choice question needs at least two options
+
+    ImportReport:
+      type: object
+      title: ImportReport
+      description: |
+        The outcome of an import. A `200` means the source was processed, not
+        that every row succeeded — check the counts.
+
+        `imported + skipped + failed` equals the number of rows considered.
+      required: [imported, skipped, failed, failures]
+      properties:
+        imported:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+          description: Rows that became new questions.
+        skipped:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+          description: |
+            Rows that were valid but already present, matched by content hash.
+            Re-importing the same file is therefore a no-op rather than an
+            error, which makes retrying a partial upload safe.
+        failed:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+          description: Rows that could not be read or did not validate.
+        failures:
+          type: array
+          maxItems: 10000
+          description: One entry per failed row. Empty when `failed` is zero.
+          items:
+            $ref: '#/components/schemas/ImportFailure'
+      examples:
+        - imported: 8
+          skipped: 1
+          failed: 1
+          failures:
+            - line: 3
+              message: a choice question needs at least two options
+
+    OpenTdbImportRequest:
+      type: object
+      title: OpenTdbImportRequest
+      description: |
+        Parameters passed through to the Open Trivia Database. Its category
+        numbers are OpenTDB's own; this API does not reinterpret them.
+      required: [amount]
+      properties:
+        amount:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 50
+          description: How many questions to request. OpenTDB caps this at 50.
+        category:
+          type: [integer, 'null']
+          format: int32
+          minimum: 1
+          maximum: 100
+          description: An OpenTDB category number, or omitted for any category.
+        difficulty:
+          type: [string, 'null']
+          enum: [easy, medium, hard, null]
+          description: OpenTDB difficulty, or omitted for a mixture.
+      examples:
+        - amount: 10
+          category: 22
+          difficulty: easy

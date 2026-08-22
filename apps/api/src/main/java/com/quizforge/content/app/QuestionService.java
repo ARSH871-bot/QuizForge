@@ -88,6 +88,17 @@ public class QuestionService {
     }
 
     /** The current, non-retired version of every question in a bank. */
+    /**
+     * Every version of a question, oldest first.
+     *
+     * <p>Accepts any version's id, since they all carry the same lineage.
+     * Exactly one of the returned versions has no {@code supersededBy}.
+     */
+    @Transactional(readOnly = true)
+    public List<Question> versionsOf(UUID questionId) {
+        return questions.findByLineageIdOrderByVersionAsc(requireById(questionId).getLineageId());
+    }
+
     @Transactional(readOnly = true)
     public List<Question> currentIn(UUID bankId) {
         return questions.findByBankIdAndSupersededByIsNullAndRetiredAtIsNull(bankId);

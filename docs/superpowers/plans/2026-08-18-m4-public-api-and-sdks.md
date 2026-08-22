@@ -139,17 +139,33 @@ cannot mint another API key.
 
 ## Task 4: Question banks, questions and imports
 
-- [ ] Create the `content.web` package — it does not exist
-- [ ] `POST|GET /v1/workspaces/{id}/question-banks`, `GET|PATCH|DELETE /v1/question-banks/{id}`
-- [ ] `POST /v1/question-banks/{id}/questions` — author (writes version 1)
-- [ ] `GET /v1/question-banks/{id}/questions` — list current versions, cursor-paginated
-- [ ] `GET /v1/questions/{id}` — a specific version; `PATCH` inserts a new version and supersedes, per M2's immutability rule
-- [ ] `GET /v1/questions/{id}/versions` — the lineage
-- [ ] `POST /v1/question-banks/{id}/imports` with `text/csv` — returns the partial-success report M2 already produces, including per-row line numbers
-- [ ] `POST /v1/question-banks/{id}/imports/opentdb` — category, count, difficulty
-- [ ] Document the five question-type payload shapes as a discriminated union (`oneOf` + `discriminator`) so SDK consumers get exhaustive type narrowing
+- [x] Create the `content.web` package — it did not exist
+- [x] `POST|GET /v1/question-banks`, `GET|DELETE /v1/question-banks/{bankId}`
+- [x] `POST /v1/question-banks/{bankId}/questions` — author (writes version 1)
+- [x] `GET /v1/question-banks/{bankId}/questions` — current versions only
+- [x] `GET /v1/questions/{questionId}` — a specific version; `PATCH` inserts a
+      new version and supersedes, per M2's immutability rule
+- [x] `GET /v1/questions/{questionId}/versions` — the lineage
+- [x] `DELETE /v1/questions/{questionId}` — retire
+- [x] `POST /v1/question-banks/{bankId}/imports/csv` with `text/csv`
+- [x] `POST /v1/question-banks/{bankId}/imports/opentdb`
+- [x] Document the payload shapes as a discriminated union
 
-**Tests:** `PATCH` never mutates a row — the prior version remains byte-identical. Authoring responses *do* include correct answers (the caller is an `EDITOR`), and a test asserts this is the only context where that is true.
+**Corrections to this task as written:**
+
+- It said "five payload shapes". There are **three**: `ChoicePayload` serves
+  `SINGLE_CHOICE`, `TRUE_FALSE` and `MULTI_CHOICE`, with different validation
+  rules per type. The union discriminates on the shape and the contract
+  documents the five rules in a table — five branches where three are identical
+  would be fake precision.
+- Import failures were restructured from `messages: ["row 3: ..."]` to
+  `failures: [{ line, message }]`. Verifying that line numbers "survive the HTTP
+  boundary" is not worth much if the only way to read one is to parse prose, and
+  the shape is free to change now rather than after an SDK ships.
+
+**Found while doing this, both fixed here:** a bank description was accepted and
+silently discarded, and the contract allowed 2000 characters against a
+`VARCHAR(500)` column.
 
 ## Task 5: Tournament lifecycle
 

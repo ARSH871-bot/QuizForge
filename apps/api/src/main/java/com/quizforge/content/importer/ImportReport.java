@@ -12,12 +12,13 @@ import java.util.List;
  * <p>{@code skipped} counts duplicates, which are not failures — re-importing
  * the same file is a no-op, not an error.
  */
-public record ImportReport(int imported, int skipped, int failed, List<String> messages) {
+public record ImportReport(int imported, int skipped, int failed,
+                           List<ImportFailure> failures) {
 
     public ImportReport {
-        messages = messages == null
+        failures = failures == null
                 ? List.of()
-                : Collections.unmodifiableList(new ArrayList<>(messages));
+                : Collections.unmodifiableList(new ArrayList<>(failures));
     }
 
     public static ImportReport empty() {

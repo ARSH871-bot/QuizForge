@@ -12,20 +12,20 @@ class ImportReportTest {
 
     @Test
     void isImmutableAfterConstruction() {
-        var mutable = new ArrayList<>(List.of("row 2: bad"));
+        var mutable = new ArrayList<>(List.of(new ImportFailure(2, "bad")));
         var report = new ImportReport(0, 0, 1, mutable);
 
-        mutable.add("smuggled in afterwards");
+        mutable.add(new ImportFailure(3, "smuggled in afterwards"));
 
-        assertThat(report.messages())
+        assertThat(report.failures())
                 .as("a report must not change after the caller mutates the list it was given")
                 .hasSize(1);
-        assertThatThrownBy(() -> report.messages().add("x"))
+        assertThatThrownBy(() -> report.failures().add(new ImportFailure(4, "x")))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    void toleratesNullMessages() {
-        assertThat(new ImportReport(1, 0, 0, null).messages()).isEmpty();
+    void toleratesNullFailures() {
+        assertThat(new ImportReport(1, 0, 0, null).failures()).isEmpty();
     }
 }

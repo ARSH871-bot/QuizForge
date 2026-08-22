@@ -15,4 +15,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
             UUID bankId, String contentHash);
 
     long countByLineageId(UUID lineageId);
+
+    /** Every version of a question, oldest first. */
+    List<Question> findByLineageIdOrderByVersionAsc(UUID lineageId);
 }

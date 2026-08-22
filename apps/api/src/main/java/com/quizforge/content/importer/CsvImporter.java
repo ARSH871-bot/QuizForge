@@ -55,7 +55,7 @@ public class CsvImporter implements QuestionImporter {
         int imported = 0;
         int skipped = 0;
         int failed = 0;
-        List<String> messages = new ArrayList<>();
+        List<ImportFailure> failures = new ArrayList<>();
 
         // Start at 1 to skip the header. Row numbers reported to the user are
         // 1-indexed by file line including the header, so they match what a
@@ -76,14 +76,14 @@ public class CsvImporter implements QuestionImporter {
                 }
             } catch (ApiException e) {
                 failed++;
-                messages.add("row " + rowNumber + ": " + e.getMessage());
+                failures.add(new ImportFailure(rowNumber, e.getMessage()));
             } catch (RuntimeException e) {
                 failed++;
-                messages.add("row " + rowNumber + ": could not be read");
+                failures.add(new ImportFailure(rowNumber, "could not be read"));
             }
         }
 
-        return new ImportReport(imported, skipped, failed, messages);
+        return new ImportReport(imported, skipped, failed, failures);
     }
 
     /** Returns true when a question was created, false when it already existed. */

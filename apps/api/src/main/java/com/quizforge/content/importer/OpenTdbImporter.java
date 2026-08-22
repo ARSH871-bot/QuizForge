@@ -51,7 +51,7 @@ public class OpenTdbImporter implements QuestionImporter {
         int imported = 0;
         int skipped = 0;
         int failed = 0;
-        List<String> messages = new ArrayList<>();
+        List<ImportFailure> failures = new ArrayList<>();
 
         for (OpenTdbClient.OpenTdbQuestion source1 : fetched) {
             try {
@@ -62,11 +62,13 @@ public class OpenTdbImporter implements QuestionImporter {
                 }
             } catch (ApiException e) {
                 failed++;
-                messages.add(truncate(source1.question()) + ": " + e.getMessage());
+                // No line number: the source is a JSON response, not a file.
+                failures.add(new ImportFailure(null,
+                        truncate(source1.question()) + ": " + e.getMessage()));
             }
         }
 
-        return new ImportReport(imported, skipped, failed, messages);
+        return new ImportReport(imported, skipped, failed, failures);
     }
 
     /** Returns true when a question was created, false when it already existed. */

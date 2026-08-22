@@ -16,6 +16,25 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Question bank, question and import endpoints (M4).** The `content` module
+  had no `web` package at all: its services have been complete since M2 and
+  unreachable ever since, so a workspace could be created but never filled.
+
+  `POST|GET /v1/question-banks`, `GET|DELETE /v1/question-banks/{bankId}`,
+  `GET|POST /v1/question-banks/{bankId}/questions`,
+  `GET|PATCH|DELETE /v1/questions/{questionId}`,
+  `GET /v1/questions/{questionId}/versions`, and CSV and OpenTDB imports.
+
+  `PATCH` honours M2's immutability rule: it **inserts a new version** sharing
+  the previous one's `lineageId` and leaves the previous row byte-identical
+  apart from its supersession pointer, so a tournament still pins exactly what a
+  player saw. Verified by comparing the whole rendered document before and after
+  a revision, not a few sampled fields.
+
+  Payloads are a **discriminated union** — three shapes across five question
+  types. A TypeScript client narrows exhaustively on `kind`; proven by
+  type-checking a `switch` with a `never` fallthrough under `tsc --strict`.
+
 - **Workspace, member and API key endpoints (M4).** `POST|GET /v1/workspaces`,
   `GET|PATCH /v1/workspaces/current`, `GET|POST /v1/members`,
   `PATCH|DELETE /v1/members/{accountId}`, `GET|POST /v1/api-keys` and
@@ -39,6 +58,15 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Changed
 
+- **Import reports carry the failed line as a field**, not inside the message.
+  It used to be prose — `"row 3: ..."` — so any client wanting to point a user
+  at the offending row had to parse an English sentence that was free to be
+  reworded or localised. `ImportReport.messages` becomes
+  `failures: [{ line, message }]`; the line is `null` for OpenTDB, which has no
+  lines.
+- `QuestionBankService.create` now stores the description it is given. The
+  column and setter have existed since M2 and nothing called the setter, so the
+  API accepted a description, answered `201`, and discarded it.
 - **Controllers implement interfaces generated from `openapi.yaml`.** A
   controller whose path, verb, parameters, status or response type disagrees
   with the published contract no longer compiles. `interfaceOnly=true` — the

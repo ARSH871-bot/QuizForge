@@ -162,6 +162,7 @@
                             <generateSupportingFiles>false</generateSupportingFiles>
                             <configOptions>
                                 <interfaceOnly>true</interfaceOnly>
+                                <legacyDiscriminatorBehavior>true</legacyDiscriminatorBehavior>
                                 <useSpringBoot3>true</useSpringBoot3>
                                 <useJakartaEe>true</useJakartaEe>
                                 <useTags>true</useTags>

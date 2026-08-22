@@ -159,7 +159,10 @@ class OpenTdbImporterTest extends AbstractIntegrationTest {
 
         assertThat(report.imported()).isEqualTo(1);
         assertThat(report.failed()).isEqualTo(1);
-        assertThat(report.messages().get(0)).contains("crossword");
+        assertThat(report.failures().get(0).message()).contains("crossword");
+        assertThat(report.failures().get(0).line())
+                .as("OpenTDB has no lines, so there is no line number to report")
+                .isNull();
     }
 
     @Test

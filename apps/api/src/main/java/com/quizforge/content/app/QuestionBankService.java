@@ -23,8 +23,19 @@ public class QuestionBankService {
         this.access = access;
     }
 
+    /**
+     * Creates a bank with no description.
+     *
+     * <p>Kept so existing callers read unchanged; the API always uses the
+     * four-argument form.
+     */
     @Transactional
     public QuestionBank create(UUID workspaceId, UUID actorId, String name) {
+        return create(workspaceId, actorId, name, null);
+    }
+
+    @Transactional
+    public QuestionBank create(UUID workspaceId, UUID actorId, String name, String description) {
         requireContentPermission(workspaceId, actorId);
 
         if (name == null || name.isBlank()) {
@@ -35,7 +46,11 @@ public class QuestionBankService {
                     "a bank with that name already exists in this workspace");
         }
 
-        return banks.save(new QuestionBank(UuidV7.generate(), workspaceId, name, actorId));
+        QuestionBank bank = new QuestionBank(UuidV7.generate(), workspaceId, name, actorId);
+        if (description != null && !description.isBlank()) {
+            bank.describe(description);
+        }
+        return banks.save(bank);
     }
 
     @Transactional(readOnly = true)

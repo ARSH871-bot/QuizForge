@@ -101,11 +101,13 @@ class CsvImporterTest extends AbstractIntegrationTest {
 
         assertThat(report.imported()).isEqualTo(1);
         assertThat(report.failed()).isEqualTo(2);
-        assertThat(report.messages()).hasSize(2);
+        assertThat(report.failures()).hasSize(2);
         // 1-indexed by file line including the header, so the numbers match
-        // what a human sees in a spreadsheet.
-        assertThat(report.messages().get(0)).contains("row 3");
-        assertThat(report.messages().get(1)).contains("row 4");
+        // what a human sees in a spreadsheet. Asserted as a field rather than
+        // as a substring of prose - the message is free to be reworded, the
+        // line number is not.
+        assertThat(report.failures().get(0).line()).isEqualTo(3);
+        assertThat(report.failures().get(1).line()).isEqualTo(4);
         assertThat(questions.currentIn(f.bankId())).hasSize(1);
     }
 
@@ -122,7 +124,8 @@ class CsvImporterTest extends AbstractIntegrationTest {
 
         assertThat(report.imported()).isZero();
         assertThat(report.failed()).isEqualTo(1);
-        assertThat(report.messages().get(0)).containsIgnoringCase("not among the options");
+        assertThat(report.failures().get(0).message())
+                .containsIgnoringCase("not among the options");
     }
 
     @Test

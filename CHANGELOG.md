@@ -14,6 +14,17 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
+### Changed
+
+- **The repository stays private**, deliberately: to stop others building on
+  this work. ADR 0013 supersedes ADR 0009 and puts ADR 0007's substitutes back
+  in force — they were never removed. `main` therefore has **no server-side
+  protection**, and `STATUS.md` now says so plainly rather than describing
+  controls that are switched off.
+- `.githooks/pre-push` no longer claims a ruleset will reject a bypassed push.
+  It is now the only thing guarding `main`, and a hook that overstates its own
+  authority is worse than no hook.
+
 ### Fixed
 
 - `STATUS.md` described the server-side security controls as active. The

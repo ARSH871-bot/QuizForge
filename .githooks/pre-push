@@ -1,10 +1,14 @@
 #!/bin/sh
 # Blocks direct pushes to main.
 #
-# This is no longer the protection. A GitHub ruleset on `main` rejects direct
-# pushes server-side and cannot be bypassed; see ADR 0009. This hook exists so
-# the rejection arrives in one second locally instead of after a round trip,
-# and so the error message explains what to do instead.
+# This IS the protection. There is no server-side equivalent: the repository is
+# private on the Free plan, where GitHub rulesets are unavailable, so nothing
+# stops a direct push to `main` except this file. See ADR 0013.
+#
+# Which means it is advisory and easily bypassed - by `--no-verify`, and by any
+# clone that has not run the command below. It catches accidents, not intent.
+# Treat a green CI run as information rather than as a gate: nothing forces a
+# pull request to pass before it merges.
 #
 # Enable with: git config core.hooksPath .githooks
 
@@ -22,9 +26,12 @@ while read -r _local_ref _local_sha remote_ref _remote_sha; do
     git push -u origin feat/your-change
     gh pr create
 
-  Bypassing this with --no-verify will not help: a ruleset on main rejects
-  the push server-side as well. The only legitimate exception is a history
-  rewrite, which cannot be expressed as a pull request.
+  --no-verify will bypass this, and nothing on the server will stop you -
+  this hook is the only protection `main` has. Bypass it deliberately or not
+  at all.
+
+  The one routine exception is a history rewrite, which cannot be expressed
+  as a pull request.
 
 MSG
         exit 1

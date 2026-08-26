@@ -69,7 +69,12 @@ through the domain rather than outward through HTTP.
 
 | # | Gap | Owner | Blocking |
 |---|---|---|---|
-| [#67](https://github.com/ARSH871-bot/QuizForge/issues/67) | GitHub still serves 4 pre-rewrite commits by SHA through `refs/pull/*/head` | **repo owner** | nothing — the credential in them is revoked, so it is dead text |
+| [#67](https://github.com/ARSH871-bot/QuizForge/issues/67) | 4 pre-rewrite commits still exist behind `refs/pull/*/head` | **repo owner** | nothing — not publicly readable while private, and the credential in them is revoked |
+
+The exposure in #67 is closed for now by the repository being private:
+unauthenticated requests for those SHAs return `404`. The objects have not gone
+away, so the issue stays open — it would become readable again the moment the
+repository is made public without a Support-side garbage collection first.
 
 Nothing else is open. The mail credential, the unrelated 1.1 MB binary and the
 tooling trailers are gone from every ref, verified by cloning the remote fresh
@@ -78,45 +83,42 @@ even when the release tags still pointed at the old history.
 
 ## Security controls
 
-**The repository is private again, and most of these are consequently
-inactive.** Recorded rather than quietly left stale, because the section below
-described them as working.
+**The repository is private, deliberately — to stop others building on this work
+— and `main` therefore has no server-side protection.** Not weakened: absent.
+Nothing on GitHub's side prevents a direct push to `main`, and nothing forces a
+pull request to pass its checks before merging. See
+[ADR 0013](docs/adr/0013-the-repository-stays-private.md), which supersedes
+ADR 0009.
 
-GitHub events show it was public on 2026-08-18 and is private now; the last
-CodeQL run was 2026-08-20. Nothing in this repository made that change, and it
-is a legitimate decision to make — but it silently reverses ADR 0009, and the
-`STATUS.md` that claimed otherwise was the kind of document that gets believed.
+Rulesets, CodeQL, secret scanning with push protection, and private
+vulnerability reporting all require a public repository or paid Advanced
+Security. None of them are running.
 
-| Control | Status now | Why |
+What is actually enforced:
+
+| Control | Mechanism | Where |
 |---|---|---|
-| Ruleset on `main` | **inactive** | rulesets return 403 on a private Free-plan repository |
-| CodeQL | **off** | code scanning needs a public repository or paid Advanced Security |
-| Secret scanning + push protection | **off** | same |
-| Private vulnerability reporting | **off** | same |
-| Dependabot alerts | active | works on private repositories |
-| CI (`build`, `openapi-lint`, `openapi-breaking`, `secret-scan` via gitleaks, `docs-current`) | active | plain Actions, unaffected by visibility |
-| `pre-push` hook | active locally | advisory only, and bypassed by `--no-verify` |
+| Build, 215 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
+| Secret scanning | gitleaks, job `secret-scan` | Actions |
+| Contract lint | Spectral, job `openapi-lint` | Actions |
+| Breaking `/v1` changes | oasdiff, job `openapi-breaking` | Actions |
+| Changelog and contract currency | job `docs-current` | Actions |
+| Dependency alerts and updates | Dependabot | works on private repos |
+| Direct pushes to `main` | `.githooks/pre-push` | **local only, advisory** |
 
-**The practical consequence: `main` is unprotected.** Pull request #88 merged
-while `CodeQL` was a required check that never reported — a required check whose
-producer is disabled does not block a merge, it simply never appears. That is
-worth knowing independently of this repository: *requiring* a check is not the
-same as *having* one.
+Every check still runs on every pull request; what is gone is anything making
+them mandatory. The `pre-push` hook is the only thing between a mistake and
+`main`, and it is bypassed by `--no-verify` or by any clone that has not run
+`git config core.hooksPath .githooks`. It catches accidents, not intent.
 
-Everything CI enforces still enforces. What is gone is the server-side layer:
-nothing now prevents a direct push to `main`, and no scanning runs on push.
+**Before ever going public again, in this order:** make it public, then
+*immediately* either re-enable CodeQL default setup or remove `CodeQL` from the
+dormant ruleset's required checks. The ruleset still exists and resumes on
+visibility change, and it requires a check that no longer has a producer — so
+every pull request would wait forever on something that is not coming. It could
+not be fixed pre-emptively: the ruleset API returns `403` while private.
 
-Two ways forward, both fine, but they should be chosen rather than drifted into:
-
-1. **Public again** — every control resumes, including the stored ruleset, at no
-   cost beyond the code being readable.
-2. **Stay private** — then ADR 0009 should be superseded in turn, and the
-   substitutes ADR 0007 described (the `pre-push` hook, gitleaks, SpotBugs)
-   become the whole story again. They still run; they were never removed.
-
-Tracked in [#91](https://github.com/ARSH871-bot/QuizForge/issues/91).
-
-## Last audit## Last audit
+## Last audit## Last audit## Last audit
 
 **2026-08-17.** The repository was made public after purging its history, and
 every security control it had been substituting for was replaced with the

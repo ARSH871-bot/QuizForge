@@ -82,6 +82,17 @@ public class AttemptService {
         return attempt;
     }
 
+    /**
+     * Every attempt against a tournament, newest first.
+     *
+     * <p>Scoped by Row-Level Security rather than by an explicit predicate, like
+     * every other read here: a tournament in another workspace yields nothing.
+     */
+    @Transactional(readOnly = true)
+    public List<Attempt> forTournament(UUID tournamentId) {
+        return attempts.findByTournamentIdOrderByStartedAtDesc(tournamentId);
+    }
+
     /** Renders one question, in the order this attempt froze. Never carries the answer. */
     @Transactional(readOnly = true)
     public QuestionAccess.PlayableQuestion question(UUID attemptId, int position, UUID accountId) {

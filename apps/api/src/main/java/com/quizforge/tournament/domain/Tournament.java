@@ -128,6 +128,26 @@ public class Tournament {
     }
 
     /**
+     * Changes the rules of a tournament that has not yet opened.
+     *
+     * <p>Same constraint as {@link #reschedule}: once players can start, the
+     * rules they started under are fixed. Changing the question count or the
+     * attempt allowance mid-tournament would mean two players played different
+     * games and were ranked against each other anyway.
+     */
+    public void amendRules(int questionCount, Integer timeLimitSeconds, int maxAttempts,
+                           ScoringPolicy scoringPolicy, Instant now) {
+        if (state(now) != TournamentState.SCHEDULED) {
+            throw new IllegalStateException("only a scheduled tournament can be amended");
+        }
+        this.questionCount = questionCount;
+        this.timeLimitSeconds = timeLimitSeconds;
+        this.maxAttempts = maxAttempts;
+        this.scoringPolicy = scoringPolicy;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
      * Reschedules a tournament that has not yet opened. Moving the window of a
      * tournament already in progress would change the rules under players who
      * have started.

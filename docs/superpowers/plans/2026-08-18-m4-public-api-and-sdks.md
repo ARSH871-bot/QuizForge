@@ -169,12 +169,36 @@ silently discarded, and the contract allowed 2000 characters against a
 
 ## Task 5: Tournament lifecycle
 
-- [ ] `POST /v1/workspaces/{id}/tournaments` — create; keep M3's validation that a tournament cannot request more questions than its bank holds
-- [ ] `GET|PATCH /v1/tournaments/{id}` — `PATCH` rejected once `OPEN`, with a `code` explaining why rather than a bare 409
-- [ ] `DELETE /v1/tournaments/{id}` — only while `SCHEDULED` and only with zero attempts
-- [ ] `GET /v1/tournaments/{id}/attempts` — the organiser's view, cursor-paginated
+- [x] `POST /v1/tournaments` — create; keeps the validation that a tournament
+      cannot request more questions than its bank holds
+- [x] `GET|PATCH /v1/tournaments/{id}` — `PATCH` refused once `OPEN`, with a
+      `code` and a detail naming the state rather than a bare 409
+- [x] `DELETE /v1/tournaments/{id}` — only while `SCHEDULED`, only with zero
+      attempts
+- [x] `GET /v1/tournaments/{id}/attempts-summary` — the organiser's view
 
-**Tests:** editing an `OPEN` tournament fails. Deleting one with attempts fails. State stays derived from the clock — no endpoint writes it.
+**Paths differ from the sketch:** created under `/v1/tournaments` rather than
+`/v1/workspaces/{id}/tournaments`, for the reason recorded in Task 3 — the
+workspace is already in scope and a second way to name a tenant has to be
+reconciled when the two disagree.
+
+The organiser's view is `attempts-summary` rather than `attempts`, because
+`POST /v1/tournaments/{id}/attempts` already exists and means something else:
+starting one. It also lives in `play.web`, not `tournament.web`, because that is
+where attempts are.
+
+**A module boundary ran the wrong way.** Deleting needs the attempt count, but
+`tournament` cannot depend on `play` — `play` already depends on it, and a cycle
+is what the boundaries exist to prevent. Solved with an outbound port:
+`TournamentUsage` is declared in `tournament`, where the question is asked, and
+implemented in `play`, where the data is.
+
+**Found while testing:** the zero-attempts rule is unreachable through the API.
+Attempts can only start while a tournament is `OPEN`, and an `OPEN` tournament
+can never be amended back to `SCHEDULED`, so the state rule always refuses first.
+It is kept as defence in depth and is exercised by a test that moves the window
+directly in the database — defence in depth that has never been executed is an
+assumption, and that test is also what proves the port is wired.
 
 ## Task 6: Cursor pagination
 

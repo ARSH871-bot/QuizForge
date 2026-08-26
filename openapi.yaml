@@ -29,9 +29,8 @@ info:
       top-level type.
     - Out-of-range parameters are **rejected**, never silently corrected.
 
-    Tournament creation does not exist yet; it arrives later in M4. Everything
-    else — workspaces, members, API keys, question banks and questions — can be
-    managed here.
+    Everything the product does is reachable here: workspaces, members, API
+    keys, question banks, questions, tournaments and play.
 
     ## Questions are immutable
 
@@ -321,6 +320,60 @@ paths:
           $ref: '#/components/responses/Internal'
 
   /v1/tournaments:
+    post:
+      tags: [Tournaments]
+      operationId: createTournament
+      summary: Schedule a tournament
+      description: |
+        Requires `EDITOR` or above.
+
+        **A tournament that cannot be played is refused at creation**, not
+        discovered by the first player: if the bank holds fewer current
+        questions than `questions` asks for, this is a `400` naming both
+        numbers. Retiring questions afterwards can still leave a scheduled
+        tournament short, which is why the same check runs again on amendment.
+
+        `opensAt` and `closesAt` define the window. State is derived from them
+        and the clock, so a tournament is never "started" by anything.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TournamentDraft'
+      responses:
+        '201':
+          description: The tournament was scheduled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentSummary'
+        '400':
+          description: |
+            The window is invalid, a count is out of range, or the bank holds
+            too few questions. Carries `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          description: |
+            No such question bank in this workspace. Carries `code: NOT_FOUND` —
+            a bank in another workspace is indistinguishable from one that does
+            not exist.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '500':
+          $ref: '#/components/responses/Internal'
+
     get:
       tags: [Tournaments]
       operationId: listTournaments
@@ -348,6 +401,186 @@ paths:
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
           $ref: '#/components/responses/WorkspaceForbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tournaments/{tournamentId}:
+    get:
+      tags: [Tournaments]
+      operationId: getTournament
+      summary: One tournament
+      description: |
+        Its state is computed from the clock at the moment you read it, so the
+        same tournament can answer `SCHEDULED` and then `OPEN` without anything
+        having written to it.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: tournamentId
+          in: path
+          required: true
+          description: The tournament.
+          schema:
+            $ref: '#/components/schemas/TournamentId'
+      responses:
+        '200':
+          description: The tournament.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentSummary'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    patch:
+      tags: [Tournaments]
+      operationId: updateTournament
+      summary: Amend a tournament that has not opened
+      description: |
+        **Refused once the tournament is `OPEN` or `CLOSED`**, with
+        `code: INVALID_REQUEST` and a detail naming the state. An open
+        tournament has players who started under its current rules; a closed one
+        has results those rules explain. Editing either makes the record
+        dishonest.
+
+        That includes the name, which is only cosmetic — the rule is one rule
+        rather than a per-field matrix, because a per-field matrix is what
+        nobody remembers correctly.
+
+        The whole draft is replaced and revalidated, including the bank's
+        question count: retirements between scheduling and amending can leave a
+        tournament asking for more questions than remain.
+
+        Requires `EDITOR` or above.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: tournamentId
+          in: path
+          required: true
+          description: The tournament to amend.
+          schema:
+            $ref: '#/components/schemas/TournamentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TournamentDraft'
+      responses:
+        '200':
+          description: The amended tournament.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentSummary'
+        '400':
+          description: |
+            The tournament has already opened, the window is invalid, or the
+            bank no longer holds enough questions. Carries
+            `code: INVALID_REQUEST`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+    delete:
+      tags: [Tournaments]
+      operationId: deleteTournament
+      summary: Delete a tournament nobody has played
+      description: |
+        A real delete, and deliberately a narrow one: only while `SCHEDULED`,
+        and only with **zero attempts**.
+
+        A tournament with attempts is somebody's record. Removing it would leave
+        scores and standings that nothing explains, which is why banks and
+        questions are archived and retired rather than deleted. A scheduled
+        tournament with no attempts is just a plan, and deleting a plan loses
+        nothing — so this one is a real delete rather than another tombstone.
+
+        Attempts in **any** state count, including expired and abandoned ones.
+        Someone whose attempt ran out of time still played it.
+
+        Requires `EDITOR` or above.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: tournamentId
+          in: path
+          required: true
+          description: The tournament to delete.
+          schema:
+            $ref: '#/components/schemas/TournamentId'
+      responses:
+        '204':
+          description: The tournament is gone.
+        '400':
+          description: |
+            The tournament has opened, or has attempts against it. Carries
+            `code: INVALID_REQUEST` and a detail saying which.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tournaments/{tournamentId}/attempts-summary:
+    get:
+      tags: [Play]
+      operationId: listTournamentAttempts
+      summary: Who has played this tournament
+      description: |
+        The organiser's view: one entry per attempt, newest first, across every
+        player.
+
+        Distinct from `GET /v1/tournaments/{id}/standings`, which ranks players.
+        This lists attempts, including ones that are still in progress or
+        expired and therefore appear on no leaderboard.
+
+        Carries no answers and no question content.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: tournamentId
+          in: path
+          required: true
+          description: The tournament.
+          schema:
+            $ref: '#/components/schemas/TournamentId'
+      responses:
+        '200':
+          description: The attempts against this tournament.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptSummaryPage'
+        '400':
+          $ref: '#/components/responses/WorkspaceRequired'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1941,11 +2174,9 @@ components:
         opensAt:
           type: string
           format: date-time
-          maxLength: 40
         closesAt:
           type: string
           format: date-time
-          maxLength: 40
         questions:
           type: integer
           format: int32
@@ -1963,6 +2194,15 @@ components:
           format: int32
           minimum: 1
           maximum: 100
+        bankId:
+          allOf:
+            - $ref: '#/components/schemas/QuestionBankId'
+          description: |
+            The bank this tournament draws from. Optional rather than required
+            because it was added after the shape was published, and `/v1` is
+            additive-only.
+        scoringPolicy:
+          $ref: '#/components/schemas/ScoringPolicy'
       examples:
         - id: trn_01a0136fb3937209a5719e8fb7db26bf
           name: Geography Weekly
@@ -2001,7 +2241,6 @@ components:
         firstGradedAt:
           type: string
           format: date-time
-          maxLength: 40
           description: |
             When this player first completed an attempt. Carried because it is
             the tie-break, so a client rendering ties can explain the order.
@@ -2039,7 +2278,6 @@ components:
         expiresAt:
           type: [string, 'null']
           format: date-time
-          maxLength: 40
           description: |
             When this attempt stops accepting answers. `null` when the
             tournament sets no time limit.
@@ -2324,11 +2562,9 @@ components:
         createdAt:
           type: string
           format: date-time
-          maxLength: 40
         lastUsedAt:
           type: [string, 'null']
           format: date-time
-          maxLength: 40
           description: |
             When this key last authenticated a request, or `null` if it never
             has. Updated on every use, so an unused key is easy to spot before
@@ -2379,7 +2615,6 @@ components:
         createdAt:
           type: string
           format: date-time
-          maxLength: 40
         secret:
           type: string
           minLength: 8
@@ -2892,3 +3127,128 @@ components:
         - amount: 10
           category: 22
           difficulty: easy
+
+    TournamentDraft:
+      type: object
+      title: TournamentDraft
+      description: |
+        Everything that defines a tournament. Used for both creation and
+        amendment — `PATCH` replaces the whole draft rather than merging fields,
+        so a client always sends the tournament it wants to exist.
+      required: [name, bankId, opensAt, closesAt, questions, maxAttempts]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        bankId:
+          $ref: '#/components/schemas/QuestionBankId'
+        opensAt:
+          type: string
+          format: date-time
+        closesAt:
+          type: string
+          format: date-time
+          description: Must be after `opensAt`.
+        questions:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          description: |
+            How many questions each attempt draws. Refused if the bank holds
+            fewer current questions than this.
+        timeLimitSeconds:
+          type: [integer, 'null']
+          format: int32
+          minimum: 1
+          maximum: 86400
+          description: Per-attempt limit, or `null` for none.
+        maxAttempts:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+        scoringPolicy:
+          $ref: '#/components/schemas/ScoringPolicy'
+      examples:
+        - name: Geography Weekly
+          bankId: bnk_01a0136fb3937209a5719e8fb7db26bf
+          opensAt: '2026-09-01T09:00:00Z'
+          closesAt: '2026-09-08T09:00:00Z'
+          questions: 10
+          timeLimitSeconds: 600
+          maxAttempts: 1
+          scoringPolicy: BEST
+
+    ScoringPolicy:
+      type: string
+      title: ScoringPolicy
+      description: |
+        Which attempt counts when a player has several. Applied when standings
+        are **read**, not when a score is stored, so changing it takes effect
+        immediately without recomputing history.
+
+        Defaults to `FIRST` when omitted.
+      enum: [BEST, FIRST, LAST, AVERAGE]
+      default: FIRST
+      examples: ['BEST']
+
+    AttemptSummary:
+      type: object
+      title: AttemptSummary
+      description: |
+        One player's attempt, as the organiser sees it. Carries no answers and
+        no question content.
+      required: [id, accountId, state, startedAt, outOf]
+      properties:
+        id:
+          $ref: '#/components/schemas/AttemptId'
+        accountId:
+          $ref: '#/components/schemas/AccountId'
+        state:
+          $ref: '#/components/schemas/AttemptState'
+        startedAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the attempt closed, or `null` while it is still open.
+        score:
+          type: [integer, 'null']
+          format: int32
+          minimum: 0
+          maximum: 1000
+          description: |
+            Correct answers so far. Present while in progress too — an attempt
+            is graded as it goes, not at submission.
+        outOf:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          description: |
+            The denominator frozen when the attempt started, so it is unaffected
+            by later changes to the bank.
+      examples:
+        - id: att_01a0136fb3937209a5719e8fb7db26bf
+          accountId: acc_01a0136fb3937209a5719e8fb7db26bf
+          state: GRADED
+          startedAt: '2026-09-01T10:00:00Z'
+          submittedAt: '2026-09-01T10:06:00Z'
+          score: 8
+          outOf: 10
+
+    AttemptSummaryPage:
+      type: object
+      title: AttemptSummaryPage
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/AttemptSummary'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'

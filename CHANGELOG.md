@@ -14,6 +14,19 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
+### Fixed
+
+- `STATUS.md` described the server-side security controls as active. The
+  repository is private again, so the ruleset, CodeQL, secret scanning and
+  private vulnerability reporting are all inactive — rulesets and code scanning
+  need a public repository or paid Advanced Security. Corrected rather than left
+  stale, and tracked in
+  [#91](https://github.com/ARSH871-bot/QuizForge/issues/91).
+
+  Surfaced when #88 merged while `CodeQL` was a required check that never
+  reported: a required check whose producer is disabled does not block a merge,
+  it simply never appears.
+
 ### Added
 
 - **Question bank, question and import endpoints (M4).** The `content` module

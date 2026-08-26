@@ -14,6 +14,12 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
 
     long countByTournamentIdAndAccountId(UUID tournamentId, UUID accountId);
 
+    /** Every attempt against a tournament, in any state. */
+    long countByTournamentId(UUID tournamentId);
+
+    /** The organiser's view of who has played, newest first. */
+    List<Attempt> findByTournamentIdOrderByStartedAtDesc(UUID tournamentId);
+
     /** Drives the expiry sweep. */
     List<Attempt> findByStateAndExpiresAtBefore(AttemptState state, Instant at);
 }

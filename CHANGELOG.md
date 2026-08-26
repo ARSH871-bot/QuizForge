@@ -14,8 +14,27 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ## [Unreleased]
 
+### Added
+
+- **Tournament lifecycle endpoints (M4).** `POST /v1/tournaments`,
+  `GET|PATCH|DELETE /v1/tournaments/{id}`, and
+  `GET /v1/tournaments/{id}/attempts-summary` — the organiser's view of who has
+  played, including attempts in progress that appear on no leaderboard.
+
+  Amending and deleting are refused once a tournament is `OPEN` or `CLOSED`: its
+  players started under the current rules, and a closed one has results those
+  rules explain. Deleting is a real delete rather than another tombstone,
+  because a scheduled tournament with no attempts is only a plan.
+
+  `TournamentSummary` gains `bankId` and `scoringPolicy`, both optional so the
+  addition stays additive.
+
 ### Changed
 
+- `ImportReport`, `TournamentDraft` and every other date-time field lost the
+  `maxLength` that the generator was turning into `@Size` on an
+  `OffsetDateTime` — harmless on a response, a `500` on any request body that
+  carried one.
 - **The repository stays private**, deliberately: to stop others building on
   this work. ADR 0013 supersedes ADR 0009 and puts ADR 0007's substitutes back
   in force — they were never removed. `main` therefore has **no server-side

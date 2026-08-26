@@ -5,6 +5,8 @@ import com.quizforge.api.model.AnswerFeedback;
 import com.quizforge.api.model.AnswerRequest;
 import com.quizforge.api.model.AttemptResult;
 import com.quizforge.api.model.AttemptStarted;
+import com.quizforge.api.model.AttemptSummary;
+import com.quizforge.api.model.AttemptSummaryPage;
 import com.quizforge.api.model.AttemptState;
 import com.quizforge.api.model.PlayableQuestion;
 import com.quizforge.api.model.QuestionType;
@@ -87,6 +89,52 @@ public class AttemptController implements PlayApi {
                                                           String workspaceHeader) {
         return ResponseEntity.ok(represent(
                 attempts.result(TypeId.parse("att", attemptId), requireAccount())));
+    }
+
+    /**
+     * The organiser's view of a tournament: every attempt, newest first.
+     *
+     * <p>Lives in this module rather than in {@code tournament}, because this is
+     * where attempts are. {@code tournament} cannot reach them — it is the
+     * module {@code play} depends on, not the other way round.
+     *
+     * <p>Distinct from standings, which rank players. This lists attempts,
+     * including ones still in progress or expired, which appear on no
+     * leaderboard at all.
+     */
+    @Override
+    public ResponseEntity<AttemptSummaryPage> listTournamentAttempts(String tournamentId,
+                                                                     String workspaceHeader) {
+        // A workspace is required but an account is not: reading who has played
+        // is something a server integration legitimately does with an API key.
+        Principal principal = CurrentPrincipal.get();
+        if (principal == null || principal.workspaceId() == null) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "select a workspace with the X-QuizForge-Workspace header");
+        }
+
+        AttemptSummaryPage page = new AttemptSummaryPage(
+                attempts.forTournament(TypeId.parse("trn", tournamentId)).stream()
+                        .map(this::summarise)
+                        .toList());
+        page.setNextCursor(null);
+        return ResponseEntity.ok(page);
+    }
+
+    /** Carries no answers and no question content. */
+    private AttemptSummary summarise(com.quizforge.play.domain.Attempt attempt) {
+        AttemptSummary summary = new AttemptSummary(
+                TypeId.render("att", attempt.getId()),
+                TypeId.render("acc", attempt.getAccountId()),
+                AttemptState.fromValue(attempt.getState().name()),
+                attempt.getStartedAt().atOffset(ZoneOffset.UTC),
+                attempt.getScoreDenominator());
+
+        summary.setSubmittedAt(attempt.getSubmittedAt() == null
+                ? null
+                : attempt.getSubmittedAt().atOffset(ZoneOffset.UTC));
+        summary.setScore(attempt.getScoreNumerator());
+        return summary;
     }
 
     /**

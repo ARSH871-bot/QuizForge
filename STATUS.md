@@ -14,7 +14,7 @@ what is safe to do with the code.
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
-| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 4 of 10 tasks |
+| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 5 of 10 tasks |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
 | M7 | Commercial & launch readiness | Not started | no plan written |
@@ -52,18 +52,17 @@ warrants. Services exist for everything; HTTP surfaces do not:
 |---|---|
 | `identity` | auth, workspaces, members, API keys |
 | `content` | **banks, questions, CSV and OpenTDB imports** |
-| `tournament` | list only (creation in M4 Task 5) |
+| `tournament` | **full lifecycle** |
 | `play` | full |
 | `leaderboard` | standings |
 
-A developer can register, create a workspace, mint a `qf_live_…` key, build a
-question bank and fill it — entirely over HTTP. Verified against a running
-server, not only in tests.
+**The product is now reachable end to end over HTTP.** A developer can register,
+create a workspace, mint a `qf_live_…` key, build and fill a question bank,
+schedule a tournament, play it, and read the standings — without touching a
+database console. Verified against a running server, not only in tests.
 
-**One gap remains: tournaments can be listed but not created.** So a bank can be
-stocked and then not played, which Task 5 closes. Nothing is broken; the engine
-works and is tested. The surfaces were never built, because M1–M3 built downward
-through the domain rather than outward through HTTP.
+What M4 still owes is not surface but polish: cursor pagination, idempotency
+keys, rate limiting, an SDK and a quickstart.
 
 ## Known gaps
 
@@ -151,10 +150,10 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 215, all passing
+- **Tests:** 230, all passing
 - **Migrations:** V1–V11
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
-- **ADRs:** 12 (0007 superseded by 0009)
+- **ADRs:** 13 (0007 and 0009 superseded by 0013)
 - **Monthly cost:** $0
 
 ## Where to look

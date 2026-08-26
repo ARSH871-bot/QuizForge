@@ -2174,9 +2174,11 @@ components:
         opensAt:
           type: string
           format: date-time
+          maxLength: 40
         closesAt:
           type: string
           format: date-time
+          maxLength: 40
         questions:
           type: integer
           format: int32
@@ -2241,6 +2243,7 @@ components:
         firstGradedAt:
           type: string
           format: date-time
+          maxLength: 40
           description: |
             When this player first completed an attempt. Carried because it is
             the tie-break, so a client rendering ties can explain the order.
@@ -2278,6 +2281,7 @@ components:
         expiresAt:
           type: [string, 'null']
           format: date-time
+          maxLength: 40
           description: |
             When this attempt stops accepting answers. `null` when the
             tournament sets no time limit.
@@ -2562,9 +2566,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          maxLength: 40
         lastUsedAt:
           type: [string, 'null']
           format: date-time
+          maxLength: 40
           description: |
             When this key last authenticated a request, or `null` if it never
             has. Updated on every use, so an unused key is easy to spot before
@@ -2615,6 +2621,7 @@ components:
         createdAt:
           type: string
           format: date-time
+          maxLength: 40
         secret:
           type: string
           minLength: 8
@@ -3211,9 +3218,11 @@ components:
         startedAt:
           type: string
           format: date-time
+          maxLength: 40
         submittedAt:
           type: [string, 'null']
           format: date-time
+          maxLength: 40
           description: When the attempt closed, or `null` while it is still open.
         score:
           type: [integer, 'null']

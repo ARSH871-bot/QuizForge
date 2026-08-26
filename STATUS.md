@@ -78,25 +78,45 @@ even when the release tags still pointed at the old history.
 
 ## Security controls
 
-All native, all verified rather than assumed. See
-[ADR 0009](docs/adr/0009-public-repository-and-native-security-controls.md).
+**The repository is private again, and most of these are consequently
+inactive.** Recorded rather than quietly left stale, because the section below
+described them as working.
 
-| Control | State | How it was verified |
+GitHub events show it was public on 2026-08-18 and is private now; the last
+CodeQL run was 2026-08-20. Nothing in this repository made that change, and it
+is a legitimate decision to make — but it silently reverses ADR 0009, and the
+`STATUS.md` that claimed otherwise was the kind of document that gets believed.
+
+| Control | Status now | Why |
 |---|---|---|
-| Ruleset on `main` | active, **no bypass actors** | a direct push was attempted and rejected with `GH013` |
-| Required checks | `build`, `secret-scan`, `docs-current`, `conventional-title`, `CodeQL` | all 5 reported on the last merged pull request |
-| Secret scanning + push protection | enabled | — |
-| CodeQL, extended query suite | enabled | `Analyze (java-kotlin)` and `Analyze (actions)` both pass |
-| Private vulnerability reporting | enabled | the `SECURITY.md` advisory URL now resolves |
-| Dependabot alerts + security updates | enabled | — |
-| gitleaks, SpotBugs + FindSecBugs | retained alongside the above | SpotBugs bar proven with a vulnerable canary |
+| Ruleset on `main` | **inactive** | rulesets return 403 on a private Free-plan repository |
+| CodeQL | **off** | code scanning needs a public repository or paid Advanced Security |
+| Secret scanning + push protection | **off** | same |
+| Private vulnerability reporting | **off** | same |
+| Dependabot alerts | active | works on private repositories |
+| CI (`build`, `openapi-lint`, `openapi-breaking`, `secret-scan` via gitleaks, `docs-current`) | active | plain Actions, unaffected by visibility |
+| `pre-push` hook | active locally | advisory only, and bypassed by `--no-verify` |
 
-Two limits worth knowing: **generic secret patterns** and **validity checks**
-remain disabled. They are Secret Protection features, not part of free
-public-repo secret scanning. Provider-pattern scanning — which is what detects
-a Google app password — is on.
+**The practical consequence: `main` is unprotected.** Pull request #88 merged
+while `CodeQL` was a required check that never reported — a required check whose
+producer is disabled does not block a merge, it simply never appears. That is
+worth knowing independently of this repository: *requiring* a check is not the
+same as *having* one.
 
-## Last audit
+Everything CI enforces still enforces. What is gone is the server-side layer:
+nothing now prevents a direct push to `main`, and no scanning runs on push.
+
+Two ways forward, both fine, but they should be chosen rather than drifted into:
+
+1. **Public again** — every control resumes, including the stored ruleset, at no
+   cost beyond the code being readable.
+2. **Stay private** — then ADR 0009 should be superseded in turn, and the
+   substitutes ADR 0007 described (the `pre-push` hook, gitleaks, SpotBugs)
+   become the whole story again. They still run; they were never removed.
+
+Tracked in [#91](https://github.com/ARSH871-bot/QuizForge/issues/91).
+
+## Last audit## Last audit
 
 **2026-08-17.** The repository was made public after purging its history, and
 every security control it had been substituting for was replaced with the

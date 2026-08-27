@@ -16,6 +16,30 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Idempotency keys (M4).** Every mutating `/v1` request accepts an
+  `Idempotency-Key`, so a retry after a timeout cannot do the thing twice. A
+  repeat with the same key and the same request replays the original response,
+  marked `Idempotency-Replayed: true`, without running the handler.
+
+  The key is claimed by **inserting** a row before the request runs, in its own
+  committed transaction. A concurrent retry hits the primary key, fails to
+  insert, and finds the claim — the database decides the race, which is the only
+  participant that can decide it correctly. A check-then-insert would leave a
+  window in which both callers see nothing.
+
+  The same key with a **different** request is `422 IDEMPOTENCY_KEY_REUSED`:
+  almost always a key that was reused rather than regenerated, and replaying the
+  earlier response would be a correct answer to a different question. The hash
+  covers method and path as well as body.
+
+  Server errors release the claim rather than recording it. A `500` says nothing
+  about whether a retry would fail too, and replaying one for 24 hours would
+  turn a bad minute into a bad day.
+
+  V12 adds `idempotency_key`, keyed on `(workspace_id, key)` with RLS, plus a
+  purge that drops rows past the 24-hour window — coordinated by an advisory
+  lock, like the attempt sweep.
+
 - **Cursor pagination (M4).** Every list endpoint now takes `limit` and
   `cursor` and fills in `nextCursor`. Pagination is **keyset**, never offset: a
   cursor names the last row seen, so a row inserted while a client pages through

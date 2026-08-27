@@ -14,7 +14,7 @@ what is safe to do with the code.
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
-| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 6 of 10 tasks |
+| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 7 of 10 tasks |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
 | M7 | Commercial & launch readiness | Not started | no plan written |
@@ -61,8 +61,8 @@ create a workspace, mint a `qf_live_…` key, build and fill a question bank,
 schedule a tournament, play it, and read the standings — without touching a
 database console. Verified against a running server, not only in tests.
 
-What M4 still owes is not surface but polish: idempotency keys, rate limiting,
-an SDK and a quickstart.
+What M4 still owes is not surface but polish: rate limiting, an SDK and a
+quickstart.
 
 ## Known gaps
 
@@ -150,8 +150,8 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 249, all passing
-- **Migrations:** V1–V11
+- **Tests:** 260, all passing
+- **Migrations:** V1–V12
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
 - **ADRs:** 13 (0007 and 0009 superseded by 0013)
 - **Monthly cost:** $0

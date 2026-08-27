@@ -65,6 +65,7 @@ public class ApiKeyController implements ApiKeysApi {
      */
     @Override
     public ResponseEntity<IssuedApiKey> createApiKey(CreateApiKeyRequest request,
+                                                     String idempotencyKey,
                                                      String workspaceHeader) {
         Principal principal = requireWorkspace();
 
@@ -93,7 +94,8 @@ public class ApiKeyController implements ApiKeysApi {
      * and no window in which a revoked key still works.
      */
     @Override
-    public ResponseEntity<Void> revokeApiKey(String keyId, String workspaceHeader) {
+    public ResponseEntity<Void> revokeApiKey(String keyId, String idempotencyKey,
+        String workspaceHeader) {
         Principal principal = requireWorkspace();
         apiKeys.revoke(principal.workspaceId(), principal.accountId(),
                 TypeId.parse("key", keyId));

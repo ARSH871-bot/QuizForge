@@ -57,6 +57,7 @@ public class QuestionController implements QuestionsApi {
 
     @Override
     public ResponseEntity<Question> authorQuestion(String bankId, AuthorQuestionRequest request,
+                                                   String idempotencyKey,
                                                    String workspaceHeader) {
         Principal principal = requireWorkspace();
 
@@ -85,6 +86,7 @@ public class QuestionController implements QuestionsApi {
     @Override
     public ResponseEntity<Question> reviseQuestion(String questionId,
                                                    ReviseQuestionRequest request,
+                                                   String idempotencyKey,
                                                    String workspaceHeader) {
         Principal principal = requireWorkspace();
 
@@ -116,7 +118,8 @@ public class QuestionController implements QuestionsApi {
     }
 
     @Override
-    public ResponseEntity<Void> retireQuestion(String questionId, String workspaceHeader) {
+    public ResponseEntity<Void> retireQuestion(String questionId, String idempotencyKey,
+        String workspaceHeader) {
         Principal principal = requireWorkspace();
         questions.retire(TypeId.parse("qst", questionId), principal.accountId());
         return ResponseEntity.noContent().build();

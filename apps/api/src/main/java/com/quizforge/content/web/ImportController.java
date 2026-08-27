@@ -37,6 +37,7 @@ public class ImportController implements ImportsApi {
 
     @Override
     public ResponseEntity<ImportReport> importCsv(String bankId, String body,
+                                                  String idempotencyKey,
                                                   String workspaceHeader) {
         Principal principal = requireWorkspace();
         UUID bank = TypeId.parse("bnk", bankId);
@@ -53,6 +54,7 @@ public class ImportController implements ImportsApi {
     @Override
     public ResponseEntity<ImportReport> importOpenTdb(String bankId,
                                                       OpenTdbImportRequest request,
+                                                      String idempotencyKey,
                                                       String workspaceHeader) {
         Principal principal = requireWorkspace();
         UUID bank = TypeId.parse("bnk", bankId);

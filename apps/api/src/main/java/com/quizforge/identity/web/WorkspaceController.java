@@ -79,7 +79,8 @@ public class WorkspaceController implements WorkspacesApi {
     }
 
     @Override
-    public ResponseEntity<Workspace> createWorkspace(CreateWorkspaceRequest request) {
+    public ResponseEntity<Workspace> createWorkspace(CreateWorkspaceRequest request,
+        String idempotencyKey) {
         UUID accountId = requireAccount();
         var created = workspaces.create(accountId, request.getName());
 
@@ -97,6 +98,7 @@ public class WorkspaceController implements WorkspacesApi {
 
     @Override
     public ResponseEntity<Workspace> renameWorkspace(RenameWorkspaceRequest request,
+                                                     String idempotencyKey,
                                                      String workspaceHeader) {
         Principal principal = requireWorkspace();
         var renamed = workspaces.rename(principal.workspaceId(), principal.accountId(),

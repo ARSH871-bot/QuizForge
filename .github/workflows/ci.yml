@@ -40,12 +40,14 @@ jobs:
         with:
           report_paths: apps/api/target/surefire-reports/TEST-*.xml
 
-  # CodeQL is not a job here. The repository is public, so CodeQL default setup
-  # runs it as a managed workflow with the extended query suite. Default setup
-  # and an in-repository CodeQL workflow cannot coexist - GitHub refuses results
-  # uploaded from an advanced configuration while default setup is enabled - so
-  # adding one back would produce a permanently red check, not a second opinion.
-  # See ADR 0009.
+  # CodeQL is not a job here, and is not running at all. The repository is
+  # private on the Free plan, where code scanning is unavailable (ADR 0013).
+  #
+  # It is not simply commented back in, either: an in-repository CodeQL workflow
+  # cannot coexist with CodeQL default setup, which is what would be re-enabled
+  # if the repository ever went public. ADR 0013 records the order that has to
+  # follow, because getting it wrong blocks every pull request on a check that
+  # never arrives. SpotBugs with FindSecBugs runs in `build` in the meantime.
 
   openapi-lint:
     name: openapi-lint
@@ -55,11 +57,18 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
+      - name: Install the linting toolchain
+        # Pinned rather than fetched ad hoc: the OWASP ruleset cannot be
+        # resolved by a bare `npx` invocation, and an unpinned linter changes
+        # the meaning of a green build without anyone editing anything.
+        run: npm ci
+
       - name: Lint the API contract
         # --fail-severity=hint so warnings and hints fail too. A lint job that
         # only fails on errors accumulates warnings nobody reads, which is the
         # state this contract exists to avoid.
-        run: npx --yes @stoplight/spectral-cli lint openapi.yaml --ruleset .spectral.yaml --fail-severity=hint
+        run: npm run lint:openapi
 
   openapi-breaking:
     name: openapi-breaking

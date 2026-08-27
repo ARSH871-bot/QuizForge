@@ -39,7 +39,8 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                 // An API key grants ADMIN within its workspace. Finer-grained
                 // scopes arrive in M4 with the public API contract.
                 Principal principal = new Principal(
-                        null, key.getWorkspaceId(), Role.ADMIN, Principal.AuthType.API_KEY);
+                        null, key.getWorkspaceId(), Role.ADMIN, Principal.AuthType.API_KEY,
+                        key.getId());
 
                 SecurityContextHolder.getContext().setAuthentication(
                         new UsernamePasswordAuthenticationToken(principal, null, List.of()));

@@ -120,7 +120,7 @@ The current model has `Participation` (a bare user↔quiz row) and `Score` (a nu
 - **RFC 9457 Problem Details** for all errors, with stable machine-readable `type` URIs
 - **`Idempotency-Key`** header honored on every mutating request, with a 24h replay window
 - **Cursor pagination** with opaque cursors; offset pagination is never exposed
-- **Per-key token-bucket rate limiting** in Postgres, surfaced via `RateLimit-*` headers (RFC 9331)
+- **Per-key token-bucket rate limiting** in Postgres, surfaced via `RateLimit-*` headers ([draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) — this originally cited RFC 9331, which is the L4S congestion notification protocol and unrelated)
 - **HMAC-SHA256 signed webhooks** with timestamp and replay window, exponential-backoff retries, and a delivery log visible in the dashboard
 
 **Sandbox mode.** `qf_test_…` keys operate against isolated tenant data. This lets developers evaluate without risk and lets the product be demonstrated convincingly before it has real users.

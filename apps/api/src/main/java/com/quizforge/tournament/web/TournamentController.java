@@ -11,6 +11,7 @@ import com.quizforge.identity.Principal;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
+import com.quizforge.platform.web.PageWindow;
 import com.quizforge.tournament.app.TournamentService;
 import com.quizforge.tournament.domain.Tournament;
 import org.springframework.http.HttpStatus;
@@ -40,18 +41,18 @@ public class TournamentController implements TournamentsApi {
     }
 
     @Override
-    public ResponseEntity<TournamentPage> listTournaments(String workspaceHeader) {
+    public ResponseEntity<TournamentPage> listTournaments(String workspaceHeader,
+                                                          Integer limit, String cursor) {
         Principal principal = requireWorkspace();
+        PageWindow window = PageWindow.of(limit, cursor);
 
         Instant now = Instant.now();
-        TournamentPage page = new TournamentPage(
-                tournaments.inWorkspace(principal.workspaceId()).stream()
-                        .map(t -> summarise(t, now))
-                        .toList());
+        var slice = window.slice(tournaments.inWorkspace(principal.workspaceId(), window),
+                Tournament::getId);
 
-        // Always null until cursor pagination lands. The field exists so that
-        // filling it in is additive rather than a change of top-level type.
-        page.setNextCursor(null);
+        TournamentPage page = new TournamentPage(
+                slice.data().stream().map(t -> summarise(t, now)).toList());
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 

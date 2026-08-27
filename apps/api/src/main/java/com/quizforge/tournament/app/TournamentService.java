@@ -5,6 +5,7 @@ import com.quizforge.identity.WorkspaceAccess;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
+import com.quizforge.platform.web.PageWindow;
 import com.quizforge.tournament.ScoringPolicy;
 import com.quizforge.tournament.TournamentUsage;
 import com.quizforge.tournament.domain.Tournament;
@@ -129,6 +130,15 @@ public class TournamentService {
     @Transactional(readOnly = true)
     public List<Tournament> inWorkspace(UUID workspaceId) {
         return tournaments.findByWorkspaceId(workspaceId);
+    }
+
+    /** One keyset page of a workspace's tournaments, newest first. */
+    @Transactional(readOnly = true)
+    public List<Tournament> inWorkspace(UUID workspaceId, PageWindow window) {
+        return window.after() == null
+                ? tournaments.findByWorkspaceIdOrderByIdDesc(workspaceId, window.fetchSize())
+                : tournaments.findByWorkspaceIdAndIdLessThanOrderByIdDesc(
+                        workspaceId, window.after(), window.fetchSize());
     }
 
     private void requirePermission(UUID workspaceId, UUID actorId) {

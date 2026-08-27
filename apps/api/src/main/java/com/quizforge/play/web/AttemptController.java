@@ -16,6 +16,7 @@ import com.quizforge.identity.Principal;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
+import com.quizforge.platform.web.PageWindow;
 import com.quizforge.play.app.AttemptService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -104,7 +105,9 @@ public class AttemptController implements PlayApi {
      */
     @Override
     public ResponseEntity<AttemptSummaryPage> listTournamentAttempts(String tournamentId,
-                                                                     String workspaceHeader) {
+                                                                     String workspaceHeader,
+                                                                     Integer limit,
+                                                                     String cursor) {
         // A workspace is required but an account is not: reading who has played
         // is something a server integration legitimately does with an API key.
         Principal principal = CurrentPrincipal.get();
@@ -113,11 +116,14 @@ public class AttemptController implements PlayApi {
                     "select a workspace with the X-QuizForge-Workspace header");
         }
 
+        PageWindow window = PageWindow.of(limit, cursor);
+        var slice = window.slice(
+                attempts.forTournament(TypeId.parse("trn", tournamentId), window),
+                com.quizforge.play.domain.Attempt::getId);
+
         AttemptSummaryPage page = new AttemptSummaryPage(
-                attempts.forTournament(TypeId.parse("trn", tournamentId)).stream()
-                        .map(this::summarise)
-                        .toList());
-        page.setNextCursor(null);
+                slice.data().stream().map(this::summarise).toList());
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 

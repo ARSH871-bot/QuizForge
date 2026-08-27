@@ -13,6 +13,7 @@ import com.quizforge.identity.domain.ApiKey;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,17 +40,19 @@ public class ApiKeyController implements ApiKeysApi {
     }
 
     @Override
-    public ResponseEntity<ApiKeyPage> listApiKeys(String workspaceHeader) {
+    public ResponseEntity<ApiKeyPage> listApiKeys(String workspaceHeader, Integer limit,
+                                                  String cursor) {
         Principal principal = requireWorkspace();
+        PageWindow window = PageWindow.of(limit, cursor);
 
-        List<ApiKeySummary> data =
-                apiKeys.listActive(principal.workspaceId(), principal.accountId()).stream()
-                        .map(this::summarise)
-                        .sorted(Comparator.comparing(ApiKeySummary::getCreatedAt).reversed())
-                        .toList();
+        var slice = window.slice(
+                apiKeys.listActive(principal.workspaceId(), principal.accountId(), window),
+                ApiKey::getId);
+
+        List<ApiKeySummary> data = slice.data().stream().map(this::summarise).toList();
 
         ApiKeyPage page = new ApiKeyPage(data);
-        page.setNextCursor(null);
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 

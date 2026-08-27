@@ -6,6 +6,7 @@ import com.quizforge.identity.WorkspaceAccess;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +69,16 @@ public class QuestionBankService {
     @Transactional(readOnly = true)
     public List<QuestionBank> activeIn(UUID workspaceId) {
         return banks.findByWorkspaceIdAndArchivedAtIsNull(workspaceId);
+    }
+
+    /** One keyset page of active banks, newest first. */
+    @Transactional(readOnly = true)
+    public List<QuestionBank> activeIn(UUID workspaceId, PageWindow window) {
+        return window.after() == null
+                ? banks.findByWorkspaceIdAndArchivedAtIsNullOrderByIdDesc(
+                        workspaceId, window.fetchSize())
+                : banks.findByWorkspaceIdAndArchivedAtIsNullAndIdLessThanOrderByIdDesc(
+                        workspaceId, window.after(), window.fetchSize());
     }
 
     @Transactional

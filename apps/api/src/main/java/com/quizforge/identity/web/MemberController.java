@@ -15,6 +15,7 @@ import com.quizforge.identity.domain.Membership;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,16 +44,19 @@ public class MemberController implements MembersApi {
     }
 
     @Override
-    public ResponseEntity<MemberPage> listMembers(String workspaceHeader) {
+    public ResponseEntity<MemberPage> listMembers(String workspaceHeader, Integer limit,
+                                                  String cursor) {
         UUID workspaceId = requireWorkspace().workspaceId();
+        PageWindow window = PageWindow.of(limit, cursor);
 
-        List<Member> data = workspaces.membersOf(workspaceId).stream()
+        var slice = window.slice(workspaces.membersOf(workspaceId, window), Membership::getId);
+
+        List<Member> data = slice.data().stream()
                 .map(m -> represent(m, accounts.requireById(m.getAccountId())))
-                .sorted(Comparator.comparing(Member::getEmail))
                 .toList();
 
         MemberPage page = new MemberPage(data);
-        page.setNextCursor(null);
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 

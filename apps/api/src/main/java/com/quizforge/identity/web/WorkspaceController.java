@@ -13,6 +13,7 @@ import com.quizforge.identity.domain.Membership;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,24 +44,37 @@ public class WorkspaceController implements WorkspacesApi {
     }
 
     @Override
-    public ResponseEntity<WorkspacePage> listWorkspaces() {
+    public ResponseEntity<WorkspacePage> listWorkspaces(Integer limit, String cursor) {
         UUID accountId = requireAccount();
+        PageWindow window = PageWindow.of(limit, cursor);
 
-        List<Membership> memberships = workspaces.membershipsOf(accountId);
-        Map<UUID, Role> roles = memberships.stream()
+        // Paged over memberships rather than workspaces: the membership is what
+        // scopes the query to this account, and it carries the role. The cursor
+        // therefore names a membership, which is invisible to the client and
+        // exactly why cursors are opaque.
+        var slice = window.slice(workspaces.membershipsOf(accountId, window), Membership::getId);
+
+        Map<UUID, Role> roles = slice.data().stream()
                 .collect(Collectors.toMap(
                         Membership::getWorkspaceId,
                         m -> Role.fromValue(m.getRole().name())));
 
-        List<Workspace> data = workspaces
-                .byIds(memberships.stream().map(Membership::getWorkspaceId).toList())
+        // Resolved in the page's own order, not the database's: findAllById makes
+        // no ordering promise, and a page whose order differs from its cursor is
+        // a page that skips rows.
+        Map<UUID, com.quizforge.identity.domain.Workspace> byId = workspaces
+                .byIds(slice.data().stream().map(Membership::getWorkspaceId).toList())
                 .stream()
+                .collect(Collectors.toMap(com.quizforge.identity.domain.Workspace::getId, w -> w));
+
+        List<Workspace> data = slice.data().stream()
+                .map(m -> byId.get(m.getWorkspaceId()))
+                .filter(java.util.Objects::nonNull)
                 .map(w -> represent(w, roles.get(w.getId())))
-                .sorted(Comparator.comparing(Workspace::getName))
                 .toList();
 
         WorkspacePage page = new WorkspacePage(data);
-        page.setNextCursor(null);
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 

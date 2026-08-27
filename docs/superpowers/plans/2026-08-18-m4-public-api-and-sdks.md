@@ -202,12 +202,29 @@ assumption, and that test is also what proves the port is wired.
 
 ## Task 6: Cursor pagination
 
-- [ ] `platform.web.Cursor`: opaque base64 of `(created_at, id)`, keyset — never offset
-- [ ] Standard envelope `{ data: [...], nextCursor: string|null }` applied to every list endpoint
-- [ ] Reject a malformed or foreign cursor with `INVALID_CURSOR`, never a 500
-- [ ] `limit` parameter, default 25, maximum 100, documented in the contract
+- [x] `platform.web.Cursor` — opaque, keyset, never offset
+- [x] Standard envelope `{ data, nextCursor }` filled in on every list endpoint
+- [x] A malformed or foreign cursor is `INVALID_CURSOR`, never a 500
+- [x] `limit` parameter, default 25, maximum 100, documented in the contract
 
-**Tests:** inserting a row mid-pagination neither duplicates nor skips an item — the property offset pagination fails and the reason this is not configurable.
+**The key is the primary key, not `(created_at, id)`.** The plan called for the
+pair because a timestamp can tie. Every identifier here is a UUIDv7, which
+embeds its creation time and sorts chronologically in the byte order PostgreSQL
+compares `uuid` values in — so the key already *is* the timestamp, and it is
+unique by definition. One column, one index, no tuple comparison, and one fewer
+way to be wrong. Not every entity even has a `created_at`; all of them have a
+key.
+
+**Standings are the deliberate exception** and the contract says so.
+`nextCursor` is always `null` there because ranking applies the scoring policy
+when the standings are read, in application code — the order is not something
+the database produced, so there is no key a cursor could name. Offering one
+would imply a stability the ordering does not have. It returns a bounded top-N
+instead, which is what a leaderboard is.
+
+**Verified live, not only in tests:** six rows paged three at a time with three
+more inserted at the very top between requests — the worst case for an offset —
+and all six originals were seen exactly once with no duplicates.
 
 ## Task 7: Idempotency keys
 

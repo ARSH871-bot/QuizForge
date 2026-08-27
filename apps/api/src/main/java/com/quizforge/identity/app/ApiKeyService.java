@@ -6,6 +6,7 @@ import com.quizforge.identity.repo.ApiKeyRepository;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +71,17 @@ public class ApiKeyService {
     public List<ApiKey> listActive(UUID workspaceId, UUID actorId) {
         require(workspaceId, actorId);
         return apiKeys.findByWorkspaceIdAndRevokedAtIsNull(workspaceId);
+    }
+
+    /** One keyset page of active keys, newest first. */
+    @Transactional(readOnly = true)
+    public List<ApiKey> listActive(UUID workspaceId, UUID actorId, PageWindow window) {
+        require(workspaceId, actorId);
+        return window.after() == null
+                ? apiKeys.findByWorkspaceIdAndRevokedAtIsNullOrderByIdDesc(
+                        workspaceId, window.fetchSize())
+                : apiKeys.findByWorkspaceIdAndRevokedAtIsNullAndIdLessThanOrderByIdDesc(
+                        workspaceId, window.after(), window.fetchSize());
     }
 
     @Transactional

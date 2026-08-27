@@ -12,6 +12,7 @@ import com.quizforge.identity.Principal;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,15 +41,17 @@ public class QuestionController implements QuestionsApi {
     }
 
     @Override
-    public ResponseEntity<QuestionPage> listQuestions(String bankId, String workspaceHeader) {
+    public ResponseEntity<QuestionPage> listQuestions(String bankId, String workspaceHeader,
+                                                      Integer limit, String cursor) {
         requireWorkspace();
+        PageWindow window = PageWindow.of(limit, cursor);
 
-        List<Question> data = questions.currentIn(TypeId.parse("bnk", bankId)).stream()
-                .map(this::represent)
-                .toList();
+        var slice = window.slice(questions.currentIn(TypeId.parse("bnk", bankId), window),
+                com.quizforge.content.domain.Question::getId);
 
-        QuestionPage page = new QuestionPage(data);
-        page.setNextCursor(null);
+        QuestionPage page = new QuestionPage(
+                slice.data().stream().map(this::represent).toList());
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 
@@ -97,15 +100,18 @@ public class QuestionController implements QuestionsApi {
 
     @Override
     public ResponseEntity<QuestionPage> listQuestionVersions(String questionId,
-                                                             String workspaceHeader) {
+                                                             String workspaceHeader,
+                                                             Integer limit, String cursor) {
         requireWorkspace();
+        PageWindow window = PageWindow.of(limit, cursor);
 
-        List<Question> data = questions.versionsOf(TypeId.parse("qst", questionId)).stream()
-                .map(this::represent)
-                .toList();
+        // The one ascending page: a history reads forwards.
+        var slice = window.slice(questions.versionsOf(TypeId.parse("qst", questionId), window),
+                com.quizforge.content.domain.Question::getId);
 
-        QuestionPage page = new QuestionPage(data);
-        page.setNextCursor(null);
+        QuestionPage page = new QuestionPage(
+                slice.data().stream().map(this::represent).toList());
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 

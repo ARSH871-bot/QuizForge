@@ -23,10 +23,10 @@ info:
 
     - Every identifier is a prefixed `TypeId`: `acc_`, `wsp_`, `trn_`, `att_`,
       `qst_`. Bare UUIDs never appear in a response.
-    - Every list endpoint returns `{ "data": [...], "nextCursor": ... }`. The
-      envelope exists before cursor pagination does, so that filling in
-      `nextCursor` will be an additive change rather than a change of
-      top-level type.
+    - Every list endpoint returns `{ "data": [...], "nextCursor": ... }` and
+      takes `limit` and `cursor`. Pagination is **keyset**, never offset: a
+      cursor names the last row you saw, so a row inserted while you page
+      through cannot duplicate or hide another one.
     - Out-of-range parameters are **rejected**, never silently corrected.
 
     Everything the product does is reachable here: workspaces, members, API
@@ -388,6 +388,8 @@ paths:
         disagree with the calendar.
       parameters:
         - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The workspace's tournaments.
@@ -396,7 +398,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TournamentPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -566,6 +568,8 @@ paths:
           description: The tournament.
           schema:
             $ref: '#/components/schemas/TournamentId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The attempts against this tournament.
@@ -574,7 +578,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AttemptSummaryPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -599,6 +603,16 @@ paths:
 
         A tournament in another workspace returns `404`, not `403` — its
         existence is not disclosed.
+
+        **This is the one list endpoint without a cursor**, and `nextCursor` is
+        always `null`. Ranking applies the tournament's scoring policy when the
+        standings are read, in application code, so the order is not something
+        the database produced and there is no key a cursor could name. Offering
+        one would imply a stability the ordering does not have.
+
+        Instead it returns a bounded top-N: `limit` up to 100, which is what a
+        leaderboard is for. Paging deeper than that will arrive with the ranking
+        pushed into SQL, per policy.
       parameters:
         - $ref: '#/components/parameters/WorkspaceHeader'
         - name: tournamentId
@@ -859,6 +873,9 @@ paths:
 
         Requires a session. An API key already names exactly one workspace, so
         there is no set to enumerate.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The caller's workspaces.
@@ -866,6 +883,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkspacePage'
+        '400':
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '500':
@@ -980,6 +999,8 @@ paths:
         already see who is playing.
       parameters:
         - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The workspace's members.
@@ -988,7 +1009,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/MemberPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1140,6 +1161,8 @@ paths:
         `OWNER`.
       parameters:
         - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The workspace's active keys.
@@ -1148,7 +1171,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiKeyPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1243,6 +1266,8 @@ paths:
         that could forget to.
       parameters:
         - $ref: '#/components/parameters/WorkspaceHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The workspace's active banks.
@@ -1251,7 +1276,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/QuestionBankPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1373,6 +1398,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/WorkspaceHeader'
         - $ref: '#/components/parameters/BankIdPath'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The bank's current questions.
@@ -1381,7 +1408,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/QuestionPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1564,6 +1591,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/WorkspaceHeader'
         - $ref: '#/components/parameters/QuestionIdPath'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/PageCursor'
       responses:
         '200':
           description: The lineage, oldest version first.
@@ -1572,7 +1601,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/QuestionPage'
         '400':
-          $ref: '#/components/responses/WorkspaceRequired'
+          $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1735,6 +1764,38 @@ components:
       schema:
         $ref: '#/components/schemas/WorkspaceId'
 
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: |
+        How many items to return, 1–100.
+
+        A value outside that range is `400 INVALID_REQUEST`. It is deliberately
+        not clamped: answering a request for 1000 with 100 items is
+        indistinguishable from a collection that only holds 100, so a client
+        would conclude it had everything when it had a prefix.
+      schema:
+        type: integer
+        format: int32
+        default: 25
+        minimum: 1
+        maximum: 100
+
+    PageCursor:
+      name: cursor
+      in: query
+      required: false
+      description: |
+        The `nextCursor` from the previous page. Omit for the first page.
+
+        **Treat this as opaque.** It is not a page number, an offset, or an
+        identifier, and its encoding is not part of the contract. A value this
+        API did not issue is `400 INVALID_CURSOR` rather than being quietly
+        treated as "start again".
+      schema:
+        $ref: '#/components/schemas/CursorParameter'
+
     AccountIdPath:
       name: accountId
       in: path
@@ -1846,6 +1907,21 @@ components:
         The CSRF filter runs **before** authentication, so an unauthenticated
         write returns `403` here rather than `401`. That ordering is
         deliberate; the request is refused either way.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+    InvalidListRequest:
+      description: |
+        The request could not be paged. One of:
+
+        - no workspace is in scope — `code: INVALID_REQUEST`
+        - `limit` is outside 1–100 — `code: INVALID_REQUEST`
+        - `cursor` was not issued by this API — `code: INVALID_CURSOR`
+
+        The three are distinguished by `code`, which is why they share a status
+        without sharing a meaning.
       content:
         application/problem+json:
           schema:
@@ -1999,16 +2075,22 @@ components:
       type: [string, 'null']
       title: Cursor
       description: |
-        An opaque cursor for the next page, or `null` on the last page.
+        Pass this back as `cursor` to get the next page. `null` means there is
+        no next page — stop, rather than asking for one you already know is
+        empty.
 
-        **Always `null` today.** Cursor pagination is not implemented; the field
-        exists so that implementing it is an additive change rather than a
-        change of every list endpoint's top-level type.
-
-        Treat the value as opaque. It encodes a sort key and is not a page
-        number, an offset, or an identifier.
+        **Opaque.** Not a page number, not an offset, not an identifier. Its
+        encoding is not part of the contract and may change; a cursor issued by
+        an older version will be rejected rather than misread.
       maxLength: 500
-      examples: [null]
+      examples: ['djE6MDFhMDEzNmZiMzkzNzIwOWE1NzE5ZThmYjdkYjI2YmY']
+
+    CursorParameter:
+      type: string
+      title: CursorParameter
+      description: An opaque cursor previously returned as `nextCursor`.
+      maxLength: 500
+      examples: ['djE6MDFhMDEzNmZiMzkzNzIwOWE1NzE5ZThmYjdkYjI2YmY']
 
     TournamentPage:
       type: object
@@ -2026,6 +2108,10 @@ components:
     StandingPage:
       type: object
       title: StandingPage
+      description: |
+        A bounded top-N rather than a page. `nextCursor` is always `null`:
+        standings are ranked in application code at read time, so there is no
+        key to page on.
       required: [data]
       properties:
         data:

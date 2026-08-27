@@ -70,6 +70,25 @@
     </Match>
 
     <!--
+      PageWindow.Slice copies its list into an unmodifiable wrapper in a compact
+      constructor, so the accessor cannot leak anything mutable. SpotBugs cannot
+      see through List.copyOf and reports the accessor regardless - the same
+      false positive as the payload records above.
+
+      Justified by a test rather than by assertion:
+      PageWindowTest.aSliceCannotBeMutatedAfterConstruction mutates the list
+      passed in, asserts the slice is unchanged, then asserts the returned list
+      rejects modification. If that property is ever lost, a test fails.
+    -->
+    <Match>
+        <Class name="~com\.quizforge\.platform\.web\..*"/>
+        <Or>
+            <Bug pattern="EI_EXPOSE_REP"/>
+            <Bug pattern="EI_EXPOSE_REP2"/>
+        </Or>
+    </Match>
+
+    <!--
       Everything under com.quizforge.api is generated from openapi.yaml by
       openapi-generator at build time. It is not in version control, nobody
       wrote it, and any edit would be discarded by the next build.

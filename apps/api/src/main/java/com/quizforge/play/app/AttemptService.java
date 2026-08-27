@@ -6,6 +6,7 @@ import com.quizforge.content.QuestionAccess;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
+import com.quizforge.platform.web.PageWindow;
 import com.quizforge.play.domain.Attempt;
 import com.quizforge.play.domain.AttemptState;
 import com.quizforge.play.domain.AttemptQuestion;
@@ -91,6 +92,20 @@ public class AttemptService {
     @Transactional(readOnly = true)
     public List<Attempt> forTournament(UUID tournamentId) {
         return attempts.findByTournamentIdOrderByStartedAtDesc(tournamentId);
+    }
+
+    /**
+     * One keyset page of a tournament's attempts, newest first.
+     *
+     * <p>Ordered by identifier rather than {@code startedAt}: the two agree,
+     * because identifiers are UUIDv7, and only one of them is unique.
+     */
+    @Transactional(readOnly = true)
+    public List<Attempt> forTournament(UUID tournamentId, PageWindow window) {
+        return window.after() == null
+                ? attempts.findByTournamentIdOrderByIdDesc(tournamentId, window.fetchSize())
+                : attempts.findByTournamentIdAndIdLessThanOrderByIdDesc(
+                        tournamentId, window.after(), window.fetchSize());
     }
 
     /** Renders one question, in the order this attempt froze. Never carries the answer. */

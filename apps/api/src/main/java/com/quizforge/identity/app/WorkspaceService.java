@@ -8,6 +8,7 @@ import com.quizforge.identity.repo.WorkspaceRepository;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +69,15 @@ public class WorkspaceService {
         return memberships.findByAccountId(accountId);
     }
 
+    /** One keyset page of an account's memberships, newest first. */
+    @Transactional(readOnly = true)
+    public List<Membership> membershipsOf(UUID accountId, PageWindow window) {
+        return window.after() == null
+                ? memberships.findByAccountIdOrderByIdDesc(accountId, window.fetchSize())
+                : memberships.findByAccountIdAndIdLessThanOrderByIdDesc(
+                        accountId, window.after(), window.fetchSize());
+    }
+
     /** Resolves several workspaces by id, for rendering a membership list. */
     @Transactional(readOnly = true)
     public List<Workspace> byIds(List<UUID> ids) {
@@ -104,6 +114,15 @@ public class WorkspaceService {
     @Transactional(readOnly = true)
     public List<Membership> membersOf(UUID workspaceId) {
         return memberships.findByWorkspaceId(workspaceId);
+    }
+
+    /** One keyset page of a workspace's members, newest first. */
+    @Transactional(readOnly = true)
+    public List<Membership> membersOf(UUID workspaceId, PageWindow window) {
+        return window.after() == null
+                ? memberships.findByWorkspaceIdOrderByIdDesc(workspaceId, window.fetchSize())
+                : memberships.findByWorkspaceIdAndIdLessThanOrderByIdDesc(
+                        workspaceId, window.after(), window.fetchSize());
     }
 
     @Transactional

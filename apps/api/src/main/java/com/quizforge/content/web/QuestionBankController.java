@@ -10,6 +10,7 @@ import com.quizforge.identity.Principal;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,16 +35,18 @@ public class QuestionBankController implements QuestionBanksApi {
     }
 
     @Override
-    public ResponseEntity<QuestionBankPage> listQuestionBanks(String workspaceHeader) {
+    public ResponseEntity<QuestionBankPage> listQuestionBanks(String workspaceHeader,
+                                                              Integer limit, String cursor) {
         Principal principal = requireWorkspace();
+        PageWindow window = PageWindow.of(limit, cursor);
 
-        List<QuestionBank> data = banks.activeIn(principal.workspaceId()).stream()
-                .map(this::represent)
-                .sorted(Comparator.comparing(QuestionBank::getName))
-                .toList();
+        var slice = window.slice(banks.activeIn(principal.workspaceId(), window),
+                com.quizforge.content.domain.QuestionBank::getId);
+
+        List<QuestionBank> data = slice.data().stream().map(this::represent).toList();
 
         QuestionBankPage page = new QuestionBankPage(data);
-        page.setNextCursor(null);
+        page.setNextCursor(slice.nextCursor());
         return ResponseEntity.ok(page);
     }
 

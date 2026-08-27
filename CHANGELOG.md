@@ -16,6 +16,24 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Cursor pagination (M4).** Every list endpoint now takes `limit` and
+  `cursor` and fills in `nextCursor`. Pagination is **keyset**, never offset: a
+  cursor names the last row seen, so a row inserted while a client pages through
+  cannot duplicate or hide another one.
+
+  The key is the primary key. Every identifier here is a UUIDv7, which embeds
+  its creation time and sorts chronologically in the byte order PostgreSQL
+  compares `uuid` values in — so ordering by key *is* ordering by creation time,
+  with no ties and no tuple comparison.
+
+  A malformed or unrecognised cursor is `400 INVALID_CURSOR`, never a 500 and
+  never silently treated as "start again" — which would restart a client's
+  pagination rather than telling it something is wrong.
+
+  `GET /v1/tournaments/{id}/standings` is the one exception and says so: it is
+  ranked in application code at read time, so there is no key to page on. It
+  returns a bounded top-N instead.
+
 - **Tournament lifecycle endpoints (M4).** `POST /v1/tournaments`,
   `GET|PATCH|DELETE /v1/tournaments/{id}`, and
   `GET /v1/tournaments/{id}/attempts-summary` — the organiser's view of who has

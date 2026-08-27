@@ -8,6 +8,7 @@ import com.quizforge.content.repo.QuestionRepository;
 import com.quizforge.platform.error.ApiException;
 import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.UuidV7;
+import com.quizforge.platform.web.PageWindow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,6 +98,31 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public List<Question> versionsOf(UUID questionId) {
         return questions.findByLineageIdOrderByVersionAsc(requireById(questionId).getLineageId());
+    }
+
+    /** One keyset page of a bank's current questions, newest first. */
+    @Transactional(readOnly = true)
+    public List<Question> currentIn(UUID bankId, PageWindow window) {
+        return window.after() == null
+                ? questions.findByBankIdAndSupersededByIsNullAndRetiredAtIsNullOrderByIdDesc(
+                        bankId, window.fetchSize())
+                : questions
+                        .findByBankIdAndSupersededByIsNullAndRetiredAtIsNullAndIdLessThanOrderByIdDesc(
+                                bankId, window.after(), window.fetchSize());
+    }
+
+    /**
+     * One keyset page of a lineage, oldest first.
+     *
+     * <p>The only ascending page in the API: a history reads forwards.
+     */
+    @Transactional(readOnly = true)
+    public List<Question> versionsOf(UUID questionId, PageWindow window) {
+        UUID lineageId = requireById(questionId).getLineageId();
+        return window.after() == null
+                ? questions.findByLineageIdOrderByIdAsc(lineageId, window.fetchSize())
+                : questions.findByLineageIdAndIdGreaterThanOrderByIdAsc(
+                        lineageId, window.after(), window.fetchSize());
     }
 
     @Transactional(readOnly = true)

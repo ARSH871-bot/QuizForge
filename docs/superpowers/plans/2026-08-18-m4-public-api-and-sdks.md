@@ -228,14 +228,36 @@ and all six originals were seen exactly once with no duplicates.
 
 ## Task 7: Idempotency keys
 
-- [ ] V12: `idempotency_key` table — `(workspace_id, key)` unique, plus `request_hash`, `response_status`, `response_body`, `created_at`
-- [ ] Filter in `platform` applying to every `POST`/`PATCH`/`DELETE` under `/v1`
-- [ ] Replay within 24h returns the stored response verbatim with `Idempotency-Replayed: true`
-- [ ] Same key with a *different* request body is `422 IDEMPOTENCY_KEY_REUSED` — never silently the old response
-- [ ] Scheduled purge of records older than 24h, using M3's advisory-lock pattern so it is safe across instances
-- [ ] RLS policy on the table, consistent with every other tenant-scoped table
+- [x] V12 `idempotency_key` table — `(workspace_id, key)` primary key, plus
+      `request_hash`, `response_status`, `response_body`, `created_at`
+- [x] Filter applying to every `POST`/`PATCH`/`PUT`/`DELETE` under `/v1`
+- [x] Replay within 24h returns the stored response with
+      `Idempotency-Replayed: true`
+- [x] Same key with a different request is `422 IDEMPOTENCY_KEY_REUSED`
+- [x] Scheduled purge past the window, using the advisory-lock pattern
+- [x] RLS policy on the table, like every other tenant-scoped table
 
-**Tests:** the same create replayed twice produces one row and two identical responses. A concurrent duplicate — two threads, same key, simultaneously — still produces one row.
+**The claim is an insert, not a check.** `ON CONFLICT DO NOTHING` makes the race
+a database problem: exactly one caller inserts the row whatever the
+interleaving. Checking for an existing row and inserting second leaves a window
+in which both callers see nothing — which is the bug this whole task exists to
+prevent, reintroduced one layer down.
+
+**Not applied to `/v1/auth/**` or `POST /v1/workspaces`.** The record is keyed on
+a workspace, and those requests have none. Worth naming as a gap rather than
+leaving implied: a retried workspace creation can still create two. Closing it
+needs a scope column that is sometimes an account, which also complicates the
+RLS policy — deliberately deferred rather than bolted on here.
+
+**Found while building:** Spring's `ContentCachingRequestWrapper` does not solve
+reading a body twice. It records what was read so it can be inspected
+afterwards; it does not hand the bytes to the next reader. Hashing the body with
+it left the handler with `Required request body is missing`. Replaced with a
+wrapper that actually replays the buffered bytes.
+
+FindSecBugs also flagged `UNSAFE_HASH_EQUALS` on the request-hash comparison.
+The hash is not a secret — it is derived from the caller's own request — but a
+constant-time compare costs nothing, so it was fixed rather than suppressed.
 
 ## Task 8: Rate limiting
 

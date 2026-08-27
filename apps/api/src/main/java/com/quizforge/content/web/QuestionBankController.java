@@ -52,6 +52,7 @@ public class QuestionBankController implements QuestionBanksApi {
 
     @Override
     public ResponseEntity<QuestionBank> createQuestionBank(CreateQuestionBankRequest request,
+                                                           String idempotencyKey,
                                                            String workspaceHeader) {
         Principal principal = requireWorkspace();
         var created = banks.create(principal.workspaceId(), principal.accountId(),
@@ -72,7 +73,8 @@ public class QuestionBankController implements QuestionBanksApi {
     }
 
     @Override
-    public ResponseEntity<Void> archiveQuestionBank(String bankId, String workspaceHeader) {
+    public ResponseEntity<Void> archiveQuestionBank(String bankId, String idempotencyKey,
+        String workspaceHeader) {
         Principal principal = requireWorkspace();
         banks.archive(TypeId.parse("bnk", bankId), principal.accountId());
         return ResponseEntity.noContent().build();

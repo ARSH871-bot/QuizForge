@@ -1,6 +1,7 @@
 package com.quizforge.identity.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.quizforge.platform.idempotency.IdempotencyFilter;
 import com.quizforge.platform.error.ErrorCode;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,7 +43,8 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            SessionAuthFilter sessionAuth,
                                            ApiKeyAuthFilter apiKeyAuth,
-                                           WorkspaceScopeFilter workspaceScope) throws Exception {
+                                           WorkspaceScopeFilter workspaceScope,
+                                           IdempotencyFilter idempotency) throws Exception {
         http
             // Stateless: authentication comes from an opaque cookie or bearer
             // token resolved against the database, never from an HTTP session.
@@ -111,7 +113,10 @@ public class SecurityConfig {
             .addFilterBefore(sessionAuth, UsernamePasswordAuthenticationFilter.class)
             // After both authentication filters: it inspects the tenant they
             // established, so it cannot run before them.
-            .addFilterAfter(workspaceScope, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(workspaceScope, UsernamePasswordAuthenticationFilter.class)
+            // Last, and after the workspace check: it scopes records to the
+            // tenant, so it must not run before there is one.
+            .addFilterAfter(idempotency, WorkspaceScopeFilter.class);
 
         return http.build();
     }

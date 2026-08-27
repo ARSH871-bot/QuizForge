@@ -44,6 +44,7 @@ public class AttemptController implements PlayApi {
 
     @Override
     public ResponseEntity<AttemptStarted> startAttempt(String tournamentId,
+                                                       String idempotencyKey,
                                                        String workspaceHeader) {
         UUID accountId = requireAccount();
         var attempt = attempts.start(TypeId.parse("trn", tournamentId), accountId);
@@ -70,6 +71,7 @@ public class AttemptController implements PlayApi {
     public ResponseEntity<AnswerFeedback> answerAttemptQuestion(String attemptId,
                                                                 Integer position,
                                                                 AnswerRequest request,
+                                                                String idempotencyKey,
                                                                 String workspaceHeader) {
         var feedback = attempts.answer(TypeId.parse("att", attemptId), position,
                 request.getAnswer(), requireAccount());
@@ -80,7 +82,8 @@ public class AttemptController implements PlayApi {
     }
 
     @Override
-    public ResponseEntity<AttemptResult> submitAttempt(String attemptId, String workspaceHeader) {
+    public ResponseEntity<AttemptResult> submitAttempt(String attemptId, String idempotencyKey,
+        String workspaceHeader) {
         return ResponseEntity.ok(represent(
                 attempts.submit(TypeId.parse("att", attemptId), requireAccount())));
     }

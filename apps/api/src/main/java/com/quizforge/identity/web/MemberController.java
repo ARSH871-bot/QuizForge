@@ -68,7 +68,8 @@ public class MemberController implements MembersApi {
      * was not added would be a lie the caller acts on.
      */
     @Override
-    public ResponseEntity<Member> addMember(AddMemberRequest request, String workspaceHeader) {
+    public ResponseEntity<Member> addMember(AddMemberRequest request, String idempotencyKey,
+        String workspaceHeader) {
         Principal principal = requireWorkspace();
 
         Account account = accounts.requireByEmail(request.getEmail());
@@ -80,6 +81,7 @@ public class MemberController implements MembersApi {
 
     @Override
     public ResponseEntity<Member> changeMemberRole(String accountId, ChangeRoleRequest request,
+                                                   String idempotencyKey,
                                                    String workspaceHeader) {
         Principal principal = requireWorkspace();
         UUID target = TypeId.parse("acc", accountId);
@@ -96,7 +98,8 @@ public class MemberController implements MembersApi {
     }
 
     @Override
-    public ResponseEntity<Void> removeMember(String accountId, String workspaceHeader) {
+    public ResponseEntity<Void> removeMember(String accountId, String idempotencyKey,
+        String workspaceHeader) {
         Principal principal = requireWorkspace();
         workspaces.removeMember(principal.workspaceId(), principal.accountId(),
                 TypeId.parse("acc", accountId));

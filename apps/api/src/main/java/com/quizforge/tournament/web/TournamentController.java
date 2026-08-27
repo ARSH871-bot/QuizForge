@@ -58,6 +58,7 @@ public class TournamentController implements TournamentsApi {
 
     @Override
     public ResponseEntity<TournamentSummary> createTournament(TournamentDraft draft,
+                                                              String idempotencyKey,
                                                               String workspaceHeader) {
         Principal principal = requireAccount();
 
@@ -79,6 +80,7 @@ public class TournamentController implements TournamentsApi {
     @Override
     public ResponseEntity<TournamentSummary> updateTournament(String tournamentId,
                                                               TournamentDraft draft,
+                                                              String idempotencyKey,
                                                               String workspaceHeader) {
         Principal principal = requireAccount();
 
@@ -89,7 +91,8 @@ public class TournamentController implements TournamentsApi {
     }
 
     @Override
-    public ResponseEntity<Void> deleteTournament(String tournamentId, String workspaceHeader) {
+    public ResponseEntity<Void> deleteTournament(String tournamentId, String idempotencyKey,
+        String workspaceHeader) {
         Principal principal = requireAccount();
         tournaments.delete(TypeId.parse("trn", tournamentId), principal.accountId());
         return ResponseEntity.noContent().build();

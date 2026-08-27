@@ -117,6 +117,37 @@ info:
     scope; a request without one would run unfiltered. The check is therefore
     the difference between isolated and not.
 
+    ## Rate limits
+
+    Every response carries the caller's budget, not just the ones that are
+    refused:
+
+    | Header | Meaning |
+    |---|---|
+    | `RateLimit-Limit` | requests permitted per minute |
+    | `RateLimit-Remaining` | whole requests still available |
+    | `RateLimit-Reset` | seconds until at least one request is available |
+
+    A client told its budget only once it has run out has been told too late.
+    These arrive on every `/v1` response so a well-behaved client can slow down
+    before it is refused.
+
+    Over the limit is `429 RATE_LIMITED` with `Retry-After` in seconds. The
+    allowance is a **token bucket**, so a burst up to the full limit is fine and
+    then refills continuously — rather than a window that resets on a boundary
+    and permits double the rate across it.
+
+    Limits are **per credential**: two API keys in one workspace have separate
+    allowances, so a runaway script does not starve the dashboard beside it.
+    They are configurable per workspace.
+
+    `/v1/auth/**` is not rate limited — those requests have no workspace to
+    scope a bucket to. Repeated login failures lock the account instead, which
+    is a better answer to password guessing than a shared counter.
+
+    Header names follow
+    [draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/).
+
     ## Errors
 
     Every error is an RFC 9457 Problem Details document with a stable
@@ -133,6 +164,7 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local development instance started by `docker compose up`.
+    x-internal: false
 
 tags:
   - name: Authentication
@@ -178,6 +210,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -208,6 +249,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Account'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '409':
@@ -218,6 +266,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -252,6 +309,12 @@ paths:
                 maxLength: 500
                 examples:
                   - qf_session=…; Path=/; Secure; HttpOnly; SameSite=Lax
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
           content:
             application/json:
               schema:
@@ -266,6 +329,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -283,6 +355,15 @@ paths:
       responses:
         '204':
           description: The session is revoked, or there was none to revoke.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -303,8 +384,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Account'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -341,8 +431,17 @@ paths:
           description: |
             Accepted, with an empty body. Returned identically for a registered
             and an unregistered address.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -378,6 +477,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TournamentSummary'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The window is invalid, a count is out of range, or the bank holds
@@ -386,6 +492,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -399,10 +512,19 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '409':
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -429,12 +551,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TournamentPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
           $ref: '#/components/responses/WorkspaceForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -462,6 +593,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TournamentSummary'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -470,6 +608,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -515,6 +655,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TournamentSummary'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The tournament has already opened, the window is invalid, or the
@@ -524,6 +671,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -534,6 +688,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -567,6 +723,13 @@ paths:
       responses:
         '204':
           description: The tournament is gone.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The tournament has opened, or has attempts against it. Carries
@@ -575,6 +738,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -585,6 +755,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -619,6 +791,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttemptSummaryPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
@@ -627,6 +806,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -688,6 +869,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StandingPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The workspace is not in scope, or `limit` is outside 1–100. Carries
@@ -696,12 +884,21 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -736,6 +933,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttemptStarted'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The workspace is not in scope, the tournament is not open, or the
@@ -744,6 +948,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -754,6 +965,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -783,6 +996,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlayableQuestion'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -791,6 +1011,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -828,6 +1050,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnswerFeedback'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The workspace is not in scope, the answer was blank, or the attempt
@@ -836,6 +1065,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -846,6 +1082,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -872,6 +1110,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttemptResult'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -884,6 +1129,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -905,6 +1152,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttemptResult'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -913,6 +1167,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -940,10 +1196,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkspacePage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -969,6 +1234,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -977,6 +1249,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
       requestBody:
@@ -1006,12 +1280,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
           $ref: '#/components/responses/WorkspaceForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1041,6 +1324,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1051,6 +1341,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1076,12 +1368,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MemberPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
           $ref: '#/components/responses/WorkspaceForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1117,6 +1418,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Member'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1130,6 +1438,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '409':
           description: |
             That account is already a member, **or** a request with the same
@@ -1139,8 +1454,17 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1172,6 +1496,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Member'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The role is invalid, or this would demote the last `OWNER`. Carries
@@ -1180,6 +1511,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1190,6 +1528,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1210,6 +1550,13 @@ paths:
       responses:
         '204':
           description: The member was removed.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             This would remove the last `OWNER`. Carries `code: INVALID_REQUEST`.
@@ -1217,6 +1564,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1227,6 +1581,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1253,12 +1609,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiKeyPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
           $ref: '#/components/responses/WorkspaceForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1295,6 +1660,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IssuedApiKey'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1305,6 +1677,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1333,6 +1707,13 @@ paths:
       responses:
         '204':
           description: The key is revoked.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -1345,6 +1726,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1368,12 +1751,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuestionBankPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
           $ref: '#/components/responses/WorkspaceForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1400,6 +1792,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuestionBank'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1415,8 +1814,17 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1439,6 +1847,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuestionBank'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -1447,6 +1862,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1468,6 +1885,13 @@ paths:
       responses:
         '204':
           description: The bank is archived.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -1480,6 +1904,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1509,6 +1935,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuestionPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
@@ -1517,6 +1950,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1550,6 +1985,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Question'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1567,8 +2009,17 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1590,6 +2041,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Question'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -1598,6 +2056,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1641,6 +2101,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Question'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           description: |
             The payload is invalid for the type, or this version has already
@@ -1649,6 +2116,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '401':
           $ref: '#/components/responses/AuthenticationRequired'
         '403':
@@ -1659,6 +2133,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1679,6 +2155,13 @@ paths:
       responses:
         '204':
           description: The question is retired.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/WorkspaceRequired'
         '401':
@@ -1691,6 +2174,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1716,6 +2201,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QuestionPage'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidListRequest'
         '401':
@@ -1724,6 +2216,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1785,6 +2279,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportReport'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1797,6 +2298,8 @@ paths:
           $ref: '#/components/responses/IdempotencyKeyInFlight'
         '422':
           $ref: '#/components/responses/IdempotencyKeyReused'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1832,6 +2335,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportReport'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '401':
@@ -1840,6 +2350,8 @@ paths:
           $ref: '#/components/responses/WorkspaceForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -1864,6 +2376,35 @@ components:
         Authenticates a workspace rather than a person, so endpoints that
         attribute an action to an account — starting and submitting attempts —
         reject it.
+
+  headers:
+    RateLimitLimit:
+      description: Requests permitted per minute for this credential.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 1000000
+
+    RateLimitRemaining:
+      description: |
+        Whole requests still available. Fractional refill is rounded down, so
+        this never promises a request that is not there.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        maximum: 1000000
+
+    RateLimitReset:
+      description: |
+        Seconds until at least one request is available. `0` when one already
+        is.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        maximum: 86400
 
   parameters:
     WorkspaceHeader:
@@ -1994,6 +2535,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     WorkspaceRequired:
       description: |
         No workspace is in scope. Carries `code: INVALID_REQUEST`.
@@ -2007,6 +2555,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     WorkspaceForbidden:
       description: |
         The credential is valid but the account is not a member of the workspace
@@ -2020,6 +2575,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     AuthenticationRequired:
       description: |
         No valid credential was presented. Carries
@@ -2038,6 +2600,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     CsrfOrPermission:
       description: |
         Either the CSRF token was missing on a cookie-authenticated write, or
@@ -2051,6 +2620,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     InvalidListRequest:
       description: |
         The request could not be paged. One of:
@@ -2066,6 +2642,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     IdempotencyKeyReused:
       description: |
         The `Idempotency-Key` was already used for a **different** request.
@@ -2078,10 +2661,50 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     IdempotencyKeyInFlight:
       description: |
         A request with this `Idempotency-Key` is still running. Carries
         `code: ALREADY_EXISTS`. Retry once it has finished.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
+    RateLimited:
+      description: |
+        Too many requests. Carries `code: RATE_LIMITED`.
+
+        `Retry-After` gives the seconds to wait. `RateLimit-Reset` says the same
+        thing more precisely; `Retry-After` is included because every HTTP
+        client already understands it.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 86400
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
       content:
         application/problem+json:
           schema:
@@ -2097,6 +2720,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
     Internal:
       description: |
         Something failed unexpectedly. The cause is logged server-side and
@@ -2106,6 +2736,13 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
 
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
   schemas:
 
     Problem:
@@ -2733,6 +3370,7 @@ components:
         slug:
           type: string
           maxLength: 140
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
           description: |
             Derived from the name at creation and unique across the system. Not
             changed by a rename, because anything already referring to it would
@@ -2814,6 +3452,7 @@ components:
           type: string
           minLength: 4
           maxLength: 4
+          pattern: '^[A-Za-z0-9_-]{4}$'
           description: |
             The last four characters of the secret. Enough to match a key
             against one a client already holds; not enough to use.
@@ -2872,6 +3511,7 @@ components:
           type: string
           minLength: 4
           maxLength: 4
+          pattern: '^[A-Za-z0-9_-]{4}$'
         createdAt:
           type: string
           format: date-time
@@ -2880,6 +3520,7 @@ components:
           type: string
           minLength: 8
           maxLength: 200
+          pattern: '^qf_(live|test)_[A-Za-z0-9_-]+$'
           description: |
             Send as `Authorization: Bearer <secret>`. Shown once and never
             again.

@@ -2,6 +2,7 @@ package com.quizforge.identity.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quizforge.platform.idempotency.IdempotencyFilter;
+import com.quizforge.platform.ratelimit.RateLimitFilter;
 import com.quizforge.platform.error.ErrorCode;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,7 +45,8 @@ public class SecurityConfig {
                                            SessionAuthFilter sessionAuth,
                                            ApiKeyAuthFilter apiKeyAuth,
                                            WorkspaceScopeFilter workspaceScope,
-                                           IdempotencyFilter idempotency) throws Exception {
+                                           IdempotencyFilter idempotency,
+                                           RateLimitFilter rateLimit) throws Exception {
         http
             // Stateless: authentication comes from an opaque cookie or bearer
             // token resolved against the database, never from an HTTP session.
@@ -116,7 +118,11 @@ public class SecurityConfig {
             .addFilterAfter(workspaceScope, UsernamePasswordAuthenticationFilter.class)
             // Last, and after the workspace check: it scopes records to the
             // tenant, so it must not run before there is one.
-            .addFilterAfter(idempotency, WorkspaceScopeFilter.class);
+            // Before idempotency: a refused request should not consume a key,
+            // and a caller over its limit should be told so rather than having
+            // its retry silently recorded.
+            .addFilterAfter(rateLimit, WorkspaceScopeFilter.class)
+            .addFilterAfter(idempotency, RateLimitFilter.class);
 
         return http.build();
     }

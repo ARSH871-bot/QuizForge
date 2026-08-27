@@ -261,13 +261,51 @@ constant-time compare costs nothing, so it was fixed rather than suppressed.
 
 ## Task 8: Rate limiting
 
-- [ ] V12 (same migration): `rate_limit_bucket` — token bucket keyed by API key id
-- [ ] Filter applying limits per key; session-authenticated requests get a separate, looser default
-- [ ] `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` headers per RFC 9331 on **every** response, not only on 429
-- [ ] `429` returns Problem Details with `RATE_LIMITED` and a `Retry-After` header
-- [ ] Limits configurable per workspace, defaulting to a documented free-tier number, so M7's billing tiers have something to change
+- [x] V13 `rate_limit_bucket` — token bucket keyed by credential
+- [x] Filter applying limits per credential; `/v1/auth/**` is not limited
+- [x] `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` on **every**
+      response, not only on 429
+- [x] `429` with Problem Details and `Retry-After`
+- [x] Limits configurable per workspace, so M7's tiers have something to change
+- [x] The OWASP Spectral ruleset, deferred from Task 1
 
-**Tests:** the limit is actually enforced under burst. Headers are present on a successful response. Two different keys in the same workspace do not share a bucket.
+**Keyed by credential, not by workspace or account.** `Principal` gained the API
+key id so two keys in one workspace get separate allowances — a runaway script
+should not starve the dashboard beside it.
+
+**The citation in the spec was wrong.** Both the platform design and this plan
+cited RFC 9331 for the `RateLimit-*` headers. RFC 9331 is the L4S congestion
+notification protocol; the headers come from
+`draft-ietf-httpapi-ratelimit-headers`. Corrected in both.
+
+### What the OWASP ruleset actually found
+
+127 findings. Genuinely useful:
+
+- **66** — `RateLimit-*` declared only on the `429`, not on the 2XX and 4XX
+  responses a client needs them on. This is the finding the whole deferral was
+  for, and it was right.
+- **1** — the server had no declared audience (`x-internal`).
+- **4** — `slug`, `lastFour` and `secret` typed as free strings when each is in
+  fact constrained. Patterns added.
+
+The remaining **121** are rules that are wrong for this API, and each is turned
+off in `.spectral.yaml` with its reason. They are worth listing, because "we
+adopted the OWASP ruleset" would otherwise imply more than it delivered:
+
+| Rule | Why not |
+|---|---|
+| `define-cors-origin` (69) | CORS is not implemented; declaring the header would document a response we do not send. Revisit with M5. |
+| `string-restricted` (34) | Wants a pattern on every string, including question prompts and workspace names. A regex over user content rejects legitimate text. Length is still bounded. |
+| `define-error-responses-401` (8) | Fires on deliberately public endpoints. A 401 on `/v1/auth/health` would be fiction. |
+| `write-restricted` / `read-restricted` (5) | Flags `security: []` on register and login. Requiring authentication to log in is not a fix. |
+| `define-error-validation` (3) | Wants a 400 on endpoints that take no input. |
+| `no-server-http` (1) | The one declared server is the local `http://localhost:8080`. Turn this back on when a deployed server is added. |
+| `string-limit` (2) | Wants `maxLength` on `TournamentDraft`'s date-times — which openapi-generator turns into `@Size` on `OffsetDateTime`, a combination Bean Validation has no validator for. It produced a 500 in Task 5 and was removed for that reason. |
+
+The last one is the interesting one: a genuine conflict between the ruleset and
+the code generator, where following the rule would reintroduce a defect this
+project has already fixed once.
 
 ## Task 9: The TypeScript SDK
 

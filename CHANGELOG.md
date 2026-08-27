@@ -16,6 +16,31 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Per-credential rate limiting (M4).** A token bucket in Postgres, one per
+  API key or session account, with `RateLimit-Limit`, `RateLimit-Remaining` and
+  `RateLimit-Reset` on **every** `/v1` response rather than only on `429` — a
+  client told its budget once it has run out has been told too late.
+
+  Over the limit is `429 RATE_LIMITED` with `Retry-After`. A bucket rather than
+  a fixed window, because a window lets a caller spend its whole allowance in
+  the last second of one window and again in the first second of the next.
+
+  Limits are per **credential**, so two keys in one workspace do not share an
+  allowance, and configurable per workspace via `workspace.rate_limit_per_minute`
+  — M7's billing tiers change a row rather than shipping a deploy.
+
+  `/v1/auth/**` is not limited: those requests have no workspace to scope a
+  bucket to, and repeated login failures already lock the account.
+
+  V13 adds `rate_limit_bucket` with RLS.
+- **The OWASP API Security ruleset**, deferred in Task 1 until the rate limiting
+  it checks for existed. It caught 66 real findings — `RateLimit-*` declared
+  only on `429` — plus an undeclared server audience and three strings typed as
+  free text that are in fact constrained. All fixed.
+- A pinned Node toolchain (`package.json`) for contract linting, replacing the
+  ad-hoc `npx` invocation. An unpinned linter changes the meaning of a green
+  build without anyone editing anything.
+
 - **Idempotency keys (M4).** Every mutating `/v1` request accepts an
   `Idempotency-Key`, so a retry after a timeout cannot do the thing twice. A
   repeat with the same key and the same request replays the original response,
@@ -70,6 +95,15 @@ these are milestone markers, and the minor number tracks the milestone.
 
   `TournamentSummary` gains `bankId` and `scoringPolicy`, both optional so the
   addition stays additive.
+
+### Fixed
+
+- The platform design and the M4 plan both cited **RFC 9331** for the
+  `RateLimit-*` headers. That RFC is the L4S congestion notification protocol
+  and has nothing to do with HTTP rate limits; the headers come from
+  `draft-ietf-httpapi-ratelimit-headers`. Both citations corrected.
+- `ci.yml` still described the repository as public in explaining why there is
+  no CodeQL job. It has been private since ADR 0013.
 
 ### Changed
 

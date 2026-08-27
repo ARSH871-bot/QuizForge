@@ -15,7 +15,7 @@
       value objects elsewhere are still checked.
     -->
     <Match>
-        <Class name="~com\.quizforge\..*\.(app|web|security|idempotency)\..*"/>
+        <Class name="~com\.quizforge\..*\.(app|web|security|idempotency|ratelimit)\..*"/>
         <Method name="&lt;init&gt;"/>
         <Or>
             <Bug pattern="EI_EXPOSE_REP"/>

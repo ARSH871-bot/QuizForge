@@ -433,4 +433,71 @@ class TournamentApiTest extends AbstractIntegrationTest {
                         .header(SessionAuthFilter.WORKSPACE_HEADER, mine.workspaceId()))
                 .andExpect(status().isNotFound());
     }
+
+    // ------------------------------------------------------- malformed bodies
+
+    /**
+     * A body Jackson cannot read is the caller's mistake, not the server's.
+     *
+     * <p>Every one of these was a 500 until the SDK sent an unknown scoring
+     * policy and was told "an unexpected error occurred" - which is wrong, and
+     * tells a client nothing it can act on.
+     */
+    @Test
+    void aBodyThatCannotBeReadIsFourHundredWithTheFieldNamed() throws Exception {
+        var o = organiser();
+
+        record Case(String description, String body, String expected) {
+        }
+
+        var bad = List.of(
+                new Case("an unknown enum value",
+                        json.writeValueAsString(withScoring(o, "HIGHEST")),
+                        "scoringPolicy: must be one of BEST, FIRST, LAST, AVERAGE"),
+                new Case("a string where a number belongs",
+                        json.writeValueAsString(withQuestions(o, "three")),
+                        "questions: is not a valid integer"),
+                new Case("a timestamp that is not one",
+                        json.writeValueAsString(withOpensAt(o, "yesterday")),
+                        "opensAt: is not a valid date-time (RFC 3339)"),
+                new Case("a truncated document", "{\"name\":", "the request body is not valid JSON"));
+
+        for (Case c : bad) {
+            mvc.perform(post("/v1/tournaments")
+                            .cookie(o.cookie())
+                            .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(c.body()))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                    .andExpect(jsonPath("$.detail").value(c.expected()));
+        }
+
+        mvc.perform(post("/v1/tournaments")
+                        .cookie(o.cookie())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("a request body is required"));
+    }
+
+    private Map<String, Object> withScoring(Organiser o, String policy) {
+        Map<String, Object> draft = draft(o, Duration.ofMinutes(1), Duration.ofDays(7));
+        draft.put("scoringPolicy", policy);
+        return draft;
+    }
+
+    private Map<String, Object> withQuestions(Organiser o, Object questions) {
+        Map<String, Object> draft = draft(o, Duration.ofMinutes(1), Duration.ofDays(7));
+        draft.put("questions", questions);
+        return draft;
+    }
+
+    private Map<String, Object> withOpensAt(Organiser o, String opensAt) {
+        Map<String, Object> draft = draft(o, Duration.ofMinutes(1), Duration.ofDays(7));
+        draft.put("opensAt", opensAt);
+        return draft;
+    }
 }

@@ -54,7 +54,7 @@ public class QuestionBankController implements QuestionBanksApi {
     public ResponseEntity<QuestionBank> createQuestionBank(CreateQuestionBankRequest request,
                                                            String idempotencyKey,
                                                            String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
         var created = banks.create(principal.workspaceId(), principal.accountId(),
                 request.getName(), request.getDescription());
 
@@ -75,7 +75,7 @@ public class QuestionBankController implements QuestionBanksApi {
     @Override
     public ResponseEntity<Void> archiveQuestionBank(String bankId, String idempotencyKey,
         String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
         banks.archive(TypeId.parse("bnk", bankId), principal.accountId());
         return ResponseEntity.noContent().build();
     }
@@ -93,6 +93,10 @@ public class QuestionBankController implements QuestionBanksApi {
      * the request before it reaches here, but the check is repeated so this
      * class is correct on its own terms rather than by depending on filter
      * ordering.
+     *
+     * <p>Any credential will do. An API key names exactly one workspace, which
+     * is all a read needs — refusing one here would make the whole content
+     * surface unreachable to the only credential an API client can hold.
      */
     private Principal requireWorkspace() {
         Principal principal = CurrentPrincipal.get();
@@ -100,6 +104,19 @@ public class QuestionBankController implements QuestionBanksApi {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "select a workspace with the X-QuizForge-Workspace header");
         }
+        return principal;
+    }
+
+    /**
+     * A write, which must be attributable to a person.
+     *
+     * <p>Content records who authored, revised, archived and retired it, and an
+     * API key is a workspace rather than an account — there is nobody to name.
+     * Letting keys author content needs that attribution answered first, which
+     * is issue #98, not a check to quietly drop.
+     */
+    private Principal requireAccount() {
+        Principal principal = requireWorkspace();
         if (principal.accountId() == null) {
             throw new ApiException(ErrorCode.PERMISSION_DENIED,
                     "authoring requires a signed-in account, not an API key");

@@ -461,6 +461,10 @@ paths:
 
         `opensAt` and `closesAt` define the window. State is derived from them
         and the clock, so a tournament is never "started" by anything.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -633,6 +637,10 @@ paths:
         tournament asking for more questions than remain.
 
         Requires `EDITOR` or above.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -711,6 +719,10 @@ paths:
         Someone whose attempt ran out of time still played it.
 
         Requires `EDITOR` or above.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -1308,6 +1320,10 @@ paths:
         The slug is **not** changed. It was unique when the workspace was
         created and anything already referring to it would break — renaming a
         workspace is a cosmetic act, not a re-identification.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -1402,6 +1418,10 @@ paths:
         address has an account. The exposure is narrower than it looks — the
         caller must already hold a privileged role somewhere — but it is real
         and disappears when invitations land.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -1479,6 +1499,10 @@ paths:
         Demoting the **last** `OWNER` is refused with `400`. A workspace with no
         owner cannot issue keys, manage members or be renamed by anybody, and
         nothing in the API could undo it.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -1543,6 +1567,10 @@ paths:
 
         The account itself is untouched — it keeps its login and any other
         workspaces it belongs to.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -1776,6 +1804,10 @@ paths:
       description: |
         Requires `EDITOR` or above. Names are unique within a workspace, so a
         duplicate is `409` rather than a second bank nobody can tell apart.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -1878,6 +1910,10 @@ paths:
         for.
 
         Requires `EDITOR` or above. Archiving twice is not an error.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -1968,6 +2004,10 @@ paths:
 
         Duplicates are refused per bank by a normalised content hash, so the
         same question cannot be added twice under a different identifier.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -2082,6 +2122,10 @@ paths:
         question and author a new one instead.
 
         Requires `EDITOR` or above.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -2148,6 +2192,10 @@ paths:
 
         A retired question is not drawn into new attempts and does not appear in
         the bank listing. Requires `EDITOR` or above.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -2258,6 +2306,10 @@ paths:
         SINGLE_CHOICE,Capital of France?,Paris|Lyon|Nice,Paris,EASY
         NUMERIC,Value of pi to two places?,,3.14,MEDIUM
         ```
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -2318,6 +2370,10 @@ paths:
         because the source is a JSON response rather than a file.
 
         Requires `EDITOR` or above.
+
+        **Requires a signed-in account, not an API key.** The write is audited
+        against the account that made it, and a key names a workspace rather
+        than a person. Reads accept either credential; see issue #98.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/WorkspaceHeader'
@@ -2374,8 +2430,18 @@ components:
         when created and stored only as a SHA-256 digest thereafter.
 
         Authenticates a workspace rather than a person, so endpoints that
-        attribute an action to an account — starting and submitting attempts —
-        reject it.
+        attribute an action to an account reject it with
+        `403 PERMISSION_DENIED`:
+
+        - starting and submitting attempts, which belong to a player;
+        - authoring, revising, retiring and importing content;
+        - scheduling, amending and deleting tournaments;
+        - adding, re-roling and removing members;
+        - managing workspaces and API keys.
+
+        In practice that is **every write**: a key reads. Whether a key should
+        be able to write, and how such a write would be attributed in the audit
+        log, is issue #98.
 
   headers:
     RateLimitLimit:

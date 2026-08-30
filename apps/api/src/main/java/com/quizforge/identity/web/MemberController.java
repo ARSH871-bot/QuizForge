@@ -70,7 +70,7 @@ public class MemberController implements MembersApi {
     @Override
     public ResponseEntity<Member> addMember(AddMemberRequest request, String idempotencyKey,
         String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
 
         Account account = accounts.requireByEmail(request.getEmail());
         Membership membership = workspaces.addMember(principal.workspaceId(),
@@ -83,7 +83,7 @@ public class MemberController implements MembersApi {
     public ResponseEntity<Member> changeMemberRole(String accountId, ChangeRoleRequest request,
                                                    String idempotencyKey,
                                                    String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
         UUID target = TypeId.parse("acc", accountId);
 
         workspaces.changeRole(principal.workspaceId(), principal.accountId(), target,
@@ -100,7 +100,7 @@ public class MemberController implements MembersApi {
     @Override
     public ResponseEntity<Void> removeMember(String accountId, String idempotencyKey,
         String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
         workspaces.removeMember(principal.workspaceId(), principal.accountId(),
                 TypeId.parse("acc", accountId));
         return ResponseEntity.noContent().build();
@@ -121,14 +121,32 @@ public class MemberController implements MembersApi {
         return com.quizforge.identity.domain.Role.valueOf(role.getValue());
     }
 
+    /**
+     * The workspace in scope, from whatever credential the caller holds.
+     *
+     * <p>An API key names exactly one workspace, which is all a read needs.
+     * Refusing one here made the member listing unreachable to an API client.
+     */
     private Principal requireWorkspace() {
         Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.workspaceId() == null) {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "select a workspace with the X-QuizForge-Workspace header");
         }
+        return principal;
+    }
+
+    /**
+     * A membership change, which is audited against the account that made it.
+     *
+     * <p>{@code PERMISSION_DENIED} rather than {@code AUTHENTICATION_REQUIRED}:
+     * the caller is authenticated, and a 401 invites it to retry with the
+     * credentials it already holds. Every other module answers 403 here.
+     */
+    private Principal requireAccount() {
+        Principal principal = requireWorkspace();
         if (principal.accountId() == null) {
-            throw new ApiException(ErrorCode.AUTHENTICATION_REQUIRED,
+            throw new ApiException(ErrorCode.PERMISSION_DENIED,
                     "managing members requires a signed-in account, not an API key");
         }
         return principal;

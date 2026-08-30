@@ -584,4 +584,55 @@ class ContentApiTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
     }
+
+    // ------------------------------------------------------------ API keys
+
+    /**
+     * The SDK holds an API key and nothing else, so a key that cannot read
+     * content makes the whole content surface unreachable to an API client.
+     * This was the state until the SDK tried to use it.
+     */
+    @Test
+    void anApiKeyCanReadContentButNotAuthorIt() throws Exception {
+        var a = author();
+        String bankId = bank(a, "Geography " + UUID.randomUUID());
+        authorQuestion(a, bankId, Map.of(
+                "type", "SINGLE_CHOICE", "prompt", "Capital of France?",
+                "payload", choice("Paris", "Lyon")));
+
+        String secret = body(mvc.perform(post("/v1/api-keys")
+                        .cookie(a.cookie())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, a.workspaceId())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("name", "SDK"))))
+                .andExpect(status().isCreated())).get("secret").asText();
+
+        // Reads: the key names one workspace, which is all a read needs. No
+        // workspace header - the key already says which one.
+        mvc.perform(get("/v1/question-banks").header("Authorization", "Bearer " + secret))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(bankId));
+
+        mvc.perform(get("/v1/question-banks/" + bankId + "/questions")
+                        .header("Authorization", "Bearer " + secret))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].prompt").value("Capital of France?"));
+
+        // Writes: a version records who authored it, and a key is a workspace
+        // rather than a person. Refused until #98 answers the attribution.
+        mvc.perform(post("/v1/question-banks")
+                        .header("Authorization", "Bearer " + secret)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("name", "By key"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+
+        mvc.perform(post("/v1/question-banks/" + bankId + "/imports/csv")
+                        .header("Authorization", "Bearer " + secret)
+                        .contentType("text/csv")
+                        .content("type,prompt,options,correct,difficulty\n"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PERMISSION_DENIED"));
+    }
 }

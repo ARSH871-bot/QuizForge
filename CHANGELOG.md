@@ -16,6 +16,27 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **A TypeScript SDK (M4)** under `packages/sdk-typescript`. Types are generated
+  from `openapi.yaml` and committed; CI regenerates them and fails on a
+  difference, so the checked-in types cannot drift from the contract. The layer
+  above them is hand-written, because a fully generated client is unpleasant to
+  use:
+
+  - `list()` returns an async generator that follows cursors, so paging is not
+    the caller's problem;
+  - every mutating request carries an `Idempotency-Key` generated per call, and
+    the client's own retry reuses it, so a retry after a timeout cannot perform
+    the work twice;
+  - `QuizForgeError` carries the stable `code`, the status, the full problem
+    document and `retryAfterSeconds`; `QuizForgeConnectionError` is separate,
+    because a request that never arrived has no status to report;
+  - a `429` waits for `Retry-After` when the server sent one, and otherwise
+    backs off exponentially with jitter.
+
+  Not published to npm: the package name is the owner's decision (#83).
+  `examples/bootstrap.sh` and `examples/quickstart.ts` are the README's
+  quickstart, and its transcript is their real output.
+
 - **Per-credential rate limiting (M4).** A token bucket in Postgres, one per
   API key or session account, with `RateLimit-Limit`, `RateLimit-Remaining` and
   `RateLimit-Reset` on **every** `/v1` response rather than only on `429` — a
@@ -97,6 +118,28 @@ these are milestone markers, and the minor number tracks the milestone.
   addition stays additive.
 
 ### Fixed
+
+- **API keys were refused on reads, not just writes.** The content module and
+  the member listing rejected every request from a key — a `GET` answered with
+  "authoring requires a signed-in account" — which made the whole content
+  surface unreachable to an API client, since a key is the only credential one
+  can hold. Reads now accept any credential; writes still require an account.
+  Found by running the SDK's quickstart against a real instance.
+
+  Writes remain closed to keys, and that is now a decision with an issue rather
+  than an accident: #98 covers how a key-authored write would be attributed,
+  given `audit_event.actor_id` is a foreign key to `account`.
+- **A body Jackson could not read was a `500`.** An unknown enum value, a string
+  where a number belongs, a truncated document or no body at all fell through to
+  the catch-all and were reported as "an unexpected error occurred". Every one
+  is the caller's mistake and is now `400 INVALID_REQUEST` naming the field —
+  `scoringPolicy: must be one of BEST, FIRST, LAST, AVERAGE`. Jackson's own
+  message is never passed through; it names internal classes and quotes the
+  input.
+- Adding, re-roling or removing a member with an API key answered `401`, while
+  every other module answered `403` for the identical condition. The caller is
+  authenticated, so `401` invited it to retry with credentials it already held.
+  Now `403 PERMISSION_DENIED`.
 
 - The platform design and the M4 plan both cited **RFC 9331** for the
   `RateLimit-*` headers. That RFC is the L4S congestion notification protocol

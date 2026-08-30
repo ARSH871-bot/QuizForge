@@ -14,7 +14,7 @@ what is safe to do with the code.
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
-| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 8 of 10 tasks |
+| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 9 of 10 tasks |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
 | M7 | Commercial & launch readiness | Not started | no plan written |
@@ -34,7 +34,7 @@ instance. Every endpoint requires credentials except `/v1/auth/**` and
 Remaining caveats before a real deployment — none of them security holes, all
 of them missing polish:
 
-- No public API contract or SDKs yet (M4)
+- The TypeScript SDK is not published; the npm name is the owner's call ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83))
 - No web interface (M5)
 - No billing, observability, backups or runbooks (M7)
 - Email is disabled by default; a provider is wired in M4
@@ -61,7 +61,19 @@ create a workspace, mint a `qf_live_…` key, build and fill a question bank,
 schedule a tournament, play it, and read the standings — without touching a
 database console. Verified against a running server, not only in tests.
 
-What M4 still owes is an SDK and a quickstart.
+There is now a TypeScript SDK under `packages/sdk-typescript`, with a
+quickstart whose transcript is its real output against a running instance.
+
+**But an API key can only read.** Every write endpoint refuses one, so the SDK
+consumes the API rather than driving it, and its idempotency-key generation
+cannot be exercised by the credential it is built around. Writing the SDK is
+what surfaced this: a key is the only credential an API client can hold.
+[#98](https://github.com/ARSH871-bot/QuizForge/issues/98) is the decision —
+a write is audited against an account, and `audit_event.actor_id` is a foreign
+key to `account`, so letting a key write means saying what goes in that column.
+Until it is answered, "API-first" is true of reads only.
+
+What M4 still owes is developer onboarding and a published spec (Task 10).
 
 ## Known gaps
 

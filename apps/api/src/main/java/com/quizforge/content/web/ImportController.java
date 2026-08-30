@@ -39,7 +39,7 @@ public class ImportController implements ImportsApi {
     public ResponseEntity<ImportReport> importCsv(String bankId, String body,
                                                   String idempotencyKey,
                                                   String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
         UUID bank = TypeId.parse("bnk", bankId);
 
         return ResponseEntity.ok(represent(csv.importInto(bank, principal.accountId(), body)));
@@ -56,7 +56,7 @@ public class ImportController implements ImportsApi {
                                                       OpenTdbImportRequest request,
                                                       String idempotencyKey,
                                                       String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
         UUID bank = TypeId.parse("bnk", bankId);
 
         // Read each nullable value once. Calling the getter twice - to test and
@@ -94,7 +94,15 @@ public class ImportController implements ImportsApi {
                         .toList());
     }
 
-    private Principal requireWorkspace() {
+    /**
+     * An import, which must be attributable to a person.
+     *
+     * <p>Imported questions record who authored them, and an API key is a
+     * workspace rather than an account — there is nobody to name. Reads accept
+     * a key; letting one import needs that attribution answered first, which is
+     * issue #98.
+     */
+    private Principal requireAccount() {
         Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.workspaceId() == null) {
             throw new ApiException(ErrorCode.INVALID_REQUEST,

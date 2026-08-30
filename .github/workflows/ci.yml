@@ -104,6 +104,39 @@ jobs:
         run: |
           docker run --rm -v /tmp:/specs tufin/oasdiff breaking /specs/base-openapi.yaml /specs/head-openapi.yaml --fail-on ERR
 
+  sdk-typescript:
+    name: sdk-typescript
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/sdk-typescript
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packages/sdk-typescript/package-lock.json
+      - run: npm ci
+
+      - name: Types must match the contract
+        # src/types.ts is generated and committed, so editors and CI see the
+        # same types without a build step. Regenerating and diffing is what
+        # stops the committed copy drifting from openapi.yaml - a hand-edit
+        # there would otherwise silently outlive the contract it came from.
+        run: |
+          npm run generate
+          if ! git diff --exit-code -- src/types.ts; then
+            echo "::error::src/types.ts is stale. Run 'npm run generate' in packages/sdk-typescript and commit the result."
+            exit 1
+          fi
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
   secret-scan:
     name: secret-scan
     runs-on: ubuntu-latest

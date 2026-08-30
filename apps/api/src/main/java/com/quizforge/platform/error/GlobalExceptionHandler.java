@@ -1,16 +1,20 @@
 package com.quizforge.platform.error;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 
 /**
@@ -71,6 +75,111 @@ public class GlobalExceptionHandler {
 
     private static String describe(String parameter, String message) {
         return (parameter == null ? "request" : parameter) + ": " + message;
+    }
+
+    /**
+     * A request body Jackson could not turn into the expected type.
+     *
+     * <p>An unknown enum value, a string where a number belongs, a truncated
+     * document, or no body at all. Every one of these is the caller's mistake,
+     * and without this handler they fell through to the catch-all and were
+     * reported as 500 - the SDK's first unknown scoring policy was answered
+     * with "an unexpected error occurred", which is both wrong and unactionable.
+     *
+     * <p>Jackson's own message names internal classes and quotes the input, so
+     * it is never passed through. The field path and the permitted values are
+     * both things the caller already knows about; nothing else is disclosed.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleUnreadableBody(HttpMessageNotReadableException e,
+                                              HttpServletRequest request) {
+        return problem(ErrorCode.INVALID_REQUEST, describeBody(e), request);
+    }
+
+    private static String describeBody(HttpMessageNotReadableException e) {
+        // Spring's own wording for an absent body; there is no Jackson cause.
+        if (e.getMessage() != null && e.getMessage().contains("Required request body is missing")) {
+            return "a request body is required";
+        }
+
+        if (!(e.getCause() instanceof JsonMappingException mapping)) {
+            return "the request body is not valid JSON";
+        }
+
+        String field = path(mapping);
+        if (field == null) {
+            return "the request body is not valid JSON";
+        }
+
+        // An enum can say exactly what it would have accepted, which is the
+        // difference between a caller fixing a typo and a caller guessing.
+        Class<?> type = declaredType(mapping);
+        if (type != null && type.isEnum()) {
+            return field + ": must be one of " + Arrays.stream(type.getEnumConstants())
+                    .map(String::valueOf).collect(Collectors.joining(", "));
+        }
+        return field + ": is not a valid " + simpleName(type);
+    }
+
+    /** The dotted path to the offending field, as the caller wrote it. */
+    private static String path(JsonMappingException e) {
+        String field = e.getPath().stream()
+                .map(reference -> reference.getFieldName() == null
+                        ? "[" + reference.getIndex() + "]"
+                        : reference.getFieldName())
+                .collect(Collectors.joining("."));
+        return field.isBlank() ? null : field;
+    }
+
+    /**
+     * The type the offending field was declared as.
+     *
+     * <p>{@link InvalidFormatException} carries it. A {@code @JsonCreator} that
+     * threw does not, so it is recovered from the field on the enclosing class
+     * - which is how an unknown enum value gets told what the alternatives are.
+     */
+    private static Class<?> declaredType(JsonMappingException e) {
+        if (e instanceof InvalidFormatException invalid && invalid.getTargetType() != null) {
+            return invalid.getTargetType();
+        }
+        var path = e.getPath();
+        if (path.isEmpty()) {
+            return null;
+        }
+        var last = path.get(path.size() - 1);
+        Object owner = last.getFrom();
+        if (owner == null || last.getFieldName() == null) {
+            return null;
+        }
+        Class<?> declaring = owner instanceof Class<?> type ? type : owner.getClass();
+        try {
+            return declaring.getDeclaredField(last.getFieldName()).getType();
+        } catch (NoSuchFieldException | RuntimeException unknown) {
+            return null;
+        }
+    }
+
+    /**
+     * What to call a type in a message to a caller.
+     *
+     * <p>Named the way the contract names it, not the way Java does: a client
+     * sending a bad timestamp is told to send a date-time, not an
+     * {@code offsetdatetime} it has never heard of.
+     */
+    private static String simpleName(Class<?> type) {
+        if (type == null) {
+            return "value";
+        }
+        return switch (type.getSimpleName()) {
+            case "OffsetDateTime", "Instant", "LocalDateTime" -> "date-time (RFC 3339)";
+            case "LocalDate" -> "date";
+            case "Integer", "int", "Long", "long" -> "integer";
+            case "Double", "double", "Float", "float", "BigDecimal" -> "number";
+            case "Boolean", "boolean" -> "boolean";
+            case "String" -> "string";
+            case "UUID" -> "identifier";
+            default -> type.getSimpleName().toLowerCase(java.util.Locale.ROOT);
+        };
     }
 
     @ExceptionHandler(Exception.class)

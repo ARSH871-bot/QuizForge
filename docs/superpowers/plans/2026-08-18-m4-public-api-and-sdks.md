@@ -307,18 +307,48 @@ The last one is the interesting one: a genuine conflict between the ruleset and
 the code generator, where following the rule would reintroduce a defect this
 project has already fixed once.
 
-## Task 9: The TypeScript SDK
+## Task 9: The TypeScript SDK — done
 
-- [ ] `packages/sdk-typescript/`, generated types via `openapi-typescript` from the same `openapi.yaml`
-- [ ] Hand-written client: `new QuizForge({ apiKey })`, one method per resource group
-- [ ] Automatic `Idempotency-Key` generation for mutating calls, overridable by the caller
-- [ ] `for await (const q of qf.questions.list(bankId))` — async iteration that follows cursors
-- [ ] Typed errors: a `QuizForgeError` carrying the `code`, so consumers branch on a stable string rather than a message
-- [ ] Retry with exponential backoff on 429 and 5xx, honouring `Retry-After`; never retry a non-idempotent call without a key
-- [ ] `README.md` with a copy-pasteable quickstart that works start to finish
-- [ ] CI job building and type-checking the SDK; regenerate and fail if the committed types differ from the contract
+- [x] `packages/sdk-typescript/`, generated types via `openapi-typescript` from the same `openapi.yaml`
+- [x] Hand-written client: `new QuizForge({ apiKey })`, one method per resource group
+- [x] Automatic `Idempotency-Key` generation for mutating calls, overridable by the caller
+- [x] `for await (const q of qf.questions.list(bankId))` — async iteration that follows cursors
+- [x] Typed errors: a `QuizForgeError` carrying the `code`, so consumers branch on a stable string rather than a message
+- [x] Retry with exponential backoff on 429 and 5xx, honouring `Retry-After`; never retry a non-idempotent call without a key
+- [x] `README.md` with a copy-pasteable quickstart that works start to finish
+- [x] CI job building and type-checking the SDK; regenerate and fail if the committed types differ from the contract
 
 **Not in this task:** publishing to npm. That claims a public package name and is the owner's call, not an implementation detail — see *Owner actions required*.
+
+### What running the quickstart found
+
+Writing a client is a harder test of an API than writing its contract was,
+because a client can only hold the credentials the API actually issues.
+
+**An API key can read the whole API and write none of it** ([#98]). Every write
+endpoint outside `/v1/auth` refuses one. The SDK's automatic idempotency keys —
+the feature this milestone spent Task 7 building — cannot be exercised by the
+credential the SDK is built around. This is not a bug to delete: a write is
+attributed to an account, and `audit_event.actor_id` is a foreign key to
+`account`, so opening writes to keys means deciding what goes in that column.
+The issue lays out three options and recommends one.
+
+Two things were fixed here rather than deferred, because both were unambiguous:
+
+- Content and member **reads** refused keys too — a `GET` answered with
+  "authoring requires a signed-in account". That made the entire content
+  surface unreachable to an API client. Reads now take any credential.
+- A body Jackson could not read was a **500**. An unknown enum value, a string
+  where a number belongs, a truncated document, no body at all. All are the
+  caller's mistake and are now `400` naming the field and, for an enum, its
+  permitted values.
+
+The quickstart's README transcript is the real output of
+`examples/bootstrap.sh` followed by `examples/quickstart.ts` against a running
+instance — including the `403` a key gets when it tries to write, which is the
+honest thing for the quickstart to show while [#98] is open.
+
+[#98]: https://github.com/ARSH871-bot/QuizForge/issues/98
 
 ## Task 10: Developer onboarding
 

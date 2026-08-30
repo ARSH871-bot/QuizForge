@@ -59,7 +59,7 @@ public class QuestionController implements QuestionsApi {
     public ResponseEntity<Question> authorQuestion(String bankId, AuthorQuestionRequest request,
                                                    String idempotencyKey,
                                                    String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
 
         var authored = questions.author(
                 TypeId.parse("bnk", bankId),
@@ -88,7 +88,7 @@ public class QuestionController implements QuestionsApi {
                                                    ReviseQuestionRequest request,
                                                    String idempotencyKey,
                                                    String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
 
         var revised = questions.revise(
                 TypeId.parse("qst", questionId),
@@ -120,7 +120,7 @@ public class QuestionController implements QuestionsApi {
     @Override
     public ResponseEntity<Void> retireQuestion(String questionId, String idempotencyKey,
         String workspaceHeader) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireAccount();
         questions.retire(TypeId.parse("qst", questionId), principal.accountId());
         return ResponseEntity.noContent().build();
     }
@@ -158,12 +158,30 @@ public class QuestionController implements QuestionsApi {
         return com.quizforge.content.domain.QuestionType.valueOf(type.getValue());
     }
 
+    /**
+     * The workspace in scope, from whatever credential the caller holds.
+     *
+     * <p>An API key names exactly one workspace, which is all a read needs.
+     * Row-Level Security does the isolation once that workspace is in scope.
+     */
     private Principal requireWorkspace() {
         Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.workspaceId() == null) {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "select a workspace with the X-QuizForge-Workspace header");
         }
+        return principal;
+    }
+
+    /**
+     * A write, which must be attributable to a person.
+     *
+     * <p>Every version records who authored it, and an API key is a workspace
+     * rather than an account — there is nobody to name. Letting keys author
+     * content needs that attribution answered first, which is issue #98.
+     */
+    private Principal requireAccount() {
+        Principal principal = requireWorkspace();
         if (principal.accountId() == null) {
             throw new ApiException(ErrorCode.PERMISSION_DENIED,
                     "authoring requires a signed-in account, not an API key");

@@ -32,8 +32,21 @@ that depends on remembering will be forgotten.
 ## Workflow
 
 Trunk-based. Branch from `main`, keep branches short-lived, open a pull
-request. `main` is protected: linear history and passing status checks are
-required.
+request.
+
+**`main` has no server-side protection.** Rulesets require a public repository
+or paid Advanced Security, and this one is private on the Free plan (ADR 0013).
+Nothing on GitHub will stop a direct push, a force-push, or a merge with red
+checks. What exists instead is `.githooks/pre-push`, which is local, advisory,
+and only active once `core.hooksPath` is set:
+
+```bash
+git config core.hooksPath .githooks    # first thing after cloning
+```
+
+The CI jobs still run on every pull request and are the real gate — they are
+just not *enforced* as required checks. Read them before merging; nothing else
+will.
 
 ```bash
 git switch -c feat/short-description

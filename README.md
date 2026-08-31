@@ -17,10 +17,11 @@ product surface.
 ## Status
 
 Pre-launch. M0 (foundation), M1 (identity and tenancy), M2 (content and
-authoring) and M3 (tournaments and play) are complete: a player can start a
-tournament, answer question by question, submit, and appear on a leaderboard,
-entirely through authenticated `/v1` endpoints. M4 (the public API contract and
-SDKs) is next.
+authoring), M3 (tournaments and play) and M4 (the public API contract and SDKs)
+are complete: a player can start a tournament, answer question by question,
+submit, and appear on a leaderboard, entirely through authenticated `/v1`
+endpoints, and a developer can drive all of it from a documented contract and a
+TypeScript SDK. `v0.5.0` has not been cut yet. M5 (the web dashboard) is next.
 
 **[STATUS.md](STATUS.md) is the single source of truth** for where the product
 stands, what is safe to do with the code, and every known gap. Read it before
@@ -135,12 +136,13 @@ enforced locally by a git hook and on pull request titles in CI.
 ## Versioning
 
 Milestones are tagged and released: `v0.1.0` (M0), `v0.2.0` (M1), `v0.3.0`
-(M2). See [Releases](https://github.com/ARSH871-bot/QuizForge/releases).
+(M2), `v0.4.0` (M3). See
+[Releases](https://github.com/ARSH871-bot/QuizForge/releases).
 
-Semantic versioning of the **public API** begins at M4, when the OpenAPI
-contract and generated SDKs exist and a version number starts meaning
-something to a consumer. Until then the numbers track milestones and act as
-restore points. `1.0.0` is launch.
+Semantic versioning of the **public API** begins at `v0.5.0`. The OpenAPI
+contract and the SDK now exist, so from that tag onwards a version number means
+something to a consumer rather than tracking a milestone. Until it is cut the
+numbers are restore points. `1.0.0` is launch.
 
 ## Licence
 

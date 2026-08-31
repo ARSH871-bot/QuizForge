@@ -2,16 +2,21 @@
 
 ## Reporting a vulnerability
 
-Open a **private security advisory** on this repository:
+**The repository is currently private, and private vulnerability reporting is
+unavailable on the Free plan** (ADR 0013). The advisory form that this file
+used to link to returns an error rather than a form, so it is not linked here —
+a reporting channel that does not work is worse than an obvious absence.
 
-<https://github.com/ARSH871-bot/QuizForge/security/advisories/new>
+While the repository is private, everyone who can read this file is a
+collaborator, and the channel is whatever you already use to reach the owner
+directly. Do not open an issue: issues on this repository are for planned work
+and are read as such.
 
-This keeps the report confidential until a fix is released. Please do not open
-a public issue for a security report.
-
-No email address is published here deliberately. An address that bounces is
-worse than no address at all, and this project does not yet have a domain. A
-contact address is added at launch, alongside the domain.
+At launch the repository becomes reachable by people who are not collaborators,
+and this section is replaced by a working channel before that happens — a
+private advisory if the plan allows it, otherwise an address on the project's
+own domain. No email is published here in the meantime: an address that bounces
+is worse than no address at all, and this project does not yet have a domain.
 
 ## What to include
 

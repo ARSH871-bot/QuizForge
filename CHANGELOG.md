@@ -138,6 +138,30 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- **Six documentation claims that were no longer true.** Found by a read-only
+  audit of the whole repository rather than by touching the code:
+
+  - `README.md` said M4 was *next*. All ten of its tasks are done; only the
+    `v0.5.0` tag is outstanding. It also listed releases up to `v0.3.0` while
+    `v0.4.0` is tagged, and dated the start of meaningful versioning to "M4,
+    when the OpenAPI contract and SDKs exist" — they exist.
+  - `STATUS.md` advertised **215** tests in the table of enforced controls.
+    There are 272.
+  - `CONTRIBUTING.md` said "`main` is protected: linear history and passing
+    status checks are required". It is not protected at all — ADR 0013 says so
+    plainly, and the file contradicting it is the one a new contributor reads
+    first. It now says what is actually true, and documents the
+    `git config core.hooksPath .githooks` step without which even the local
+    advisory hook does nothing.
+  - `SECURITY.md`, `CODE_OF_CONDUCT.md` and `SUPPORT.md` all pointed at
+    GitHub's private advisory form, which is unavailable on the Free plan for a
+    private repository. Three documents offered a reporting channel that
+    returns an error, and `SECURITY.md` deliberately publishes no address — so
+    between them there was no way to report a vulnerability at all.
+
+  A document that is wrong is worse than one that is missing: the missing one
+  sends you looking, the wrong one sends you away.
+
 - The contract's overview still said an API key was rejected only by the
   endpoints that start and submit attempts. A key is refused by **every** write.
   The security scheme and the individual operations had been corrected; the

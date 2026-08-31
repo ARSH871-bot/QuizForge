@@ -14,7 +14,7 @@ what is safe to do with the code.
 | M1 | Identity & tenancy | **Complete** | merged to `main`, 56 tests, CI green |
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
-| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 9 of 10 tasks |
+| M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 10 of 10 tasks; `v0.5.0` not yet cut |
 | M5 | Web dashboard | Not started | no plan written |
 | M6 | Player experience & widget | Not started | no plan written |
 | M7 | Commercial & launch readiness | Not started | no plan written |
@@ -73,7 +73,16 @@ a write is audited against an account, and `audit_event.actor_id` is a foreign
 key to `account`, so letting a key write means saying what goes in that column.
 Until it is answered, "API-first" is true of reads only.
 
-What M4 still owes is developer onboarding and a published spec (Task 10).
+[`docs/api/README.md`](docs/api/README.md) is the walkthrough, and
+[`docs/api/quickstart.sh`](docs/api/quickstart.sh) runs it unattended — both
+verified against a database that was empty when they started.
+
+The rendered contract is served locally by `npm run spec`; it is **not hosted**,
+because GitHub Pages is unavailable for a private repository on the Free plan.
+Its workflow exists and is manual-trigger only ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83)).
+
+All ten M4 tasks are done. What M4 still owes is the `v0.5.0` release — the
+first version number that means something to a consumer.
 
 ## Known gaps
 

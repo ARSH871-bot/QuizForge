@@ -47,6 +47,24 @@ The API listens on http://localhost:8080.
 `DB_PASSWORD` has no committed default by design, so it must be supplied.
 Copy `.env.example` to `.env` for a permanent local setup.
 
+**Then follow [docs/api/README.md](docs/api/README.md)** — an account, a
+workspace, a question bank, a tournament, a played attempt and a leaderboard,
+one runnable command at a time. It is the same walkthrough as
+[`docs/api/quickstart.sh`](docs/api/quickstart.sh), which runs it unattended.
+
+## The API
+
+| | |
+|---|---|
+| [Getting started](docs/api/README.md) | Clone to a played tournament, every command runnable |
+| [`openapi.yaml`](openapi.yaml) | The contract. 41 operations, every error code, no drift |
+| [API reference](docs/api/spec/) | The contract rendered. `npm run spec`, then <http://localhost:8090> |
+| [TypeScript SDK](packages/sdk-typescript) | Cursors followed, idempotency keys generated, typed errors |
+
+The reference is not hosted yet: GitHub Pages is unavailable for a private
+repository on the Free plan, so it is served locally and its publishing
+workflow is manual until that changes ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83)).
+
 ### Email
 
 Email needs no configuration and no account. `EMAIL_TEST_MODE` defaults to

@@ -16,6 +16,25 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Developer onboarding (M4).** [`docs/api/README.md`](docs/api/README.md) is
+  one continuous narrative from `git clone` to a played tournament and a
+  leaderboard — register, sign in, create a workspace, build a bank, import
+  questions, mint a key, schedule a tournament, play it, read the standings.
+  Every command was run against a database that was empty when it started, in
+  the order shown, and the responses are the real ones.
+
+  [`docs/api/quickstart.sh`](docs/api/quickstart.sh) is the same walkthrough as
+  a script, so it can be re-run whenever the API changes rather than rotting
+  quietly.
+- **The contract, rendered.** `npm run spec` serves Swagger UI over
+  `openapi.yaml` at <http://localhost:8090> with no install step and no build
+  directory. All 41 operations render.
+
+  `.github/workflows/pages.yml` publishes it, and is **manual-trigger only**:
+  GitHub Pages is unavailable for a private repository on the Free plan, and a
+  workflow that failed on every push would teach people to ignore red checks.
+  Enabling Pages and running it is an owner action (#83).
+
 - **A TypeScript SDK (M4)** under `packages/sdk-typescript`. Types are generated
   from `openapi.yaml` and committed; CI regenerates them and fails on a
   difference, so the checked-in types cannot drift from the contract. The layer
@@ -118,6 +137,12 @@ these are milestone markers, and the minor number tracks the milestone.
   addition stays additive.
 
 ### Fixed
+
+- The contract's overview still said an API key was rejected only by the
+  endpoints that start and submit attempts. A key is refused by **every** write.
+  The security scheme and the individual operations had been corrected; the
+  overview had not, and it is the first thing a reader sees. Caught by
+  rendering the spec and reading it.
 
 - **API keys were refused on reads, not just writes.** The content module and
   the member listing rejected every request from a key — a `GET` answered with

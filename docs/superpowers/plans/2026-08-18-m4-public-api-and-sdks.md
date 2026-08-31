@@ -350,26 +350,46 @@ honest thing for the quickstart to show while [#98] is open.
 
 [#98]: https://github.com/ARSH871-bot/QuizForge/issues/98
 
-## Task 10: Developer onboarding
+## Task 10: Developer onboarding — done
 
-- [ ] `docs/api/README.md`: authenticate, create a workspace, mint a key, create a bank, import questions, create a tournament, play it — one continuous narrative, every command runnable
-- [ ] Publish the rendered spec (Swagger UI or Scalar) via GitHub Pages
-- [ ] Link it from `README.md`
-- [ ] Execute the entire quickstart against a clean `docker compose up` and fix whatever does not work
+- [x] `docs/api/README.md`: authenticate, create a workspace, mint a key, create a bank, import questions, create a tournament, play it — one continuous narrative, every command runnable
+- [x] Render the spec (Swagger UI) — `npm run spec`, zero install, all 41 operations verified in a real browser
+- [~] Publish it via GitHub Pages — **blocked**: Pages is unavailable for a private repository on the Free plan. `.github/workflows/pages.yml` exists and is `workflow_dispatch`-only, so it does not fail on every push; enabling Pages and running it is an owner action (#83)
+- [x] Link it from `README.md`
+- [x] Execute the entire quickstart against a clean `docker compose up` and fix whatever does not work
 
 **Done when:** a developer who has never seen this repository can go from clone to a played tournament using only the published documentation.
+
+### Verification
+
+Run against an isolated stack on a fresh volume — a second compose project on
+different ports, rather than destroying the working database, because "clean"
+should not have to mean "destructive". Every call in the document was executed
+in the order it appears, and the responses in it are the real ones.
+
+Two things were found by doing it rather than by reading:
+
+- The contract's **overview** still said an API key was rejected only by the
+  endpoints that start and submit attempts. A key is refused by every write.
+  The security scheme and each operation had been corrected in Task 9; the
+  overview had not, and it is the first thing a reader sees. Rendering the spec
+  and reading it top to bottom is what caught it — a linter cannot.
+- `Content-Type` is easy to get wrong twice on the CSV import: the endpoint
+  takes the document itself, and a client that sets `application/json` as a
+  default and then adds `text/csv` sends both. The walkthrough says so
+  explicitly, because the failure is silent.
 
 ---
 
 ## Definition of done for M4
 
-- [ ] `openapi.yaml` describes 100% of the `/v1` surface; Spectral clean; drift gate proven by watching it fail
-- [ ] Every controller implements a generated interface
-- [ ] A developer can create a workspace, mint an API key, build a question bank, create a tournament and play it **using only the public API**
-- [ ] Idempotency, cursor pagination and rate limiting apply uniformly, not per-endpoint
-- [ ] TypeScript SDK builds, type-checks and has a quickstart that has been run
-- [ ] `CHANGELOG.md`, `STATUS.md`, plan checkboxes, issues and the project board updated per `CONTRIBUTING.md`
-- [ ] ADR for the contract-first toolchain, recording why generated *interfaces* rather than generated controllers
+- [x] `openapi.yaml` describes 100% of the `/v1` surface; Spectral clean; drift gate proven by watching it fail
+- [x] Every controller implements a generated interface
+- [x] A developer can create a workspace, mint an API key, build a question bank, create a tournament and play it **using only the public API** — with a session; an API key reads only (#98)
+- [x] Idempotency, cursor pagination and rate limiting apply uniformly, not per-endpoint
+- [x] TypeScript SDK builds, type-checks and has a quickstart that has been run
+- [x] `CHANGELOG.md`, `STATUS.md`, plan checkboxes, issues and the project board updated per `CONTRIBUTING.md`
+- [x] ADR for the contract-first toolchain, recording why generated *interfaces* rather than generated controllers (ADR 0011)
 - [ ] `v0.5.0` released — the first release whose version number means something to a consumer
 
 ## Owner actions required
@@ -377,7 +397,7 @@ honest thing for the quickstart to show while [#98] is open.
 Not implementable; they need an account or a decision only the owner can make.
 
 - [ ] Decide the npm package name and create the npm organisation (`@quizforge` or similar). Publishing claims a public name permanently, so it should not happen as a side effect of a build.
-- [ ] Enable GitHub Pages for the rendered spec.
+- [ ] Enable GitHub Pages for the rendered spec. The page, the workflow and the local renderer are all built and verified; only the switch is missing, and Pages is unavailable for a private repository on the Free plan.
 - [ ] Confirm the free-tier rate limit number before it is documented — it is easy to lower privately and painful to lower publicly.
 
 ## Explicitly out of scope

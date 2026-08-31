@@ -56,15 +56,15 @@ public class RateLimiter {
         jdbc.update("""
                 INSERT INTO rate_limit_bucket (subject_id, workspace_id, tokens, refilled_at)
                 VALUES (?, ?, ?, now())
-                ON CONFLICT (subject_id) DO NOTHING
+                ON CONFLICT (subject_id, workspace_id) DO NOTHING
                 """, subjectId, workspaceId, (double) limit);
 
         List<double[]> rows = jdbc.query("""
                 SELECT tokens, EXTRACT(EPOCH FROM (now() - refilled_at))
                 FROM rate_limit_bucket
-                WHERE subject_id = ?
+                WHERE subject_id = ? AND workspace_id = ?
                 FOR UPDATE
-                """, (rs, n) -> new double[]{rs.getDouble(1), rs.getDouble(2)}, subjectId);
+                """, (rs, n) -> new double[]{rs.getDouble(1), rs.getDouble(2)}, subjectId, workspaceId);
 
         if (rows.isEmpty()) {
             // The row vanished between the two statements - a workspace deleted
@@ -78,7 +78,7 @@ public class RateLimiter {
         double remaining = allowed ? available - 1 : available;
 
         jdbc.update("UPDATE rate_limit_bucket SET tokens = ?, refilled_at = now() "
-                + "WHERE subject_id = ?", remaining, subjectId);
+                + "WHERE subject_id = ? AND workspace_id = ?", remaining, subjectId, workspaceId);
 
         return new Decision(allowed, limit, (int) Math.floor(remaining),
                 secondsUntilNextToken(remaining, refillPerSecond));

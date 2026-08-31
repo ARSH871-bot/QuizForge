@@ -64,20 +64,28 @@ class RateLimitTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getCookie(SessionAuthFilter.COOKIE_NAME);
 
-        String workspaceId = json.readTree(mvc.perform(post("/v1/workspaces")
+        String workspaceId = createWorkspace(cookie);
+
+        return new Caller(cookie, workspaceId, TypeId.parse("acc", accountId));
+    }
+
+    private String createWorkspace(Cookie cookie) throws Exception {
+        return json.readTree(mvc.perform(post("/v1/workspaces")
                         .cookie(cookie).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("name", "Acme " + UUID.randomUUID()))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString()).get("id").asText();
-
-        return new Caller(cookie, workspaceId, TypeId.parse("acc", accountId));
     }
 
     private MvcResult call(Caller c) throws Exception {
+        return call(c, c.workspaceId());
+    }
+
+    private MvcResult call(Caller c, String workspaceId) throws Exception {
         return mvc.perform(get("/v1/question-banks")
                         .cookie(c.cookie())
-                        .header(SessionAuthFilter.WORKSPACE_HEADER, c.workspaceId()))
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, workspaceId))
                 .andReturn();
     }
 
@@ -194,6 +202,35 @@ class RateLimitTest extends AbstractIntegrationTest {
         assertThat(call(theirs).getResponse().getStatus())
                 .as("a runaway caller must not starve everybody else")
                 .isEqualTo(200);
+    }
+
+    @Test
+    void theSameAccountSpendsSeparateWorkspaceBuckets() throws Exception {
+        var c = caller();
+        String otherWorkspaceId = createWorkspace(c.cookie());
+        UUID firstWorkspace = TypeId.parse("wsp", c.workspaceId());
+        UUID secondWorkspace = TypeId.parse("wsp", otherWorkspaceId);
+
+        jdbc.update("UPDATE workspace SET rate_limit_per_minute = 5 WHERE id = ?", firstWorkspace);
+        jdbc.update("UPDATE workspace SET rate_limit_per_minute = 5 WHERE id = ?", secondWorkspace);
+
+        for (int i = 1; i <= 5; i++) {
+            assertThat(call(c).getResponse().getStatus())
+                    .as("workspace A request %s spends its own allowance", i)
+                    .isEqualTo(200);
+        }
+        assertThat(call(c).getResponse().getStatus())
+                .as("workspace A is exhausted")
+                .isEqualTo(429);
+
+        for (int i = 1; i <= 5; i++) {
+            assertThat(call(c, otherWorkspaceId).getResponse().getStatus())
+                    .as("workspace B request %s spends its own allowance", i)
+                    .isEqualTo(200);
+        }
+        assertThat(call(c, otherWorkspaceId).getResponse().getStatus())
+                .as("workspace B is exhausted too")
+                .isEqualTo(429);
     }
 
     @Test

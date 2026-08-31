@@ -142,6 +142,11 @@ these are milestone markers, and the minor number tracks the milestone.
   limiter queries include `(subject_id, workspace_id)`, so the same account or
   API key cannot spend one tenant's bucket while remaining unlimited in another.
   A two-workspace regression exhausts both buckets independently.
+- **RLS now covers attempt children and audit events.** `attempt_question`,
+  `response` and `audit_event` are enabled with forced row-level security; the
+  child tables inherit tenant visibility through their parent attempt, and a
+  runtime test proves `quizforge_app` sees rows in workspace A and none from
+  workspace B.
 - **Six documentation claims that were no longer true.** Found by a read-only
   audit of the whole repository rather than by touching the code:
 

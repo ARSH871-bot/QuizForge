@@ -1,0 +1,52 @@
+name: Publish the API reference
+
+# Manual only, deliberately.
+#
+# GitHub Pages is unavailable for a private repository on the Free plan, and
+# this repository is private (ADR 0013). A workflow that ran on every push
+# would fail on every push, and a permanently red check teaches people to
+# ignore red checks.
+#
+# When Pages becomes available — the plan changes, or the repository goes
+# public — the owner enables Pages with "GitHub Actions" as the source (issue
+# #83) and runs this workflow. Adding `push: branches: [main]` here at that
+# point is the only edit needed to keep it current automatically.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and never cancel one in flight: a half-finished
+# deploy leaves the published site broken.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Assemble the site
+        # The page and the contract live in different directories in the
+        # repository; the renderer fetches the contract as a sibling. Copying is
+        # cheaper than teaching the page two layouts.
+        run: |
+          mkdir -p _site
+          cp docs/api/spec/index.html _site/index.html
+          cp openapi.yaml _site/openapi.yaml
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QuizForge API reference</title>
+    <!-- Pinned. An unpinned renderer changes what this page shows without
+         anyone editing anything. -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.30.2/swagger-ui.css"
+    />
+    <style>
+      body { margin: 0; }
+      /* Shown only if the renderer never loads. A blank page would leave a
+         reader unsure whether the spec or the network was at fault. */
+      #fallback {
+        font: 14px/1.6 system-ui, sans-serif;
+        max-width: 34rem;
+        margin: 4rem auto;
+        padding: 0 1rem;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="fallback">
+      <h1>QuizForge API reference</h1>
+      <p>
+        The renderer did not load. It is fetched from a CDN, so this page needs
+        network access the first time it is opened.
+      </p>
+      <p>
+        The contract itself is <a href="./openapi.yaml">openapi.yaml</a> and is
+        readable on its own — the rendering is a convenience, not the source of
+        truth.
+      </p>
+    </div>
+    <div id="swagger-ui"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.30.2/swagger-ui-bundle.js"></script>
+    <script>
+      window.addEventListener("load", function () {
+        if (typeof SwaggerUIBundle !== "function") {
+          return; // leave the fallback in place
+        }
+        document.getElementById("fallback").remove();
+        SwaggerUIBundle({
+          url: "./openapi.yaml",
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          // "Try it out" would fire requests at whatever server the contract
+          // names, which is a developer's own localhost. Harmless, and the
+          // fastest way to understand an endpoint.
+          tryItOutEnabled: true,
+          docExpansion: "list",   // operations listed, bodies collapsed
+          defaultModelsExpandDepth: 1,
+        });
+      });
+    </script>
+  </body>
+</html>

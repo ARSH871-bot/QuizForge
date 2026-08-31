@@ -3,7 +3,8 @@
   "private": true,
   "description": "Tooling for the API contract. Not a published package; the TypeScript SDK lives under packages/.",
   "scripts": {
-    "lint:openapi": "spectral lint openapi.yaml --ruleset .spectral.yaml --fail-severity=hint"
+    "lint:openapi": "spectral lint openapi.yaml --ruleset .spectral.yaml --fail-severity=hint",
+    "spec": "node docs/api/spec/serve.mjs"
   },
   "devDependencies": {
     "@stoplight/spectral-cli": "^6.16.3",

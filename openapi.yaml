@@ -100,9 +100,11 @@ info:
       header cannot be set cross-origin without a preflight the browser will
       refuse, so these requests are exempt from CSRF.
 
-    An API key authenticates a *workspace*, not a person. Endpoints that record
-    who did something — starting or submitting an attempt — therefore require a
-    session and reject an API key.
+    An API key authenticates a *workspace*, not a person, so **an API key reads
+    and does not write**. Every write records who made it, and there is no
+    person behind a key to record. Whether that should change, and what a
+    key-authored write would be attributed to, is issue #98; until it is
+    answered, a server-to-server client can consume this API but not drive it.
 
     ## Selecting a workspace
 

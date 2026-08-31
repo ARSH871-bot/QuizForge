@@ -36,7 +36,7 @@ from anyone, no email provider.
 ```bash
 git clone https://github.com/ARSH871-bot/QuizForge.git && cd QuizForge
 cp .env.example .env
-docker compose up -d                       # PostgreSQL 16 and a local mailbox
+docker compose up -d                       # PostgreSQL 16
 cd apps/api && DB_PASSWORD=local-dev-only ./mvnw spring-boot:run
 ```
 
@@ -54,6 +54,9 @@ curl -s $QF/v1/auth/health
 
 `$QF` is used for the rest of this document. Everything below is a real HTTP
 call to a real server; there is no mock mode and no seeded demo data.
+
+Password-reset requests are accepted with `202` so the endpoint cannot reveal
+which accounts exist, but this build does not generate or send reset messages.
 
 ## Two kinds of credential
 

@@ -132,13 +132,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Request a password reset email
+         * Accept a password reset request
          * @description Always returns `202` with the same message, whether or not the address
          *     has an account. Confirming which addresses are registered would make
          *     this an account-enumeration oracle, so it does not.
          *
-         *     The reset token is delivered by email and never appears in the
-         *     response.
+         *     This build does not generate or deliver reset tokens yet.
          *
          *     A malformed request — no address, a misspelled field, an address that
          *     is not an address — is `400`. Only the *existence* of the account is
@@ -1122,7 +1121,7 @@ export interface components {
         };
         /**
          * PasswordResetRequest
-         * @description The address to send reset instructions to.
+         * @description The address submitted for future reset handling.
          * @example {
          *       "email": "player@example.com"
          *     }
@@ -1130,7 +1129,7 @@ export interface components {
         PasswordResetRequest: {
             /**
              * Format: email
-             * @description The address to send reset instructions to.
+             * @description The address submitted for future reset handling.
              */
             email: string;
         };

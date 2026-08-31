@@ -117,7 +117,7 @@ What is actually enforced:
 
 | Control | Mechanism | Where |
 |---|---|---|
-| Build, 215 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
+| Build, 272 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
 | Secret scanning | gitleaks, job `secret-scan` | Actions |
 | Contract lint | Spectral, job `openapi-lint` | Actions |
 | Breaking `/v1` changes | oasdiff, job `openapi-breaking` | Actions |

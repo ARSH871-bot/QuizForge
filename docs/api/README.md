@@ -74,6 +74,10 @@ QuizForge accepts two, and the difference decides which headers you send.
 A browser client uses the cookie. A server-to-server client uses a key. This
 walkthrough uses the cookie, because most of it is writing.
 
+The session cookie is `Secure` by default. Browsers and curl accept that on
+local loopback hosts; strict local HTTP clients that refuse to store such a
+cookie can start the API with `QUIZFORGE_SESSION_COOKIE_SECURE=false`.
+
 Two consequences of using a cookie, both visible in the commands below:
 
 - **`X-XSRF-TOKEN` on every write.** The token arrives as an `XSRF-TOKEN`

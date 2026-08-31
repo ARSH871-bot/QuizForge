@@ -152,6 +152,11 @@ these are milestone markers, and the minor number tracks the milestone.
   longer claims reset mail is implemented: SMTP properties, Mailpit, mail test
   wiring, dependency, README text, contract wording and generated SDK types were
   brought back in line with the code.
+- **Session cookies now keep `Secure` as the default while allowing a local
+  opt-out.** The hardcoded flag is configurable via
+  `QUIZFORGE_SESSION_COOKIE_SECURE`; production and ordinary local browser/curl
+  flows fail closed with `Secure`, while strict local HTTP clients such as
+  .NET's `CookieContainer` can set it to `false` deliberately.
 - **Six documentation claims that were no longer true.** Found by a read-only
   audit of the whole repository rather than by touching the code:
 

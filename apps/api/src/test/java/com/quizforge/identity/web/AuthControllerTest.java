@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -31,6 +32,13 @@ class AuthControllerTest extends AbstractIntegrationTest {
 
     private static String uniqueEmail() {
         return "user-" + UUID.randomUUID() + "@example.test";
+    }
+
+    private static String sessionSetCookie(org.springframework.test.web.servlet.MvcResult result) {
+        return result.getResponse().getHeaders("Set-Cookie").stream()
+                .filter(value -> value.startsWith("qf_session="))
+                .findFirst()
+                .orElseThrow();
     }
 
     @Test
@@ -54,6 +62,10 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .andExpect(cookie().exists("qf_session"))
                 .andExpect(cookie().httpOnly("qf_session", true))
                 .andReturn();
+
+        assertThat(sessionSetCookie(login))
+                .as("session cookies must fail closed when no deployment override is set")
+                .contains("; Secure");
 
         var sessionCookie = login.getResponse().getCookie("qf_session");
 

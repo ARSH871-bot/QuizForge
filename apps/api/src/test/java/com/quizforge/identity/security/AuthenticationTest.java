@@ -33,6 +33,13 @@ class AuthenticationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void allowsUnauthenticatedAccessToActuatorHealth() throws Exception {
+        mvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
     void rejectsAMalformedApiKey() throws Exception {
         mvc.perform(get("/v1/workspaces").header("Authorization", "Bearer qf_live_nonsense"))
                 .andExpect(status().isUnauthorized());

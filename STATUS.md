@@ -4,7 +4,7 @@ The single place that says where this product actually stands. Updated in the
 same commit as any change that moves a milestone, opens a known gap, or alters
 what is safe to do with the code.
 
-**Last updated:** 2026-08-13 (full repository audit)
+**Last updated:** 2026-09-04 (audit follow-up: five fixes merged)
 
 ## Milestones
 
@@ -117,7 +117,7 @@ What is actually enforced:
 
 | Control | Mechanism | Where |
 |---|---|---|
-| Build, 272 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
+| Build, 276 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
 | Secret scanning | gitleaks, job `secret-scan` | Actions |
 | Contract lint | Spectral, job `openapi-lint` | Actions |
 | Breaking `/v1` changes | oasdiff, job `openapi-breaking` | Actions |
@@ -137,7 +137,7 @@ visibility change, and it requires a check that no longer has a producer — so
 every pull request would wait forever on something that is not coming. It could
 not be fixed pre-emptively: the ruleset API returns `403` while private.
 
-## Last audit## Last audit## Last audit
+## Last audit
 
 **2026-08-17.** The repository was made public after purging its history, and
 every security control it had been substituting for was replaced with the
@@ -170,8 +170,8 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 270, all passing
-- **Migrations:** V1–V13
+- **Tests:** 276, all passing
+- **Migrations:** V1–V15
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
 - **ADRs:** 13 (0007 and 0009 superseded by 0013)
 - **Monthly cost:** $0

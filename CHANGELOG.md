@@ -138,6 +138,17 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- **`/actuator/health` returned `500`.** The security chain permitted it and
+  both `openapi.yaml` and `STATUS.md` pointed at it, but
+  `spring-boot-starter-actuator` was never a dependency, so the path fell
+  through to the catch-all. It now returns `{"status":"UP"}` and reports the
+  database, which is what a container or a load balancer needs to probe. Only
+  `health` is exposed, and it shows no details.
+- **`STATUS.md` figures that had drifted.** The heading `## Last audit` appeared
+  three times concatenated on one line; the test count and migration range were
+  both stale. Numbers a reader would use to judge whether the file is current
+  are the worst ones to leave wrong.
+
 - **Rate-limit buckets are now scoped by workspace.** The database key and
   limiter queries include `(subject_id, workspace_id)`, so the same account or
   API key cannot spend one tenant's bucket while remaining unlimited in another.

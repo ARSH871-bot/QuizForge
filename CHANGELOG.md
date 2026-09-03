@@ -138,6 +138,10 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- **Rate-limit buckets are now scoped by workspace.** The database key and
+  limiter queries include `(subject_id, workspace_id)`, so the same account or
+  API key cannot spend one tenant's bucket while remaining unlimited in another.
+  A two-workspace regression exhausts both buckets independently.
 - **Six documentation claims that were no longer true.** Found by a read-only
   audit of the whole repository rather than by touching the code:
 

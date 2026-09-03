@@ -46,7 +46,7 @@ class PlaySchemaTest extends AbstractIntegrationTest {
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND rowsecurity",
                 String.class);
 
-        assertThat(secured).contains("attempt");
+        assertThat(secured).contains("attempt", "attempt_question", "response");
     }
 
     @Test

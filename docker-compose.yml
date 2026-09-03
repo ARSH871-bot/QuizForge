@@ -16,25 +16,5 @@ services:
       timeout: 5s
       retries: 5
 
-  # Local SMTP server that accepts everything and delivers nothing. Catches
-  # outgoing mail and shows it in a web UI at http://localhost:8025, so the
-  # email paths can be developed and tested without any account, credential,
-  # or external service. Nothing it receives ever leaves your machine.
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: quizforge-mailpit
-    ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # web UI
-    environment:
-      MP_MAX_MESSAGES: 500
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
-    healthcheck:
-      test: ["CMD", "/mailpit", "readyz"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
 volumes:
   quizforge-pgdata:

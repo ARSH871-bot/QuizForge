@@ -147,6 +147,11 @@ these are milestone markers, and the minor number tracks the milestone.
   child tables inherit tenant visibility through their parent attempt, and a
   runtime test proves `quizforge_app` sees rows in workspace A and none from
   workspace B.
+- **The fake email delivery surface is gone.** Password-reset intake still
+  returns `202` without revealing account existence, but the repository no
+  longer claims reset mail is implemented: SMTP properties, Mailpit, mail test
+  wiring, dependency, README text, contract wording and generated SDK types were
+  brought back in line with the code.
 - **Six documentation claims that were no longer true.** Found by a read-only
   audit of the whole repository rather than by touching the code:
 

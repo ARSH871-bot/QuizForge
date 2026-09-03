@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Arrays;
 
 /**
- * Accounts, sessions and password reset.
+ * Accounts, sessions and password-reset intake.
  *
  * <p>Implements {@link AuthenticationApi}, generated from {@code openapi.yaml}.
  * The paths, verbs, parameters and response types come from the contract, so a
@@ -116,13 +116,13 @@ public class AuthController implements AuthenticationApi {
 
     /**
      * Always 202 with an empty body, whether or not the address is registered -
-     * otherwise this endpoint becomes an account-enumeration oracle. Only the
-     * existence of the account is concealed; a malformed request is still a 400,
-     * enforced by the constraints the generator took from the contract.
+     * otherwise this endpoint becomes an account-enumeration oracle. This build
+     * does not generate or deliver reset tokens. Only the existence of the
+     * account is concealed; a malformed request is still a 400, enforced by the
+     * constraints the generator took from the contract.
      */
     @Override
     public ResponseEntity<Void> requestPasswordReset(PasswordResetRequest request) {
-        // Token generation and delivery are wired to the notify module later.
         return ResponseEntity.accepted().build();
     }
 

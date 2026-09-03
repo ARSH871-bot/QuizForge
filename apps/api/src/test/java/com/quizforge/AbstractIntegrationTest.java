@@ -31,9 +31,6 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.mail.username", () -> "test@example.invalid");
-        registry.add("spring.mail.password", () -> "unused");
-        registry.add("email.test.mode", () -> "true");
         registry.add("quizforge.opentdb.bootstrap-enabled", () -> "false");
         // The sweep is driven explicitly in its own test. Left on a timer it
         // would close attempts mid-assertion in every other test.

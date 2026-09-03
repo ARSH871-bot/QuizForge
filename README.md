@@ -66,26 +66,6 @@ The reference is not hosted yet: GitHub Pages is unavailable for a private
 repository on the Free plan, so it is served locally and its publishing
 workflow is manual until that changes ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83)).
 
-### Email
-
-Email needs no configuration and no account. `EMAIL_TEST_MODE` defaults to
-`true`, so the application logs messages instead of sending them.
-
-To exercise the real sending path locally, `docker compose up -d` also starts
-**Mailpit**, an SMTP server that accepts everything and delivers nothing:
-
-```bash
-EMAIL_TEST_MODE=false MAIL_HOST=localhost MAIL_PORT=1025 DB_PASSWORD=local-dev-only ./mvnw spring-boot:run
-```
-
-Captured messages appear at <http://localhost:8025>. Nothing leaves your
-machine, and no credential is required.
-
-In production a dedicated provider is used, sending from an address on the
-project's own domain. Personal SMTP credentials are deliberately never used:
-they throttle at a few hundred messages a day, harm deliverability, and tie
-transactional mail to an individual's account.
-
 ## Running tests
 
 ```bash

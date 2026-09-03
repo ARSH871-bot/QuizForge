@@ -37,7 +37,7 @@ of them missing polish:
 - The TypeScript SDK is not published; the npm name is the owner's call ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83))
 - No web interface (M5)
 - No billing, observability, backups or runbooks (M7)
-- Email is disabled by default; a provider is wired in M4
+- Password-reset delivery is not implemented; no mail provider is wired
 
 Tenant isolation is now enforced by PostgreSQL itself (#23, ADR 0008), so a
 missing `WHERE workspace_id = ?` returns nothing rather than another

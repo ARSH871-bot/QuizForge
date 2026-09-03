@@ -16,6 +16,7 @@ import com.quizforge.platform.error.ErrorCode;
 import com.quizforge.platform.id.TypeId;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -41,12 +42,16 @@ public class AuthController implements AuthenticationApi {
     private final AccountService accounts;
     private final SessionService sessions;
     private final HttpServletRequest http;
+    private final boolean sessionCookieSecure;
 
     public AuthController(AccountService accounts, SessionService sessions,
-                          HttpServletRequest http) {
+                          HttpServletRequest http,
+                          @Value("${quizforge.security.session-cookie-secure:true}")
+                          boolean sessionCookieSecure) {
         this.accounts = accounts;
         this.sessions = sessions;
         this.http = http;
+        this.sessionCookieSecure = sessionCookieSecure;
     }
 
     @Override
@@ -70,7 +75,7 @@ public class AuthController implements AuthenticationApi {
 
         ResponseCookie cookie = ResponseCookie.from(SessionAuthFilter.COOKIE_NAME, issued.token())
                 .httpOnly(true)
-                .secure(true)
+                .secure(sessionCookieSecure)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(SessionService.LIFETIME)

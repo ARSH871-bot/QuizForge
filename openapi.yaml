@@ -90,7 +90,9 @@ info:
 
     - **Session cookie** (`qf_session`) — issued by `POST /v1/auth/login`,
       `HttpOnly`, `Secure`, `SameSite=Lax`. Used by browsers. Because a cookie
-      is sent automatically, mutating requests using it are CSRF-protected.
+      is sent automatically, mutating requests using it are CSRF-protected. The
+      `Secure` attribute is the default; strict local HTTP clients may opt out
+      by running the API with `QUIZFORGE_SESSION_COOKIE_SECURE=false`.
 
       Every response sets a readable `XSRF-TOKEN` cookie. Send its value back
       **unchanged** in the `X-XSRF-TOKEN` header on every `POST`, `PATCH` and

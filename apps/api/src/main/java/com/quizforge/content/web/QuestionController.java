@@ -43,7 +43,7 @@ public class QuestionController implements QuestionsApi {
     @Override
     public ResponseEntity<QuestionPage> listQuestions(String bankId, String workspaceHeader,
                                                       Integer limit, String cursor) {
-        requireWorkspace();
+        requireViewer();
         PageWindow window = PageWindow.of(limit, cursor);
 
         var slice = window.slice(questions.currentIn(TypeId.parse("bnk", bankId), window),
@@ -74,7 +74,7 @@ public class QuestionController implements QuestionsApi {
 
     @Override
     public ResponseEntity<Question> getQuestion(String questionId, String workspaceHeader) {
-        requireWorkspace();
+        requireViewer();
         return ResponseEntity.ok(represent(
                 questions.requireById(TypeId.parse("qst", questionId))));
     }
@@ -104,7 +104,7 @@ public class QuestionController implements QuestionsApi {
     public ResponseEntity<QuestionPage> listQuestionVersions(String questionId,
                                                              String workspaceHeader,
                                                              Integer limit, String cursor) {
-        requireWorkspace();
+        requireViewer();
         PageWindow window = PageWindow.of(limit, cursor);
 
         // The one ascending page: a history reads forwards.
@@ -164,6 +164,16 @@ public class QuestionController implements QuestionsApi {
      * <p>An API key names exactly one workspace, which is all a read needs.
      * Row-Level Security does the isolation once that workspace is in scope.
      */
+    /** A read of workspace data, which a {@code PLAYER} may not make. */
+    private Principal requireViewer() {
+        Principal principal = requireWorkspace();
+        if (!principal.canView()) {
+            throw new ApiException(ErrorCode.PERMISSION_DENIED,
+                    "players cannot read questions; they carry the answers");
+        }
+        return principal;
+    }
+
     private Principal requireWorkspace() {
         Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.workspaceId() == null) {

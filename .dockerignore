@@ -1,0 +1,9 @@
+**/node_modules
+**/target
+**/dist
+.git
+.github
+docs
+packages
+*.md
+!apps/web/**/*.md

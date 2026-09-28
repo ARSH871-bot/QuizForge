@@ -266,6 +266,8 @@ these are milestone markers, and the minor number tracks the milestone.
   retains its existing SpotBugs and FindSecBugs checks.
 - Updated `bcprov-jdk18on` from 1.85.2 to 1.86. Password hashing continues
   to use Spring Security's Argon2id encoder with the existing parameters.
+- Updated the SDK tooling's `js-yaml` to 4.3.2 and
+  `@redocly/openapi-core` to 1.34.20, including YAML merge-sequence limits.
 
 - `ImportReport`, `TournamentDraft` and every other date-time field lost the
   `maxLength` that the generator was turning into `@Size` on an

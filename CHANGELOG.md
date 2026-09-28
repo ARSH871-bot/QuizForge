@@ -264,6 +264,8 @@ these are milestone markers, and the minor number tracks the milestone.
 
 - Updated the SpotBugs Maven plugin from 4.10.4.0 to 4.10.4.1. The build
   retains its existing SpotBugs and FindSecBugs checks.
+- Updated `bcprov-jdk18on` from 1.85.2 to 1.86. Password hashing continues
+  to use Spring Security's Argon2id encoder with the existing parameters.
 
 - `ImportReport`, `TournamentDraft` and every other date-time field lost the
   `maxLength` that the generator was turning into `@Size` on an

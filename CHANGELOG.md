@@ -28,7 +28,12 @@ these are milestone markers, and the minor number tracks the milestone.
   which carry the answers, or list members, which carry other players'
   addresses. Content, member and attempt listings now require `VIEW`.
   `Role` gains a value in responses; a client switching exhaustively on it
-  must handle `PLAYER`.
+  must handle `PLAYER`. This is a breaking change to `/v1`, accepted on
+  purpose because nothing consumes it until `v0.5.0` is cut, and recorded in
+  `.github/oasdiff-accepted.txt`.
+- The breaking-change gate pins its `oasdiff` image by digest. It was
+  unpinned, and a new release reclassified this exact change from warning to
+  error — so the gate's verdict changed with nobody editing it.
 - Leaderboard rows carry the player's `displayName`.
 - A `Dockerfile` building one image for the API and the web app.
 - A startup check that refuses to boot when the database login cannot bypass

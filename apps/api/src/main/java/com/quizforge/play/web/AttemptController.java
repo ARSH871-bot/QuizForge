@@ -118,6 +118,10 @@ public class AttemptController implements PlayApi {
             throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "select a workspace with the X-QuizForge-Workspace header");
         }
+        if (!principal.canView()) {
+            throw new ApiException(ErrorCode.PERMISSION_DENIED,
+                    "players cannot list other players' attempts");
+        }
 
         PageWindow window = PageWindow.of(limit, cursor);
         var slice = window.slice(

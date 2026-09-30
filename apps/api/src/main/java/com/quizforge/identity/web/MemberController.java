@@ -46,7 +46,7 @@ public class MemberController implements MembersApi {
     @Override
     public ResponseEntity<MemberPage> listMembers(String workspaceHeader, Integer limit,
                                                   String cursor) {
-        UUID workspaceId = requireWorkspace().workspaceId();
+        UUID workspaceId = requireViewer().workspaceId();
         PageWindow window = PageWindow.of(limit, cursor);
 
         var slice = window.slice(workspaces.membersOf(workspaceId, window), Membership::getId);
@@ -127,6 +127,16 @@ public class MemberController implements MembersApi {
      * <p>An API key names exactly one workspace, which is all a read needs.
      * Refusing one here made the member listing unreachable to an API client.
      */
+    /** A read of workspace data, which a {@code PLAYER} may not make. */
+    private Principal requireViewer() {
+        Principal principal = requireWorkspace();
+        if (!principal.canView()) {
+            throw new ApiException(ErrorCode.PERMISSION_DENIED,
+                    "players cannot list members");
+        }
+        return principal;
+    }
+
     private Principal requireWorkspace() {
         Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.workspaceId() == null) {

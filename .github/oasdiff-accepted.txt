@@ -1,0 +1,7 @@
+GET /v1/members added the new `PLAYER` enum value to the `data/items/role` response property for the response status `200`
+POST /v1/members added the new `PLAYER` enum value to the `role` response property for the response status `201`
+PATCH /v1/members/{accountId} added the new `PLAYER` enum value to the `role` response property for the response status `200`
+GET /v1/workspaces added the new `PLAYER` enum value to the `data/items/role` response property for the response status `200`
+POST /v1/workspaces added the new `PLAYER` enum value to the `role` response property for the response status `201`
+GET /v1/workspaces/current added the new `PLAYER` enum value to the `role` response property for the response status `200`
+PATCH /v1/workspaces/current added the new `PLAYER` enum value to the `role` response property for the response status `200`

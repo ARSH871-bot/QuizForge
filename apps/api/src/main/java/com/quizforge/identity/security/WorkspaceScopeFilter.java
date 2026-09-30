@@ -53,7 +53,7 @@ public class WorkspaceScopeFilter extends OncePerRequestFilter {
      * and password reset — none of which can have a workspace, because some of
      * them run before the account has one.
      */
-    private static final List<String> WORKSPACE_FREE_PREFIXES = List.of("/v1/auth/");
+    private static final List<String> WORKSPACE_FREE_PREFIXES = List.of("/v1/auth/", "/v1/join/");
 
     /**
      * Exact paths that operate on the account rather than a workspace.

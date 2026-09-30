@@ -4,7 +4,7 @@ The single place that says where this product actually stands. Updated in the
 same commit as any change that moves a milestone, opens a known gap, or alters
 what is safe to do with the code.
 
-**Last updated:** 2026-09-04 (audit follow-up: five fixes merged)
+**Last updated:** 2026-09-30 (repository public again; web app merged)
 
 ## Milestones
 
@@ -77,9 +77,9 @@ Until it is answered, "API-first" is true of reads only.
 [`docs/api/quickstart.sh`](docs/api/quickstart.sh) runs it unattended — both
 verified against a database that was empty when they started.
 
-The rendered contract is served locally by `npm run spec`; it is **not hosted**,
-because GitHub Pages is unavailable for a private repository on the Free plan.
-Its workflow exists and is manual-trigger only ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83)).
+The rendered contract is served locally by `npm run spec`; it is **not hosted**
+yet. The repository is public, so GitHub Pages is available: enable it with
+"GitHub Actions" as the source and run the manual workflow ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83)).
 
 All ten M4 tasks are done. What M4 still owes is the `v0.5.0` release — the
 first version number that means something to a consumer.
@@ -93,7 +93,7 @@ first version number that means something to a consumer.
 | — | A `PLAYER` sees every tournament in the workspace it joined, not only the one it was invited to | — | nothing today; matters once a workspace runs private tournaments |
 | — | No password reset, so a player who forgets a password is locked out | — | real players |
 | — | Never deployed. `Dockerfile` builds one image serving the API and web app; the database login must be able to bypass row-level security, and the app refuses to start if it cannot | **repo owner** (host account) | anyone outside this machine using it |
-| [#67](https://github.com/ARSH871-bot/QuizForge/issues/67) | 4 pre-rewrite commits still exist behind `refs/pull/*/head` | **repo owner** | nothing — not publicly readable while private, and the credential in them is revoked |
+| [#67](https://github.com/ARSH871-bot/QuizForge/issues/67) | 4 pre-rewrite commits still exist behind `refs/pull/*/head` | **repo owner** | nothing — publicly readable again, but the credential in them is revoked |
 
 The exposure in #67 is closed for now by the repository being private:
 unauthenticated requests for those SHAs return `404`. The objects have not gone
@@ -107,40 +107,27 @@ even when the release tags still pointed at the old history.
 
 ## Security controls
 
-**The repository is private, deliberately — to stop others building on this work
-— and `main` therefore has no server-side protection.** Not weakened: absent.
-Nothing on GitHub's side prevents a direct push to `main`, and nothing forces a
-pull request to pass its checks before merging. See
-[ADR 0013](docs/adr/0013-the-repository-stays-private.md), which supersedes
-ADR 0009.
-
-Rulesets, CodeQL, secret scanning with push protection, and private
-vulnerability reporting all require a public repository or paid Advanced
-Security. None of them are running.
-
-What is actually enforced:
+**The repository is public, and `main` is protected server-side.** It went
+private for a while (ADR 0013) and came back, because private repositories on
+the Free plan share 2,000 Actions minutes a month and CI stopped when they ran
+out. See [ADR 0014](docs/adr/0014-the-repository-is-public-again.md). Public
+source is not a licence to use it: `LICENSE` is proprietary.
 
 | Control | Mechanism | Where |
 |---|---|---|
-| Build, 285 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
-| Secret scanning | gitleaks, job `secret-scan` | Actions |
-| Contract lint | Spectral, job `openapi-lint` | Actions |
-| Breaking `/v1` changes | oasdiff, job `openapi-breaking` | Actions |
-| Changelog and contract currency | job `docs-current` | Actions |
-| Dependency alerts and updates | Dependabot | works on private repos |
-| Direct pushes to `main` | `.githooks/pre-push` | **local only, advisory** |
+| Pull request required, squash only, branch up to date, no force-push | ruleset `main protection` | GitHub |
+| Build, 285 tests, SpotBugs + FindSecBugs | CI job `build`, required | Actions |
+| Static analysis | CodeQL default setup, Java; required | GitHub |
+| Secret scanning | gitleaks (`secret-scan`, required) and GitHub push protection | Actions, GitHub |
+| Contract lint and breaking changes | `openapi-lint`, `openapi-breaking` (oasdiff pinned by digest), required | Actions |
+| Changelog and contract currency | `docs-current`, required | Actions |
+| SDK and web app build against the contract | `sdk-typescript`, `web` | Actions |
+| Vulnerability reports | private vulnerability reporting | GitHub |
+| Dependency alerts and updates | Dependabot | GitHub |
 
-Every check still runs on every pull request; what is gone is anything making
-them mandatory. The `pre-push` hook is the only thing between a mistake and
-`main`, and it is bypassed by `--no-verify` or by any clone that has not run
-`git config core.hooksPath .githooks`. It catches accidents, not intent.
-
-**Before ever going public again, in this order:** make it public, then
-*immediately* either re-enable CodeQL default setup or remove `CodeQL` from the
-dormant ruleset's required checks. The ruleset still exists and resumes on
-visibility change, and it requires a check that no longer has a producer — so
-every pull request would wait forever on something that is not coming. It could
-not be fixed pre-emptively: the ruleset API returns `403` while private.
+If the repository ever goes private again, the ruleset goes dormant and code
+scanning stops. Update this section, `CONTRIBUTING.md` and `SECURITY.md` in the
+same change.
 
 ## Last audit
 
@@ -178,7 +165,7 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 - **Tests:** 285, all passing
 - **Migrations:** V1–V16
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
-- **ADRs:** 13 (0007 and 0009 superseded by 0013)
+- **ADRs:** 14 (0007, 0009 and 0013 superseded)
 - **Monthly cost:** $0
 
 ## Where to look

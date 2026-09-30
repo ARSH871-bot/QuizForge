@@ -7,7 +7,7 @@
 | A bug — behaviour differs from what is documented | [Open an issue](https://github.com/ARSH871-bot/QuizForge/issues/new/choose) |
 | A feature idea | [Open an issue](https://github.com/ARSH871-bot/QuizForge/issues/new/choose) |
 | A question, or an idea not yet formed enough to be a proposal | [Discussions](https://github.com/ARSH871-bot/QuizForge/discussions) |
-| A security vulnerability | [SECURITY.md](SECURITY.md) — never a public issue |
+| A security vulnerability | [Private advisory](https://github.com/ARSH871-bot/QuizForge/security/advisories/new) — never a public issue |
 
 ## Before opening an issue
 

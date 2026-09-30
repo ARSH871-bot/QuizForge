@@ -34,19 +34,18 @@ that depends on remembering will be forgotten.
 Trunk-based. Branch from `main`, keep branches short-lived, open a pull
 request.
 
-**`main` has no server-side protection.** Rulesets require a public repository
-or paid Advanced Security, and this one is private on the Free plan (ADR 0013).
-Nothing on GitHub will stop a direct push, a force-push, or a merge with red
-checks. What exists instead is `.githooks/pre-push`, which is local, advisory,
-and only active once `core.hooksPath` is set:
+**`main` is protected server-side** (ADR 0014). Changes reach it only through a
+pull request, merged by squash, on a branch that is up to date with `main`, and
+only once the required checks pass: `build`, `secret-scan`, `docs-current`,
+`conventional-title`, `CodeQL`, `openapi-lint` and `openapi-breaking`.
+Force-pushes and deletion are refused.
+
+The local hook still catches mistakes before they reach GitHub. Wire it once
+per clone:
 
 ```bash
-git config core.hooksPath .githooks    # first thing after cloning
+git config core.hooksPath .githooks
 ```
-
-The CI jobs still run on every pull request and are the real gate — they are
-just not *enforced* as required checks. Read them before merging; nothing else
-will.
 
 ```bash
 git switch -c feat/short-description

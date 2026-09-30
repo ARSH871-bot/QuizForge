@@ -4,7 +4,10 @@ Date: 2026-08-22
 
 ## Status
 
-Accepted. Supersedes [ADR 0009](0009-public-repository-and-native-security-controls.md),
+Superseded by [ADR 0014](0014-the-repository-is-public-again.md): the
+repository is public again, so its Actions minutes are unlimited.
+
+Previously: Accepted. Supersedes [ADR 0009](0009-public-repository-and-native-security-controls.md),
 which in turn superseded [ADR 0007](0007-private-repository-security-substitutes.md).
 
 ADR 0007's substitutes are in force again. They were never removed.

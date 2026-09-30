@@ -262,6 +262,13 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Changed
 
+- **The repository is public again** (ADR 0014, superseding 0013). Private
+  repositories on the Free plan share 2,000 Actions minutes a month, and CI
+  stopped when they ran out. The ruleset on `main`, CodeQL, secret scanning with
+  push protection and private vulnerability reporting are all active and were
+  checked, not assumed. `STATUS`, `CONTRIBUTING`, `SECURITY`, `SUPPORT` and the
+  code of conduct say so again. `LICENSE` is unchanged: public is not a licence.
+
 - Updated the SpotBugs Maven plugin from 4.10.4.0 to 4.10.4.1. The build
   retains its existing SpotBugs and FindSecBugs checks.
 - Updated `bcprov-jdk18on` from 1.85.2 to 1.86. Password hashing continues

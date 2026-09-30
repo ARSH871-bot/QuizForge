@@ -69,7 +69,11 @@ export class Http {
     }
 
     this.apiKey = options.apiKey;
-    this.baseUrl = (options.baseUrl ?? "http://localhost:8080").replace(/\/+$/, "");
+    // Trailing slashes are trimmed with a loop, not /\/+$/: that regex is
+    // quadratic on a long run of slashes followed by anything else.
+    let baseUrl = options.baseUrl ?? "http://localhost:8080";
+    while (baseUrl.endsWith("/")) baseUrl = baseUrl.slice(0, -1);
+    this.baseUrl = baseUrl;
     this.maxRetries = options.maxRetries ?? 2;
     this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));

@@ -162,6 +162,11 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- The SDK trimmed trailing slashes from `baseUrl` with a regex that takes
+  quadratic time on a long run of slashes. Now a linear loop. Flagged by CodeQL
+  as high severity; the practical risk was small, since the developer supplies
+  the URL.
+
 - **Third-party workflow actions were referenced by movable tags.** Whoever
   controls `gitleaks-action`, `action-junit-report` or
   `action-semantic-pull-request` could re-point `v3` or `v6` and run code in this

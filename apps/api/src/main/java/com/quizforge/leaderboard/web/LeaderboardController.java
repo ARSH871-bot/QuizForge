@@ -28,9 +28,12 @@ public class LeaderboardController implements LeaderboardsApi {
     private static final int DEFAULT_LIMIT = 20;
 
     private final LeaderboardService leaderboard;
+    private final com.quizforge.identity.AccountDirectory directory;
 
-    public LeaderboardController(LeaderboardService leaderboard) {
+    public LeaderboardController(LeaderboardService leaderboard,
+                                 com.quizforge.identity.AccountDirectory directory) {
         this.leaderboard = leaderboard;
+        this.directory = directory;
     }
 
     /**
@@ -62,10 +65,14 @@ public class LeaderboardController implements LeaderboardsApi {
                     "limit must be between 1 and " + MAX_LIMIT);
         }
 
-        StandingPage page = new StandingPage(
-                leaderboard.standings(TypeId.parse("trn", tournamentId), requested).stream()
-                        .map(this::represent)
-                        .toList());
+        var standings = leaderboard.standings(TypeId.parse("trn", tournamentId), requested);
+        var names = directory.displayNamesOf(standings.stream()
+                .map(com.quizforge.leaderboard.app.LeaderboardEntry::accountId)
+                .toList());
+
+        StandingPage page = new StandingPage(standings.stream()
+                .map(entry -> represent(entry, names.get(entry.accountId())))
+                .toList());
         page.setNextCursor(null);
         return ResponseEntity.ok(page);
     }
@@ -74,13 +81,16 @@ public class LeaderboardController implements LeaderboardsApi {
      * Renders the account with its {@code acc_} prefix, so it matches the
      * identifier {@code GET /v1/auth/me} returns for the same account.
      */
-    private LeaderboardEntry represent(com.quizforge.leaderboard.app.LeaderboardEntry entry) {
-        return new LeaderboardEntry(
+    private LeaderboardEntry represent(com.quizforge.leaderboard.app.LeaderboardEntry entry,
+                                       String displayName) {
+        LeaderboardEntry row = new LeaderboardEntry(
                 TypeId.render("acc", entry.accountId()),
                 entry.score(),
                 entry.outOf(),
                 entry.attempts(),
                 entry.firstGradedAt().atOffset(ZoneOffset.UTC),
                 entry.rank());
+        row.setDisplayName(displayName);
+        return row;
     }
 }

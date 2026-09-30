@@ -45,6 +45,18 @@ DB_PASSWORD=local-dev-only ./mvnw spring-boot:run
 
 The API listens on http://localhost:8080.
 
+For the web app, run it alongside the API with hot reload at http://localhost:5173:
+
+```bash
+cd apps/web && npm install && npm run dev
+```
+
+Or build one image serving both, the way it deploys:
+
+```bash
+docker build -t quizforge .
+```
+
 `DB_PASSWORD` has no committed default by design, so it must be supplied.
 Copy `.env.example` to `.env` for a permanent local setup.
 

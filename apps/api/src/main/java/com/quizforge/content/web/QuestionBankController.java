@@ -37,7 +37,7 @@ public class QuestionBankController implements QuestionBanksApi {
     @Override
     public ResponseEntity<QuestionBankPage> listQuestionBanks(String workspaceHeader,
                                                               Integer limit, String cursor) {
-        Principal principal = requireWorkspace();
+        Principal principal = requireViewer();
         PageWindow window = PageWindow.of(limit, cursor);
 
         var slice = window.slice(banks.activeIn(principal.workspaceId(), window),
@@ -68,7 +68,7 @@ public class QuestionBankController implements QuestionBanksApi {
      */
     @Override
     public ResponseEntity<QuestionBank> getQuestionBank(String bankId, String workspaceHeader) {
-        requireWorkspace();
+        requireViewer();
         return ResponseEntity.ok(represent(banks.requireById(TypeId.parse("bnk", bankId))));
     }
 
@@ -98,6 +98,16 @@ public class QuestionBankController implements QuestionBanksApi {
      * is all a read needs — refusing one here would make the whole content
      * surface unreachable to the only credential an API client can hold.
      */
+    /** A read of workspace data, which a {@code PLAYER} may not make. */
+    private Principal requireViewer() {
+        Principal principal = requireWorkspace();
+        if (!principal.canView()) {
+            throw new ApiException(ErrorCode.PERMISSION_DENIED,
+                    "players cannot read question banks");
+        }
+        return principal;
+    }
+
     private Principal requireWorkspace() {
         Principal principal = CurrentPrincipal.get();
         if (principal == null || principal.workspaceId() == null) {

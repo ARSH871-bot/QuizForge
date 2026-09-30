@@ -182,6 +182,19 @@ public class GlobalExceptionHandler {
         };
     }
 
+    /**
+     * A path that matches nothing.
+     *
+     * <p>Until this existed, every unknown path reached the catch-all below and
+     * was reported as a 500 - a typo in a client's URL looked like the server
+     * falling over. Both exceptions mean the same thing: no route, no file.
+     */
+    @ExceptionHandler({org.springframework.web.servlet.NoHandlerFoundException.class,
+            org.springframework.web.servlet.resource.NoResourceFoundException.class})
+    public ProblemDetail handleNoRoute(Exception e, HttpServletRequest request) {
+        return problem(ErrorCode.NOT_FOUND, "nothing exists at this address", request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception e, HttpServletRequest request) {
         // Log the cause; never leak it to the caller.

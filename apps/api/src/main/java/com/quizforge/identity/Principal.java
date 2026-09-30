@@ -37,4 +37,14 @@ public record Principal(UUID accountId, UUID workspaceId, Role role, AuthType au
     public boolean can(Role.Permission permission) {
         return role != null && role.can(permission);
     }
+
+    /**
+     * Whether this caller may read workspace data: content, members, attempts.
+     *
+     * <p>False for a {@code PLAYER}, which is the point. A player is a member so
+     * that it can play, and reading questions would hand it the answers.
+     */
+    public boolean canView() {
+        return can(Role.Permission.VIEW);
+    }
 }

@@ -21,12 +21,16 @@ async function organiserWorkspace(displayName: string): Promise<string> {
 export function SignIn() {
   const { account } = useSession();
   useEffect(() => {
-    if (account) navigate("/app", true);
+    if (account && !account.guest) navigate("/app", true);
   }, [account]);
   return (
     <Shell>
       <h1 className="title">Run a tournament</h1>
-      <p className="lede">Create an account to write questions and share your first link.</p>
+      <p className="lede">
+        {account?.guest
+          ? "You're playing as a guest. Create an account to write questions and run your own tournaments."
+          : "Create an account to write questions and share your first link."}
+      </p>
       <AuthForm intent="continue" onDone={() => navigate("/app")} />
     </Shell>
   );
@@ -37,8 +41,8 @@ function useOrganiser() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<unknown>(null);
   useEffect(() => {
-    if (account === null) navigate("/sign-in", true);
-    if (!account) return;
+    if (account === null || account?.guest) navigate("/sign-in", true);
+    if (!account || account.guest) return;
     organiserWorkspace(account.displayName).then(() => setReady(true), setError);
   }, [account]);
   return { account, ready, error };
@@ -133,7 +137,11 @@ export function TournamentAdmin({ id }: { id: string }) {
           <AdminWindow t={tournament} plays={plays} />
           <section className="share">
             <h2 className="subtitle">Share this link</h2>
-            <p className="muted">Anyone with it can join and play once they've signed up.</p>
+            <p className="muted">
+              {tournament.allowGuests
+                ? "Anyone with it can play. They'll just type a name."
+                : "Anyone with it can play once they've created an account."}
+            </p>
             <div className="share-row">
               <input className="share-link" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Share link" />
               <Button type="button" onClick={() => void copy()}>

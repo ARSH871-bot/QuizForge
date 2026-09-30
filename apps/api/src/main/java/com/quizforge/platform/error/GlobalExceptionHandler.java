@@ -27,6 +27,14 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /** A 429 raised in a request carries Retry-After, like the filter's own 429s. */
+    @ExceptionHandler(RateLimitedException.class)
+    public ProblemDetail handleRateLimited(RateLimitedException e, HttpServletRequest request,
+                                           jakarta.servlet.http.HttpServletResponse response) {
+        response.setHeader("Retry-After", String.valueOf(e.retryAfterSeconds()));
+        return problem(e.code(), e.getMessage(), request);
+    }
+
     @ExceptionHandler(ApiException.class)
     public ProblemDetail handleApiException(ApiException e, HttpServletRequest request) {
         return problem(e.code(), e.getMessage(), request);

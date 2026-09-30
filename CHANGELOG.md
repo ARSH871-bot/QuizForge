@@ -16,6 +16,22 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Guest play.** A player opens a share link, types a name and plays, with no
+  account. A guest is a real account with a name and nothing else, so attempts,
+  standings, row-level security and attempt limits apply unchanged, and the
+  session cookie means a guest returning in the same browser is the same
+  player. `POST /v1/join/{tournamentId}/guest`.
+
+  Limits stay meaningful: organisers opt in per tournament (`allowGuests`,
+  existing tournaments stay account-only); a name already used in the
+  workspace is refused, ignoring case, so a guest cannot pass as another player
+  or as the organiser; guests are marked on the leaderboard; and new guest
+  identities are limited to 30 a minute per network address, enough for a
+  class to join at once. A guest cannot create a workspace.
+
+  What it does not prevent, and says so where the organiser chooses it:
+  someone switching browser can play again under a new name.
+
 - **A web app** (`apps/web`), served by the API from the same origin. Organisers
   sign up, write a tournament with multiple-choice, true-or-false and
   typed-answer questions, and get a share link and a live leaderboard. Players
@@ -272,6 +288,13 @@ these are milestone markers, and the minor number tracks the milestone.
   no CodeQL job. It has been private since ADR 0013.
 
 ### Changed
+
+- `Account.email` and `Member.email` are optional and nullable, because a guest
+  has no address. A breaking change to `/v1`, accepted while nothing consumes it
+  and listed in `.github/oasdiff-accepted.txt`.
+- Dependabot ignores Spring Modulith major versions, as it already ignored
+  Spring Boot's. Modulith 2.x is compiled against Spring Boot 4 and does not
+  build on 3.x; taking it is that migration, not a bump.
 
 - `web` and `sdk-typescript` are required checks. Both ran on every pull request
   but were advisory, so a change that broke the web app or the SDK against the

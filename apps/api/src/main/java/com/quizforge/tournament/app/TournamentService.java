@@ -37,6 +37,13 @@ public class TournamentService {
 
     @Transactional
     public Tournament create(UUID workspaceId, UUID actorId, TournamentDraft draft) {
+        return create(workspaceId, actorId, draft, false);
+    }
+
+    /** As {@link #create(UUID, UUID, TournamentDraft)}, choosing whether guests may play. */
+    @Transactional
+    public Tournament create(UUID workspaceId, UUID actorId, TournamentDraft draft,
+                             boolean allowGuests) {
         if (!access.canManageTournaments(workspaceId, actorId)) {
             throw new ApiException(ErrorCode.PERMISSION_DENIED,
                     "you do not have permission to manage tournaments in this workspace");
@@ -50,6 +57,7 @@ public class TournamentService {
                 draft.questionCount(), draft.timeLimitSeconds(), draft.maxAttempts(),
                 draft.scoringPolicy() == null ? ScoringPolicy.FIRST : draft.scoringPolicy(),
                 actorId);
+        tournament.openToGuests(allowGuests);
 
         return tournaments.save(tournament);
     }
@@ -68,6 +76,13 @@ public class TournamentService {
      */
     @Transactional
     public Tournament update(UUID tournamentId, UUID actorId, TournamentDraft draft) {
+        return update(tournamentId, actorId, draft, null);
+    }
+
+    /** As {@link #update(UUID, UUID, TournamentDraft)}; a null {@code allowGuests} leaves it as it is. */
+    @Transactional
+    public Tournament update(UUID tournamentId, UUID actorId, TournamentDraft draft,
+                             Boolean allowGuests) {
         Tournament tournament = requireById(tournamentId);
         requirePermission(tournament.getWorkspaceId(), actorId);
 
@@ -85,6 +100,9 @@ public class TournamentService {
                 draft.maxAttempts(),
                 draft.scoringPolicy() == null ? ScoringPolicy.FIRST : draft.scoringPolicy(),
                 now);
+        if (allowGuests != null) {
+            tournament.openToGuests(allowGuests);
+        }
 
         return tournaments.save(tournament);
     }

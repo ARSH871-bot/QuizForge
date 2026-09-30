@@ -908,6 +908,88 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
 
+  /v1/join/{tournamentId}/guest:
+    parameters:
+      - name: tournamentId
+        in: path
+        required: true
+        description: The tournament, as a prefixed identifier.
+        schema:
+          $ref: '#/components/schemas/TournamentId'
+    post:
+      tags: [Join]
+      operationId: joinTournamentAsGuest
+      summary: Join a tournament with just a name
+      description: |
+        Creates a guest (an account with a name and nothing else), makes it a
+        `PLAYER` of the tournament's workspace, and signs it in with a session
+        cookie, exactly as `POST /v1/auth/login` would.
+
+        Only for tournaments whose organiser set `allowGuests`; otherwise
+        `403 PERMISSION_DENIED`. A caller already signed in is enrolled as
+        themselves and the nickname is ignored.
+
+        **Attempt limits apply to a guest exactly as to anyone else.** The
+        session lasts 14 days, so a guest returning in the same browser is the
+        same player and cannot exceed `maxAttempts`. New guest identities are
+        limited per network address, generously enough for a classroom joining
+        at once.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuestJoinRequest'
+      responses:
+        '200':
+          description: The guest is signed in and a member of the tournament's workspace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrolment'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '403':
+          description: This tournament requires an account. Carries `code` PERMISSION_DENIED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Someone in this workspace already uses that name. Carries `code` ALREADY_EXISTS.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
   /v1/tournaments/{tournamentId}/standings:
     get:
       tags: [Leaderboards]
@@ -3168,17 +3250,24 @@ components:
       description: |
         A user account. Never carries the password hash, MFA secret or lockout
         state.
-      required: [id, email, displayName, emailVerified]
+      required: [id, displayName, emailVerified]
       properties:
         id:
           $ref: '#/components/schemas/AccountId'
         email:
-          type: string
+          type: [string, 'null']
           format: email
           maxLength: 254
+          description: Absent for a guest, who has no address.
         displayName:
           type: string
           maxLength: 120
+        guest:
+          type: boolean
+          description: |
+            True for a guest: someone who joined a tournament by typing a name
+            rather than creating an account. A guest has no email address and
+            cannot sign in again from another browser.
         emailVerified:
           type: boolean
           description: |
@@ -3206,6 +3295,9 @@ components:
       description: What a player needs in order to choose a tournament. Reveals no question content.
       required: [id, name, state, opensAt, closesAt, questions, maxAttempts]
       properties:
+        allowGuests:
+          type: boolean
+          description: Whether people can play by typing a name instead of creating an account.
         id:
           $ref: '#/components/schemas/TournamentId'
         name:
@@ -3269,6 +3361,9 @@ components:
           type: string
           maxLength: 120
           description: The player's display name, as they chose it. Absent if the account has since been deleted.
+        guest:
+          type: boolean
+          description: True if this player joined as a guest rather than with an account.
         score:
           type: number
           format: double
@@ -3489,6 +3584,9 @@ components:
       description: A tournament as a share link presents it. Deliberately carries no content.
       required: [id, name, organiser, state, opensAt, closesAt, questions, maxAttempts]
       properties:
+        allowGuests:
+          type: boolean
+          description: Whether people can play by typing a name instead of creating an account.
         id:
           $ref: '#/components/schemas/TournamentId'
         name:
@@ -3535,6 +3633,22 @@ components:
         joined:
           type: boolean
           description: True if this call made the caller a member; false if it already was one.
+
+    GuestJoinRequest:
+      type: object
+      title: GuestJoinRequest
+      required: [nickname]
+      properties:
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: |
+            The name the leaderboard shows. Must not already be used by anyone
+            in the organiser's workspace, ignoring case, so a second guest
+            cannot pass as the first, or as the organiser.
+      examples:
+        - nickname: Aroha
 
     Role:
       type: string
@@ -3612,17 +3726,24 @@ components:
       type: object
       title: Member
       description: An account's membership of a workspace.
-      required: [accountId, email, displayName, role]
+      required: [accountId, displayName, role]
       properties:
         accountId:
           $ref: '#/components/schemas/AccountId'
         email:
-          type: string
+          type: [string, 'null']
           format: email
           maxLength: 254
+          description: Absent for a guest player, who has no address.
         displayName:
           type: string
           maxLength: 120
+        guest:
+          type: boolean
+          description: |
+            True for a guest: someone who joined a tournament by typing a name
+            rather than creating an account. A guest has no email address and
+            cannot sign in again from another browser.
         role:
           $ref: '#/components/schemas/Role'
       examples:
@@ -4255,6 +4376,14 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        allowGuests:
+          type: boolean
+          default: false
+          description: |
+            Let people play by typing a name instead of creating an account.
+            Lower friction, weaker limits: a guest keeps their identity in one
+            browser, so someone who switches browser can play again under a
+            different name. Leave this off for anything that counts.
         bankId:
           $ref: '#/components/schemas/QuestionBankId'
         opensAt:

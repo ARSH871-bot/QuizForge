@@ -8,13 +8,16 @@ export function Shell({ children, wide = false }: { children: ReactNode; wide?: 
   return (
     <>
       <header className="topbar">
-        <Link href={account ? "/app" : "/"} className="wordmark">
+        <Link href={account && !account.guest ? "/app" : "/"} className="wordmark">
           QuizForge
         </Link>
         <nav>
           {account ? (
             <>
-              <span className="topbar-name">{account.displayName}</span>
+              <span className="topbar-name">
+                {account.displayName}
+                {account.guest && <span className="topbar-guest"> (guest)</span>}
+              </span>
               <button type="button" className="link-button" onClick={() => void signOut()}>
                 Sign out
               </button>
@@ -106,6 +109,7 @@ export function Board({ rows, you, empty }: { rows: Standing[]; you?: string; em
                 <span className="board-name">
                   {row.displayName ?? "Former player"}
                   {mine && <span className="board-you">You</span>}
+                  {row.guest && !mine && <span className="board-guest">Guest</span>}
                 </span>
                 <span className="board-score">
                   {Number.isInteger(row.score) ? row.score : row.score.toFixed(1)}

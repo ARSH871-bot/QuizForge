@@ -63,7 +63,7 @@ public class TournamentController implements TournamentsApi {
         Principal principal = requireAccount();
 
         var created = tournaments.create(principal.workspaceId(), principal.accountId(),
-                toDomain(draft));
+                toDomain(draft), Boolean.TRUE.equals(draft.getAllowGuests()));
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(summarise(created, Instant.now()));
@@ -85,7 +85,7 @@ public class TournamentController implements TournamentsApi {
         Principal principal = requireAccount();
 
         var updated = tournaments.update(TypeId.parse("trn", tournamentId),
-                principal.accountId(), toDomain(draft));
+                principal.accountId(), toDomain(draft), draft.getAllowGuests());
 
         return ResponseEntity.ok(summarise(updated, Instant.now()));
     }
@@ -129,6 +129,7 @@ public class TournamentController implements TournamentsApi {
         summary.setTimeLimitSeconds(tournament.getTimeLimitSeconds());
         summary.setBankId(TypeId.render("bnk", tournament.getBankId()));
         summary.setScoringPolicy(ScoringPolicy.fromValue(tournament.getScoringPolicy().name()));
+        summary.setAllowGuests(tournament.isOpenToGuests());
         return summary;
     }
 

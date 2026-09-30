@@ -50,6 +50,9 @@ public class Tournament {
     @Column(name = "time_limit_seconds")
     private Integer timeLimitSeconds;
 
+    @Column(name = "allow_guests", nullable = false)
+    private boolean allowGuests;
+
     @Column(name = "max_attempts", nullable = false)
     private int maxAttempts;
 
@@ -102,6 +105,12 @@ public class Tournament {
     public int getMaxAttempts() { return maxAttempts; }
     public ScoringPolicy getScoringPolicy() { return scoringPolicy; }
     public UUID getCreatedBy() { return createdBy; }
+    public boolean isOpenToGuests() { return allowGuests; }
+
+    /** Whether people may play by typing a name instead of creating an account. */
+    public void openToGuests(boolean allow) {
+        this.allowGuests = allow;
+    }
 
     /**
      * Derived, never stored. Takes the instant as a parameter rather than

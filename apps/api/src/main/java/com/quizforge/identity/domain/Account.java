@@ -16,11 +16,14 @@ public class Account {
     @Id
     private UUID id;
 
-    @Column(nullable = false, length = 320)
+    @Column(length = 320)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(nullable = false)
+    private boolean guest;
 
     @Column(name = "display_name", nullable = false, length = 120)
     private String displayName;
@@ -58,6 +61,18 @@ public class Account {
         this.passwordHash = passwordHash;
         this.displayName = displayName;
     }
+
+    /**
+     * A guest: a name and nothing else. No email and no password, so it can
+     * never be signed into again - it lives only in the session it is issued.
+     */
+    public static Account guest(UUID id, String displayName) {
+        Account account = new Account(id, null, null, displayName);
+        account.guest = true;
+        return account;
+    }
+
+    public boolean isGuest() { return guest; }
 
     public UUID getId() { return id; }
     public String getEmail() { return email; }

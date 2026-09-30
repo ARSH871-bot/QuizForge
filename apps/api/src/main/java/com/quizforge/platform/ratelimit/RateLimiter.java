@@ -48,7 +48,16 @@ public class RateLimiter {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Decision consume(UUID subjectId, UUID workspaceId) {
-        int limit = limitFor(workspaceId);
+        return consume(subjectId, workspaceId, limitFor(workspaceId));
+    }
+
+    /**
+     * As {@link #consume(UUID, UUID)}, with a limit chosen by the caller rather
+     * than the workspace. For budgets that are not a credential's - new guest
+     * identities per network address, for one.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Decision consume(UUID subjectId, UUID workspaceId, int limit) {
         double refillPerSecond = limit / 60.0;
 
         // Create the bucket full, so a caller's first request is not charged for

@@ -129,6 +129,7 @@ export const api = {
     maxAttempts: number;
     timeLimitSeconds?: number;
     scoringPolicy: "BEST" | "FIRST" | "LAST" | "AVERAGE";
+    allowGuests: boolean;
   }) => request<Tournament>("/v1/tournaments", { method: "POST", body: draft }),
   playCount: (tournamentId: string) =>
     request<{ data: unknown[] }>(`/v1/tournaments/${tournamentId}/attempts-summary?limit=100`).then(
@@ -137,6 +138,8 @@ export const api = {
 
   publicTournament: (id: string) => request<PublicTournament>(`/v1/join/${id}`, { workspace: false }),
   join: (id: string) => request<Enrolment>(`/v1/join/${id}`, { method: "POST", workspace: false }),
+  joinAsGuest: (id: string, nickname: string) =>
+    request<Enrolment>(`/v1/join/${id}/guest`, { method: "POST", body: { nickname }, workspace: false }),
 
   startAttempt: (tournamentId: string) =>
     request<AttemptStarted>(`/v1/tournaments/${tournamentId}/attempts`, { method: "POST" }),

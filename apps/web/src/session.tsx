@@ -7,6 +7,8 @@ interface Session {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Re-reads who is signed in, after something other than this context started a session. */
+  refresh: () => Promise<void>;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -31,13 +33,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setAccount(await api.login(email, password));
   }, []);
 
+  const refresh = useCallback(async () => {
+    setAccount(await api.me().catch(() => null));
+  }, []);
+
   const signOut = useCallback(async () => {
     await api.logout().catch(() => undefined);
     selectWorkspace(null);
     setAccount(null);
   }, []);
 
-  return <SessionContext.Provider value={{ account, signIn, signUp, signOut }}>{children}</SessionContext.Provider>;
+  return <SessionContext.Provider value={{ account, signIn, signUp, signOut, refresh }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): Session {

@@ -55,6 +55,7 @@ export function NewTournament() {
   const [days, setDays] = useState(7);
   const [minutes, setMinutes] = useState(10);
   const [attempts, setAttempts] = useState(1);
+  const [guests, setGuests] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -99,6 +100,7 @@ export function NewTournament() {
         maxAttempts: attempts,
         ...(minutes > 0 ? { timeLimitSeconds: minutes * 60 } : {}),
         scoringPolicy: "BEST",
+        allowGuests: guests,
       });
       navigate(`/app/t/${tournament.id}`);
     } catch (err) {
@@ -237,6 +239,17 @@ export function NewTournament() {
             </select>
           </label>
         </div>
+
+        <label className="check">
+          <input type="checkbox" checked={guests} onChange={(e) => setGuests(e.target.checked)} />
+          <span>
+            <span className="check-label">Let people play with just a name</span>
+            <span className="field-hint">
+              No account needed, so more people play. Someone could play again from another browser under a new name,
+              so turn this off for anything that counts.
+            </span>
+          </span>
+        </label>
 
         <ErrorNote error={error} />
         <Button type="submit" busy={busy}>

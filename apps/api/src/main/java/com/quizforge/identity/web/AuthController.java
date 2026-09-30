@@ -42,16 +42,14 @@ public class AuthController implements AuthenticationApi {
     private final AccountService accounts;
     private final SessionService sessions;
     private final HttpServletRequest http;
-    private final boolean sessionCookieSecure;
+    private final com.quizforge.identity.SessionCookies cookies;
 
     public AuthController(AccountService accounts, SessionService sessions,
-                          HttpServletRequest http,
-                          @Value("${quizforge.security.session-cookie-secure:true}")
-                          boolean sessionCookieSecure) {
+                          HttpServletRequest http, com.quizforge.identity.SessionCookies cookies) {
         this.accounts = accounts;
         this.sessions = sessions;
         this.http = http;
-        this.sessionCookieSecure = sessionCookieSecure;
+        this.cookies = cookies;
     }
 
     @Override
@@ -73,13 +71,7 @@ public class AuthController implements AuthenticationApi {
         var issued = sessions.issue(account.getId(),
                 http.getHeader("User-Agent"), http.getRemoteAddr());
 
-        ResponseCookie cookie = ResponseCookie.from(SessionAuthFilter.COOKIE_NAME, issued.token())
-                .httpOnly(true)
-                .secure(sessionCookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(SessionService.LIFETIME)
-                .build();
+        ResponseCookie cookie = cookies.issue(issued.token(), SessionService.LIFETIME);
 
         return ResponseEntity.ok()
                 .header("Set-Cookie", cookie.toString())
@@ -135,9 +127,10 @@ public class AuthController implements AuthenticationApi {
     private Account represent(com.quizforge.identity.domain.Account account) {
         Account body = new Account(
                 TypeId.render("acc", account.getId()),
-                account.getEmail(),
                 account.getDisplayName(),
                 account.getEmailVerifiedAt() != null);
+        body.setEmail(account.getEmail());
+        body.setGuest(account.isGuest());
         return body;
     }
 }

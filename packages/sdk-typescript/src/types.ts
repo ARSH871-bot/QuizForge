@@ -328,6 +328,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/join/{tournamentId}/guest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The tournament, as a prefixed identifier. */
+                tournamentId: components["schemas"]["TournamentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join a tournament with just a name
+         * @description Creates a guest (an account with a name and nothing else), makes it a
+         *     `PLAYER` of the tournament's workspace, and signs it in with a session
+         *     cookie, exactly as `POST /v1/auth/login` would.
+         *
+         *     Only for tournaments whose organiser set `allowGuests`; otherwise
+         *     `403 PERMISSION_DENIED`. A caller already signed in is enrolled as
+         *     themselves and the nickname is ignored.
+         *
+         *     **Attempt limits apply to a guest exactly as to anyone else.** The
+         *     session lasts 14 days, so a guest returning in the same browser is the
+         *     same player and cannot exceed `maxAttempts`. New guest identities are
+         *     limited per network address, generously enough for a classroom joining
+         *     at once.
+         */
+        post: operations["joinTournamentAsGuest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tournaments/{tournamentId}/standings": {
         parameters: {
             query?: never;
@@ -1185,9 +1220,18 @@ export interface components {
          */
         Account: {
             id: components["schemas"]["AccountId"];
-            /** Format: email */
-            email: string;
+            /**
+             * Format: email
+             * @description Absent for a guest, who has no address.
+             */
+            email?: string | null;
             displayName: string;
+            /**
+             * @description True for a guest: someone who joined a tournament by typing a name
+             *     rather than creating an account. A guest has no email address and
+             *     cannot sign in again from another browser.
+             */
+            guest?: boolean;
             /**
              * @description Whether the address has been confirmed. Always `false` today —
              *     verification is not implemented, so this is reserved rather than
@@ -1218,6 +1262,8 @@ export interface components {
          *     }
          */
         TournamentSummary: {
+            /** @description Whether people can play by typing a name instead of creating an account. */
+            allowGuests?: boolean;
             id: components["schemas"]["TournamentId"];
             name: string;
             state: components["schemas"]["TournamentState"];
@@ -1261,6 +1307,8 @@ export interface components {
             accountId: components["schemas"]["AccountId"];
             /** @description The player's display name, as they chose it. Absent if the account has since been deleted. */
             displayName?: string;
+            /** @description True if this player joined as a guest rather than with an account. */
+            guest?: boolean;
             /**
              * Format: double
              * @description Resolved with the tournament's scoring policy at read time. A
@@ -1436,6 +1484,8 @@ export interface components {
          * @description A tournament as a share link presents it. Deliberately carries no content.
          */
         PublicTournament: {
+            /** @description Whether people can play by typing a name instead of creating an account. */
+            allowGuests?: boolean;
             id: components["schemas"]["TournamentId"];
             name: string;
             /** @description The name of the workspace running it. */
@@ -1460,6 +1510,20 @@ export interface components {
             workspace: components["schemas"]["Workspace"];
             /** @description True if this call made the caller a member; false if it already was one. */
             joined: boolean;
+        };
+        /**
+         * GuestJoinRequest
+         * @example {
+         *       "nickname": "Aroha"
+         *     }
+         */
+        GuestJoinRequest: {
+            /**
+             * @description The name the leaderboard shows. Must not already be used by anyone
+             *     in the organiser's workspace, ignoring case, so a second guest
+             *     cannot pass as the first, or as the organiser.
+             */
+            nickname: string;
         };
         /**
          * Role
@@ -1528,9 +1592,18 @@ export interface components {
          */
         Member: {
             accountId: components["schemas"]["AccountId"];
-            /** Format: email */
-            email: string;
+            /**
+             * Format: email
+             * @description Absent for a guest player, who has no address.
+             */
+            email?: string | null;
             displayName: string;
+            /**
+             * @description True for a guest: someone who joined a tournament by typing a name
+             *     rather than creating an account. A guest has no email address and
+             *     cannot sign in again from another browser.
+             */
+            guest?: boolean;
             role: components["schemas"]["Role"];
         };
         /** MemberPage */
@@ -2046,6 +2119,14 @@ export interface components {
          */
         TournamentDraft: {
             name: string;
+            /**
+             * @description Let people play by typing a name instead of creating an account.
+             *     Lower friction, weaker limits: a guest keeps their identity in one
+             *     browser, so someone who switches browser can play again under a
+             *     different name. Leave this off for anything that counts.
+             * @default false
+             */
+            allowGuests: boolean;
             bankId: components["schemas"]["QuestionBankId"];
             /** Format: date-time */
             opensAt: string;
@@ -3082,6 +3163,64 @@ export interface operations {
             400: components["responses"]["InvalidRequest"];
             401: components["responses"]["AuthenticationRequired"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    joinTournamentAsGuest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The tournament, as a prefixed identifier. */
+                tournamentId: components["schemas"]["TournamentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description The guest is signed in and a member of the tournament's workspace. */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Enrolment"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            /** @description This tournament requires an account. Carries `code` PERMISSION_DENIED. */
+            403: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Someone in this workspace already uses that name. Carries `code` ALREADY_EXISTS. */
+            409: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             429: components["responses"]["RateLimited"];
             500: components["responses"]["Internal"];
         };

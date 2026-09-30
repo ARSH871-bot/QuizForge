@@ -25,10 +25,10 @@ messages, and any private correspondence conducted on the project's behalf.
 
 ## Enforcement
 
-Raise concerns with the maintainer directly. While the repository is private,
-everyone who can read this file already has a way to do that, and GitHub's
-private advisory channel is unavailable on the Free plan (ADR 0013) — so it is
-not offered here. A published channel that does not work is worse than none.
+Report concerns through a private security advisory, which reaches the
+maintainer confidentially:
+
+<https://github.com/ARSH871-bot/QuizForge/security/advisories/new>
 
 Reports are read by the maintainer. Consequences range from a request to
 change behaviour to a permanent ban, in proportion to the conduct.

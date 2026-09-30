@@ -65,7 +65,11 @@ public class AttemptService {
 
         long used = attempts.countByTournamentIdAndAccountId(tournamentId, accountId);
         if (used >= tournament.maxAttempts()) {
-            throw ApiException.invalid(tournament.maxAttempts() == 1
+            // Its own code, not INVALID_REQUEST: nothing about the request is
+            // wrong, and a client should show the player's result rather than
+            // an error. Sharing a code with "not open yet" made that impossible
+            // to tell apart without reading the message.
+            throw new ApiException(ErrorCode.ATTEMPTS_EXHAUSTED, tournament.maxAttempts() == 1
                     ? "you have already attempted this tournament"
                     : "you have used all " + tournament.maxAttempts() + " attempts");
         }

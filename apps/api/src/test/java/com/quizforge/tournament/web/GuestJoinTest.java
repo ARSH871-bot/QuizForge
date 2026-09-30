@@ -164,7 +164,9 @@ class GuestJoinTest extends AbstractIntegrationTest {
         mvc.perform(post("/v1/attempts/" + attemptId + "/submit").cookie(guest).with(csrf())
                 .header(SessionAuthFilter.WORKSPACE_HEADER, s.workspaceId()));
 
-        start(guest, s).andExpect(status().isBadRequest());
+        start(guest, s)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ATTEMPTS_EXHAUSTED"));
     }
 
     @Test

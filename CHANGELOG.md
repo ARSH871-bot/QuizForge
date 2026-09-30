@@ -162,6 +162,12 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- **Third-party workflow actions were referenced by movable tags.** Whoever
+  controls `gitleaks-action`, `action-junit-report` or
+  `action-semantic-pull-request` could re-point `v3` or `v6` and run code in this
+  repository's CI with its token. They are pinned to commits, with the version
+  in a comment so Dependabot keeps them current. Flagged by CodeQL's first scan.
+
 - **A flaky test in the required build.** The idempotency purge also runs on a
   timer, which tests never switched off — unlike the attempt sweep, which they
   did. When the timer fired between a test ageing a key and calling the purge

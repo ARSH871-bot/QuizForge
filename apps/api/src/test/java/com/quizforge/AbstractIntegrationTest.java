@@ -35,5 +35,10 @@ public abstract class AbstractIntegrationTest {
         // The sweep is driven explicitly in its own test. Left on a timer it
         // would close attempts mid-assertion in every other test.
         registry.add("quizforge.play.expiry-sweep-enabled", () -> "false");
+        // Likewise the idempotency purge. Its timer fires as the context
+        // starts, and when that run lands between a test ageing a key and the
+        // test calling run() itself, it deletes the key first and the test's
+        // own call returns 0. That failed CI on an unrelated pull request.
+        registry.add("quizforge.idempotency.purge-enabled", () -> "false");
     }
 }

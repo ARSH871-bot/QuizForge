@@ -162,6 +162,12 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- **A flaky test in the required build.** The idempotency purge also runs on a
+  timer, which tests never switched off — unlike the attempt sweep, which they
+  did. When the timer fired between a test ageing a key and calling the purge
+  itself, the test failed against a system that had behaved correctly. It
+  failed CI on an unrelated dependency bump.
+
 - **Every unknown path returned `500`.** Missing routes fell through to the
   catch-all error handler. They are now `404 NOT_FOUND`.
 

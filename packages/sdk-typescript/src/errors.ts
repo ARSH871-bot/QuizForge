@@ -1,16 +1,25 @@
+import type { KnownErrorCode } from "./codes.js";
 import type { components } from "./types.js";
 
 /** The RFC 9457 Problem Details document every error response carries. */
 export type Problem = components["schemas"]["Problem"];
 
+
 /**
  * The stable machine-readable error code.
  *
- * <p>Branch on this, never on `detail`. A code that exists will never change
+ * Branch on this, never on `detail`. A code that exists will never change
  * its meaning or its HTTP status; `detail` is written for humans and is
  * reworded freely.
+ *
+ * **The set grows.** The API adds codes without a new version, so this is
+ * every code documented today plus any string: autocomplete and narrowing work
+ * on the known ones, and a code this SDK has not heard of still type-checks.
+ * Handle the codes you care about, and treat anything else by `status`.
  */
-export type ErrorCode = components["schemas"]["ErrorCode"];
+// `string & {}` keeps the known codes visible to autocomplete; a bare `string`
+// would absorb them.
+export type ErrorCode = KnownErrorCode | (string & {});
 
 /**
  * An error the API returned.

@@ -139,6 +139,18 @@ try {
 
 Branch on `code`, never on `message`: a code that exists will never change its
 meaning or its status, while `detail` is written for people and gets reworded.
+
+The API adds codes without a new version, so `ErrorCode` is every code
+documented today plus any string. The known ones autocomplete and narrow; a
+code this SDK has not heard of still type-checks, and should be handled by
+`status`. `KNOWN_ERROR_CODES` carries each known code's status and meaning,
+generated from the contract.
+
+```ts
+if (error instanceof QuizForgeError && error.code === "ATTEMPTS_EXHAUSTED") {
+  // the player's best result stands — show it rather than an error
+}
+```
 `QuizForgeConnectionError` is thrown separately when the API could not be
 reached at all — there is no status to report and no problem document to read.
 

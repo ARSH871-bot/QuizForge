@@ -30,6 +30,8 @@ export type {
 } from "./client.js";
 export { QuizForgeError, QuizForgeConnectionError } from "./errors.js";
 export type { ErrorCode, Problem } from "./errors.js";
+export { KNOWN_ERROR_CODES } from "./codes.js";
+export type { KnownErrorCode } from "./codes.js";
 export type { ClientOptions } from "./http.js";
 
 /** The generated contract types, for callers that want the raw shapes. */

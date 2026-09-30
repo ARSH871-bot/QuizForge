@@ -43,7 +43,7 @@ const save = (tournamentId: string, saved: Saved | null) => {
 type Stage =
   | { name: "card" }
   | { name: "playing"; attempt: Saved }
-  | { name: "done"; result: AttemptResult | null; workspaceId: string; message?: string };
+  | { name: "done"; result: AttemptResult | null; workspaceId: string; message?: string; exhausted?: boolean };
 
 export function Play({ id }: { id: string }) {
   const { account, refresh } = useSession();
@@ -80,12 +80,12 @@ export function Play({ id }: { id: string }) {
       save(id, attempt);
       setStage({ name: "playing", attempt });
     } catch (err) {
-      // Out of attempts (or not open) is not a dead end: show where they stand.
-      // The API reports both as INVALID_REQUEST, so the status is all there is.
-      if (err instanceof ApiError && err.status === 400) {
+      // Out of attempts is not a failure: the player's best result stands, so
+      // show it. Anything else - not open yet, say - is shown where they are.
+      if (err instanceof ApiError && err.code === "ATTEMPTS_EXHAUSTED") {
         const enrolment = await api.join(id).catch(() => null);
         if (enrolment) {
-          setStage({ name: "done", result: null, workspaceId: enrolment.workspace.id, message: err.message });
+          setStage({ name: "done", result: null, workspaceId: enrolment.workspace.id, exhausted: true });
           return;
         }
       }
@@ -147,6 +147,7 @@ export function Play({ id }: { id: string }) {
           you={account.id}
           workspaceId={stage.workspaceId}
           message={stage.message}
+          exhausted={stage.exhausted}
         />
       )}
     </Shell>
@@ -381,6 +382,7 @@ function Result({
   you,
   workspaceId,
   message,
+  exhausted,
 }: {
   tournamentId: string;
   card: PublicTournament;
@@ -388,6 +390,7 @@ function Result({
   you: string;
   workspaceId: string;
   message?: string;
+  exhausted?: boolean;
 }) {
   const [standings, setStandings] = useState<Standing[] | null>(null);
   useEffect(() => {
@@ -413,9 +416,18 @@ function Result({
         </h1>
       ) : (
         <>
-          <h1 className="title">{message ? "Your results so far" : "Your attempt is in."}</h1>
-          {/* The server's reason, shown as a sentence rather than a headline. */}
-          {message && <p className="lede">{sentence(message)}</p>}
+          <h1 className="title">
+            {exhausted ? "You've played this one" : message ? "Your results so far" : "Your attempt is in."}
+          </h1>
+          {exhausted ? (
+            <p className="lede">
+              {card.maxAttempts === 1
+                ? "Everyone gets one attempt, and yours is in."
+                : `You've used all ${card.maxAttempts} attempts. Your best one counts.`}
+            </p>
+          ) : (
+            message && <p className="lede">{sentence(message)}</p>
+          )}
         </>
       )}
       {mine && (

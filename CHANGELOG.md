@@ -178,6 +178,14 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- The contract said `RATE_LIMITED` was "not yet emitted — rate limiting arrives
+  with M4". It has been emitted since M4.
+- Nothing checked that the server's error codes and the contract's agree. With
+  the list extensible the breaking-change gate cannot see a code the server
+  sends but never documents, so a test now compares both directions, statuses
+  included. It failed first, naming `ATTEMPTS_EXHAUSTED` as documented but not
+  yet emitted.
+
 - The SDK trimmed trailing slashes from `baseUrl` with a regex that takes
   quadratic time on a long run of slashes. Now a linear loop. Flagged by CodeQL
   as high severity; the practical risk was small, since the developer supplies
@@ -288,6 +296,20 @@ these are milestone markers, and the minor number tracks the milestone.
   no CodeQL job. It has been private since ADR 0013.
 
 ### Changed
+
+- **Error codes are extensible.** `ErrorCode` was declared exhaustive, so any
+  new code was a breaking change to every error response of every operation:
+  adding one measured 269 breaking changes. It is now an `x-extensible-enum`,
+  and a client must handle an unrecognised code by its HTTP status. Adding a
+  code now measures zero, and the switch itself is not a break either.
+- **Running out of attempts is `409 ATTEMPTS_EXHAUSTED`**, not
+  `400 INVALID_REQUEST`. Nothing about the request is wrong, and sharing a code
+  with "not open yet" meant a client could only tell them apart by reading the
+  message. The web app now shows the player's result on it.
+- The SDK's `ErrorCode` is every documented code plus any string, so known codes
+  still autocomplete and narrow while new ones type-check.
+  `KNOWN_ERROR_CODES`, with each code's status and meaning, is generated from
+  the contract and covered by the drift check.
 
 - `Account.email` and `Member.email` are optional and nullable, because a guest
   has no address. A breaking change to `/v1`, accepted while nothing consumes it

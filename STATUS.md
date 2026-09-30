@@ -90,7 +90,6 @@ first version number that means something to a consumer.
 |---|---|---|---|
 | — | A guest can play again from another browser under a new name. By design: guests are opt-in per tournament, names are unique per workspace, guests are marked on the board, and new guest identities are limited per network address | — | nothing; leave guests off for anything that counts |
 | — | The per-address guest limit reads the connection's address. Behind a load balancer every guest shares one address until forwarded headers are trusted, which must be configured for the host rather than switched on blindly | **repo owner** (at deploy) | a classroom behind a proxy hitting the limit at once |
-| — | Running out of attempts is `400 INVALID_REQUEST` rather than its own stable code. A new code needs `ErrorCode` declared extensible first: it is documented as exhaustive, so adding any value breaks every error response of every operation | — | nothing today; the web app handles it without reading the message |
 | — | A `PLAYER` sees every tournament in the workspace it joined, not only the one it was invited to | — | nothing today; matters once a workspace runs private tournaments |
 | — | No password reset, so a player who forgets a password is locked out | — | real players |
 | — | Never deployed. `Dockerfile` builds one image serving the API and web app; the database login must be able to bypass row-level security, and the app refuses to start if it cannot | **repo owner** (host account) | anyone outside this machine using it |
@@ -117,7 +116,7 @@ source is not a licence to use it: `LICENSE` is proprietary.
 | Control | Mechanism | Where |
 |---|---|---|
 | Pull request required, squash only, branch up to date, no force-push | ruleset `main protection` | GitHub |
-| Build, 292 tests, SpotBugs + FindSecBugs | CI job `build`, required | Actions |
+| Build, 294 tests, SpotBugs + FindSecBugs | CI job `build`, required | Actions |
 | Static analysis | CodeQL default setup, Java; required | GitHub |
 | Secret scanning | gitleaks (`secret-scan`, required) and GitHub push protection | Actions, GitHub |
 | Contract lint and breaking changes | `openapi-lint`, `openapi-breaking` (oasdiff pinned by digest), required | Actions |
@@ -163,7 +162,7 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 292, all passing
+- **Tests:** 294, all passing
 - **Migrations:** V1–V17
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
 - **ADRs:** 14 (0007, 0009 and 0013 superseded)

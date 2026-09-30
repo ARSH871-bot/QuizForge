@@ -190,7 +190,9 @@ class AttemptServiceTest extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> attempts.start(f.tournamentId(), f.owner()))
                 .isInstanceOf(ApiException.class)
-                .hasMessageContaining("already attempted");
+                .hasMessageContaining("already attempted")
+                .extracting(e -> ((ApiException) e).code())
+                .isEqualTo(com.quizforge.platform.error.ErrorCode.ATTEMPTS_EXHAUSTED);
     }
 
     @Test

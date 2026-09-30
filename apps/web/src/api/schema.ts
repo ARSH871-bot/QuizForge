@@ -1072,15 +1072,23 @@ export interface components {
         };
         /**
          * ErrorCode
-         * @description The machine-readable error code. Exhaustive: every error the API can
-         *     produce carries one of these.
+         * @description The machine-readable error code. Every error the API produces carries
+         *     one, and each maps to exactly one HTTP status; that mapping is part of
+         *     the contract, and a code never changes its meaning or its status.
          *
-         *     Each maps to exactly one HTTP status, and that mapping is part of the
-         *     contract.
+         *     **Extensible.** New codes are added without a new API version, so a
+         *     failure mode that deserves its own code can have one. A client must
+         *     therefore handle a code it does not recognise, by falling back to the
+         *     HTTP status: every code's status is one a generic client already
+         *     understands. Branch on the codes you care about; treat the rest by
+         *     status.
+         *
+         *     Declared with `x-extensible-enum` rather than `enum` for exactly that
+         *     reason: `enum` promises the list is complete, which would make every
+         *     new code a breaking change to every error response.
          * @example NOT_FOUND
-         * @enum {string}
          */
-        ErrorCode: "INVALID_REQUEST" | "INVALID_CREDENTIALS" | "AUTHENTICATION_REQUIRED" | "PERMISSION_DENIED" | "INVALID_CURSOR" | "NOT_FOUND" | "ALREADY_EXISTS" | "IDEMPOTENCY_KEY_REUSED" | "RATE_LIMITED" | "INTERNAL";
+        ErrorCode: string;
         /**
          * AccountId
          * @description An account identifier. UUIDv7 rendered as 32 lowercase hex characters with an `acc_` prefix.
@@ -3350,8 +3358,8 @@ export interface operations {
                 };
             };
             /**
-             * @description The workspace is not in scope, the tournament is not open, or the
-             *     attempt allowance is used up. Carries `code: INVALID_REQUEST`.
+             * @description The workspace is not in scope, or the tournament is not open.
+             *     Carries `code: INVALID_REQUEST`.
              */
             400: {
                 headers: {
@@ -3367,7 +3375,23 @@ export interface operations {
             401: components["responses"]["AuthenticationRequired"];
             403: components["responses"]["CsrfOrPermission"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["IdempotencyKeyInFlight"];
+            /**
+             * @description Either the player has used every attempt the tournament allows,
+             *     with `code: ATTEMPTS_EXHAUSTED` — their best result stands, so show
+             *     it — or a request with the same `Idempotency-Key` is still running,
+             *     with `code: ALREADY_EXISTS`.
+             */
+            409: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["IdempotencyKeyReused"];
             429: components["responses"]["RateLimited"];
             500: components["responses"]["Internal"];

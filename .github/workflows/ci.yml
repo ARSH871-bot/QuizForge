@@ -135,8 +135,8 @@ jobs:
         # there would otherwise silently outlive the contract it came from.
         run: |
           npm run generate
-          if ! git diff --exit-code -- src/types.ts; then
-            echo "::error::src/types.ts is stale. Run 'npm run generate' in packages/sdk-typescript and commit the result."
+          if ! git diff --exit-code -- src/types.ts src/codes.ts; then
+            echo "::error::Generated SDK files are stale. Run 'npm run generate' in packages/sdk-typescript and commit the result."
             exit 1
           fi
 

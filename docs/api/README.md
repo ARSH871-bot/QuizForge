@@ -485,10 +485,15 @@ details with one extra field:
 {"type":"https://quizforge.dev/errors/permission-denied","title":"PERMISSION_DENIED","status":403,"detail":"authoring requires a signed-in account, not an API key","instance":"/v1/question-banks","code":"PERMISSION_DENIED"}
 ```
 
-**Branch on `code`.** It is a stable enum: a code that exists will never change
-its meaning or its HTTP status. `detail` is written for people and gets
-reworded. The full list is `ErrorCode` in
+**Branch on `code`.** A code that exists will never change its meaning or its
+HTTP status. `detail` is written for people and gets reworded. The current
+list, with each code's status and meaning, is `ErrorCode` in
 [`openapi.yaml`](../../openapi.yaml).
+
+**The list grows.** New codes are added without a new API version, so handle
+the codes you care about and treat any other by its HTTP status. For example,
+running out of attempts is `409 ATTEMPTS_EXHAUSTED`: a client that knows the
+code can show the player's result, and one that does not still sees a `409`.
 
 Two worth knowing early: naming a workspace you are not a member of is `403
 PERMISSION_DENIED`, not `404` — the credential is valid, the workspace is not

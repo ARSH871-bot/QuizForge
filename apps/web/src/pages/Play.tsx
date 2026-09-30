@@ -4,12 +4,13 @@ import {
   ApiError,
   selectWorkspace,
   type AttemptResult,
+  type Enrolment,
   type PlayableQuestion,
   type PublicTournament,
   type Standing,
 } from "../api/client";
 import { useSession } from "../session";
-import { AuthForm, Board, Button, ErrorNote, Shell, useWindow } from "../ui";
+import { AuthForm, Board, Button, ErrorNote, Field, Shell, useWindow } from "../ui";
 
 /** An attempt in progress, kept so a reload or a dropped connection resumes it. */
 interface Saved {
@@ -45,7 +46,7 @@ type Stage =
   | { name: "done"; result: AttemptResult | null; workspaceId: string; message?: string };
 
 export function Play({ id }: { id: string }) {
-  const { account } = useSession();
+  const { account, refresh } = useSession();
   const [card, setCard] = useState<PublicTournament | null>(null);
   const [stage, setStage] = useState<Stage>({ name: "card" });
   const [busy, setBusy] = useState(false);
@@ -60,11 +61,12 @@ export function Play({ id }: { id: string }) {
     }
   }, [id]);
 
-  const start = async () => {
+  // Joining differs for an account holder and a guest; everything after is the same.
+  const start = async (enrol: () => Promise<Enrolment>) => {
     setBusy(true);
     setError(null);
     try {
-      const { workspace } = await api.join(id);
+      const { workspace } = await enrol();
       selectWorkspace(workspace.id);
       const started = await api.startAttempt(id);
       const attempt: Saved = {
@@ -107,11 +109,29 @@ export function Play({ id }: { id: string }) {
       {card && stage.name === "card" && (
         <Card card={card}>
           {account === undefined ? null : account === null ? (
-            <AuthForm intent="play" />
+            card.allowGuests ? (
+              <GuestEntry
+                card={card}
+                busy={busy}
+                error={error}
+                onPlay={(nickname) =>
+                  void start(async () => {
+                    const enrolment = await api.joinAsGuest(id, nickname);
+                    await refresh();
+                    return enrolment;
+                  })
+                }
+              />
+            ) : (
+              <>
+                <p className="muted">This tournament needs an account, so the organiser can be sure who played.</p>
+                <AuthForm intent="play" />
+              </>
+            )
           ) : (
             <>
               <ErrorNote error={error} />
-              <PlayButton card={card} busy={busy} onPlay={() => void start()} />
+              <PlayButton card={card} busy={busy} onPlay={() => void start(() => api.join(id))} />
             </>
           )}
         </Card>
@@ -148,6 +168,63 @@ function Card({ card, children }: { card: PublicTournament; children: ReactNode 
       </p>
       {children}
     </section>
+  );
+}
+
+/**
+ * Playing without an account: a name and a button. Signing in stays one tap
+ * away for anyone who would rather keep their results.
+ */
+function GuestEntry({
+  card,
+  busy,
+  error,
+  onPlay,
+}: {
+  card: PublicTournament;
+  busy: boolean;
+  error: unknown;
+  onPlay: (nickname: string) => void;
+}) {
+  const timing = useWindow(card.opensAt, card.closesAt);
+  const [nickname, setNickname] = useState("");
+  const [withAccount, setWithAccount] = useState(false);
+
+  if (withAccount) {
+    return (
+      <>
+        <AuthForm intent="play" />
+        <button type="button" className="link-button" onClick={() => setWithAccount(false)}>
+          Play with just a name instead
+        </button>
+      </>
+    );
+  }
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (nickname.trim()) onPlay(nickname.trim());
+  };
+
+  return (
+    <form className="guest" onSubmit={submit}>
+      <Field
+        label="Your name"
+        hint="This is what the leaderboard shows. No account needed."
+        value={nickname}
+        onChange={(e) => setNickname(e.target.value)}
+        required
+        maxLength={40}
+        autoComplete="nickname"
+      />
+      <ErrorNote error={error} />
+      <Button type="submit" busy={busy} disabled={!timing.open || !nickname.trim()}>
+        {timing.closed ? "Closed" : timing.open ? "Start playing" : "Not open yet"}
+      </Button>
+      <button type="button" className="link-button guest-alt" onClick={() => setWithAccount(true)}>
+        I have an account
+      </button>
+    </form>
   );
 }
 
@@ -283,6 +360,14 @@ function Round({
   );
 }
 
+/** "you have already attempted this" -> "You have already attempted this." */
+function sentence(text: string): string {
+  const t = text.trim();
+  if (!t) return t;
+  const cased = t[0]!.toUpperCase() + t.slice(1);
+  return /[.!?]$/.test(cased) ? cased : `${cased}.`;
+}
+
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
@@ -327,7 +412,11 @@ function Result({
           {result.score} of {result.outOf}
         </h1>
       ) : (
-        <h1 className="title">{message ?? "Your attempt is in."}</h1>
+        <>
+          <h1 className="title">{message ? "Your results so far" : "Your attempt is in."}</h1>
+          {/* The server's reason, shown as a sentence rather than a headline. */}
+          {message && <p className="lede">{sentence(message)}</p>}
+        </>
       )}
       {mine && (
         <p className="lede">

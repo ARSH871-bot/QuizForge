@@ -36,4 +36,13 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
             UUID workspaceId, UUID after, Limit limit);
 
     long countByWorkspaceIdAndRole(UUID workspaceId, Role role);
+
+    /** Whether anyone in the workspace already goes by this name, ignoring case. */
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT COUNT(m) > 0 FROM Membership m, Account a
+            WHERE m.accountId = a.id AND m.workspaceId = :workspaceId
+              AND LOWER(a.displayName) = LOWER(:name)
+            """)
+    boolean nameTakenInWorkspace(@org.springframework.data.repository.query.Param("workspaceId") UUID workspaceId,
+                                 @org.springframework.data.repository.query.Param("name") String name);
 }

@@ -16,7 +16,7 @@ export function Home() {
   const { account } = useSession();
 
   useEffect(() => {
-    if (account) navigate("/app", true);
+    if (account && !account.guest) navigate("/app", true);
   }, [account]);
 
   return (

@@ -23,18 +23,27 @@ public class WorkspaceService {
     private final WorkspaceRepository workspaces;
     private final MembershipRepository memberships;
     private final AuditService audit;
+    private final com.quizforge.identity.repo.AccountRepository accounts;
 
     public WorkspaceService(WorkspaceRepository workspaces, MembershipRepository memberships,
-                            AuditService audit) {
+                            AuditService audit,
+                            com.quizforge.identity.repo.AccountRepository accounts) {
         this.workspaces = workspaces;
         this.memberships = memberships;
         this.audit = audit;
+        this.accounts = accounts;
     }
 
     @Transactional
     public Workspace create(UUID ownerId, String name) {
         if (name == null || name.isBlank()) {
             throw ApiException.invalid("workspace name is required");
+        }
+        // A guest has no address and cannot sign in again: it would own a
+        // workspace nobody could ever recover.
+        if (accounts.findById(ownerId).map(com.quizforge.identity.domain.Account::isGuest).orElse(false)) {
+            throw new ApiException(ErrorCode.PERMISSION_DENIED,
+                    "create an account to run tournaments");
         }
 
         Workspace workspace = new Workspace(UuidV7.generate(), name, uniqueSlug(name), ownerId);

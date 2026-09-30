@@ -367,3 +367,16 @@ input:focus, textarea:focus, select:focus { border-color: var(--fairway); outlin
 @media (max-width: 480px) {
   .share-row, .typed { flex-direction: column; }
 }
+
+/* ---------------------------------------------------------------- guests */
+
+.board-guest { margin-left: 0.6rem; font: 500 0.85rem/1 var(--text); color: var(--ink-soft); vertical-align: middle; }
+.topbar-guest { color: var(--ink-soft); }
+
+.guest .button { width: 100%; min-height: 3.5rem; font-size: 1.15rem; margin-top: 0.25rem; }
+.guest-alt { display: block; margin: 1rem auto 0; }
+
+.check { display: flex; gap: 0.75rem; align-items: flex-start; margin: 1.5rem 0 1.25rem; cursor: pointer; }
+.check input { width: 1.3rem; height: 1.3rem; margin-top: 0.15rem; accent-color: var(--fairway); flex: none; }
+.check > span { display: grid; gap: 0.2rem; }
+.check-label { font-weight: 600; }

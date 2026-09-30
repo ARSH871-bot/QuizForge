@@ -66,12 +66,12 @@ public class LeaderboardController implements LeaderboardsApi {
         }
 
         var standings = leaderboard.standings(TypeId.parse("trn", tournamentId), requested);
-        var names = directory.displayNamesOf(standings.stream()
+        var people = directory.peopleOf(standings.stream()
                 .map(com.quizforge.leaderboard.app.LeaderboardEntry::accountId)
                 .toList());
 
         StandingPage page = new StandingPage(standings.stream()
-                .map(entry -> represent(entry, names.get(entry.accountId())))
+                .map(entry -> represent(entry, people.get(entry.accountId())))
                 .toList());
         page.setNextCursor(null);
         return ResponseEntity.ok(page);
@@ -82,7 +82,7 @@ public class LeaderboardController implements LeaderboardsApi {
      * identifier {@code GET /v1/auth/me} returns for the same account.
      */
     private LeaderboardEntry represent(com.quizforge.leaderboard.app.LeaderboardEntry entry,
-                                       String displayName) {
+                                       com.quizforge.identity.AccountDirectory.Person person) {
         LeaderboardEntry row = new LeaderboardEntry(
                 TypeId.render("acc", entry.accountId()),
                 entry.score(),
@@ -90,7 +90,10 @@ public class LeaderboardController implements LeaderboardsApi {
                 entry.attempts(),
                 entry.firstGradedAt().atOffset(ZoneOffset.UTC),
                 entry.rank());
-        row.setDisplayName(displayName);
+        if (person != null) {
+            row.setDisplayName(person.displayName());
+            row.setGuest(person.guest());
+        }
         return row;
     }
 }

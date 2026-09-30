@@ -107,11 +107,13 @@ public class MemberController implements MembersApi {
     }
 
     private Member represent(Membership membership, Account account) {
-        return new Member(
+        Member member = new Member(
                 TypeId.render("acc", account.getId()),
-                account.getEmail(),
                 account.getDisplayName(),
                 Role.fromValue(membership.getRole().name()));
+        member.setEmail(account.getEmail());
+        member.setGuest(account.isGuest());
+        return member;
     }
 
     private com.quizforge.identity.domain.Role domainRole(Role role) {

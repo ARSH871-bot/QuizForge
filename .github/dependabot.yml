@@ -27,6 +27,12 @@ updates:
       # to schedule deliberately, not to merge from a green bot PR.
       - dependency-name: "org.springframework.boot:*"
         update-types: ["version-update:semver-major"]
+      # Spring Modulith majors track Spring Boot majors: 2.x is compiled against
+      # Spring Boot 4 and fails to build on 3.x with NoClassDefFoundError
+      # (JsonWriter$Extractor). Taking it is the Boot 4 migration above, not a
+      # dependency bump. Patch and minor releases on the 1.x line still flow.
+      - dependency-name: "org.springframework.modulith:*"
+        update-types: ["version-update:semver-major"]
     groups:
       spring:
         patterns:

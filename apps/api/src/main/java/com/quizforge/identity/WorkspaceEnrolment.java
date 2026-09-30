@@ -16,4 +16,18 @@ public interface WorkspaceEnrolment {
     }
 
     Enrolled enrolAsPlayer(UUID accountId, UUID workspaceId);
+
+    /** A new guest, enrolled and holding a session token for the cookie. */
+    record GuestEnrolled(Enrolled enrolled, String sessionToken, java.time.Duration sessionLifetime) {
+    }
+
+    /**
+     * Creates a guest - an account with a name and nothing else - enrols it as
+     * a player, and issues it a session.
+     *
+     * <p>Refuses a name anyone in the workspace already uses, ignoring case,
+     * and limits new guest identities per network address.
+     */
+    GuestEnrolled enrolAsGuest(UUID workspaceId, String nickname, String clientAddress,
+                               String userAgent);
 }

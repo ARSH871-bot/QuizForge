@@ -13,8 +13,12 @@ import java.util.UUID;
  */
 public interface AccountDirectory {
 
-    /** Display names by account. Accounts that no longer exist are absent. */
-    Map<UUID, String> displayNamesOf(Collection<UUID> accountIds);
+    /** How a person is shown to others: their name, and whether they joined as a guest. */
+    record Person(String displayName, boolean guest) {
+    }
+
+    /** People by account. Accounts that no longer exist are absent. */
+    Map<UUID, Person> peopleOf(Collection<UUID> accountIds);
 
     /** The workspace's name, or empty if it does not exist. */
     Optional<String> workspaceNameOf(UUID workspaceId);

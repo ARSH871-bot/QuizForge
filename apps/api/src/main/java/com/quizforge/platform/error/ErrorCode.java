@@ -16,6 +16,8 @@ public enum ErrorCode {
     INVALID_CURSOR(HttpStatus.BAD_REQUEST),
     NOT_FOUND(HttpStatus.NOT_FOUND),
     ALREADY_EXISTS(HttpStatus.CONFLICT),
+    /** Every attempt the tournament allows is used. The player's best result stands. */
+    ATTEMPTS_EXHAUSTED(HttpStatus.CONFLICT),
     IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_ENTITY),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
     INTERNAL(HttpStatus.INTERNAL_SERVER_ERROR);

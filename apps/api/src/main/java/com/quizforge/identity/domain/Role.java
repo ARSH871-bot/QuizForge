@@ -13,7 +13,13 @@ public enum Role {
     ADMIN(Permission.MANAGE_MEMBERS, Permission.MANAGE_CONTENT,
           Permission.MANAGE_TOURNAMENTS, Permission.VIEW),
     EDITOR(Permission.MANAGE_CONTENT, Permission.MANAGE_TOURNAMENTS, Permission.VIEW),
-    VIEWER(Permission.VIEW);
+    VIEWER(Permission.VIEW),
+    /**
+     * Plays tournaments and reads standings, and nothing else. Deliberately
+     * lacks {@code VIEW}: question content carries the answers, and the member
+     * list carries other players' addresses.
+     */
+    PLAYER();
 
     public enum Permission {
         /** Rename or delete the workspace, manage billing, transfer ownership. */

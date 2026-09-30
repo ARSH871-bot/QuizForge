@@ -121,7 +121,7 @@ source is not a licence to use it: `LICENSE` is proprietary.
 | Secret scanning | gitleaks (`secret-scan`, required) and GitHub push protection | Actions, GitHub |
 | Contract lint and breaking changes | `openapi-lint`, `openapi-breaking` (oasdiff pinned by digest), required | Actions |
 | Changelog and contract currency | `docs-current`, required | Actions |
-| SDK and web app build against the contract | `sdk-typescript`, `web` | Actions |
+| SDK and web app build against the contract | `sdk-typescript`, `web`, required | Actions |
 | Vulnerability reports | private vulnerability reporting | GitHub |
 | Dependency alerts and updates | Dependabot | GitHub |
 

@@ -268,6 +268,10 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Changed
 
+- `web` and `sdk-typescript` are required checks. Both ran on every pull request
+  but were advisory, so a change that broke the web app or the SDK against the
+  contract could still merge.
+
 - **The repository is public again** (ADR 0014, superseding 0013). Private
   repositories on the Free plan share 2,000 Actions minutes a month, and CI
   stopped when they ran out. The ruleset on `main`, CodeQL, secret scanning with

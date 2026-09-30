@@ -16,6 +16,30 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **A web app** (`apps/web`), served by the API from the same origin. Organisers
+  sign up, write a tournament with multiple-choice, true-or-false and
+  typed-answer questions, and get a share link and a live leaderboard. Players
+  open the link, sign up in place, play against the clock, and see their score
+  and rank.
+- **Joining from a share link.** `GET /v1/join/{tournamentId}` shows a
+  tournament's public card with no credential and no content;
+  `POST /v1/join/{tournamentId}` makes the caller a `PLAYER` of its workspace.
+- **A `PLAYER` role** that can play and read standings but not read questions,
+  which carry the answers, or list members, which carry other players'
+  addresses. Content, member and attempt listings now require `VIEW`.
+  `Role` gains a value in responses; a client switching exhaustively on it
+  must handle `PLAYER`. This is a breaking change to `/v1`, accepted on
+  purpose because nothing consumes it until `v0.5.0` is cut, and recorded in
+  `.github/oasdiff-accepted.txt`.
+- The breaking-change gate pins its `oasdiff` image by digest. It was
+  unpinned, and a new release reclassified this exact change from warning to
+  error — so the gate's verdict changed with nobody editing it.
+- Leaderboard rows carry the player's `displayName`.
+- A `Dockerfile` building one image for the API and the web app.
+- A startup check that refuses to boot when the database login cannot bypass
+  row-level security. Sign-up and workspace creation depend on it, and no test
+  could notice its absence because local and test databases run as superuser.
+
 - **Developer onboarding (M4).** [`docs/api/README.md`](docs/api/README.md) is
   one continuous narrative from `git clone` to a played tournament and a
   leaderboard — register, sign in, create a workspace, build a bank, import
@@ -137,6 +161,9 @@ these are milestone markers, and the minor number tracks the milestone.
   addition stays additive.
 
 ### Fixed
+
+- **Every unknown path returned `500`.** Missing routes fell through to the
+  catch-all error handler. They are now `404 NOT_FOUND`.
 
 - **`/actuator/health` returned `500`.** The security chain permitted it and
   both `openapi.yaml` and `STATUS.md` pointed at it, but

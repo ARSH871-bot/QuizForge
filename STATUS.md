@@ -15,8 +15,8 @@ what is safe to do with the code.
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
 | M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 10 of 10 tasks; `v0.5.0` not yet cut |
-| M5 | Web dashboard | Not started | no plan written |
-| M6 | Player experience & widget | Not started | no plan written |
+| M5 | Web dashboard | **In progress** | first slice in `apps/web`: sign up, write a tournament, share the link, watch the board |
+| M6 | Player experience & widget | **In progress** | first slice: open a share link, sign up, play against the clock, see your rank |
 | M7 | Commercial & launch readiness | Not started | no plan written |
 
 Issues exist only for milestones whose plan is written. Inventing task detail
@@ -88,6 +88,11 @@ first version number that means something to a consumer.
 
 | # | Gap | Owner | Blocking |
 |---|---|---|---|
+| — | Players must create an account to play; there is no guest or nickname mode | owner decision | the lowest-friction way to join, which is how the best quiz products win |
+| — | Running out of attempts is `400 INVALID_REQUEST` rather than its own stable code, so a client can only tell it apart by status | — | nothing today; a clean fix is a new `ErrorCode` |
+| — | A `PLAYER` sees every tournament in the workspace it joined, not only the one it was invited to | — | nothing today; matters once a workspace runs private tournaments |
+| — | No password reset, so a player who forgets a password is locked out | — | real players |
+| — | Never deployed. `Dockerfile` builds one image serving the API and web app; the database login must be able to bypass row-level security, and the app refuses to start if it cannot | **repo owner** (host account) | anyone outside this machine using it |
 | [#67](https://github.com/ARSH871-bot/QuizForge/issues/67) | 4 pre-rewrite commits still exist behind `refs/pull/*/head` | **repo owner** | nothing — not publicly readable while private, and the credential in them is revoked |
 
 The exposure in #67 is closed for now by the repository being private:
@@ -117,7 +122,7 @@ What is actually enforced:
 
 | Control | Mechanism | Where |
 |---|---|---|
-| Build, 276 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
+| Build, 285 tests, SpotBugs + FindSecBugs | CI job `build` | Actions |
 | Secret scanning | gitleaks, job `secret-scan` | Actions |
 | Contract lint | Spectral, job `openapi-lint` | Actions |
 | Breaking `/v1` changes | oasdiff, job `openapi-breaking` | Actions |
@@ -170,8 +175,8 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 276, all passing
-- **Migrations:** V1–V15
+- **Tests:** 285, all passing
+- **Migrations:** V1–V16
 - **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
 - **ADRs:** 13 (0007 and 0009 superseded by 0013)
 - **Monthly cost:** $0

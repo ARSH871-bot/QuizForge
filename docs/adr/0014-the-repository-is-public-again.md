@@ -31,7 +31,7 @@ rather than assumed:
 | Control | State |
 |---|---|
 | Ruleset on `main` | active: pull request required, squash only, branch up to date, no force-push, no deletion |
-| Required checks | `build`, `secret-scan`, `docs-current`, `conventional-title`, `CodeQL`, `openapi-lint`, `openapi-breaking` |
+| Required checks | `build`, `secret-scan`, `docs-current`, `conventional-title`, `CodeQL`, `openapi-lint`, `openapi-breaking`, `web`, `sdk-typescript` |
 | CodeQL | default setup, Java; it found nothing in the backend on its first scan |
 | Secret scanning with push protection | enabled |
 | Private vulnerability reporting | enabled |

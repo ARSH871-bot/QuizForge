@@ -37,7 +37,8 @@ request.
 **`main` is protected server-side** (ADR 0014). Changes reach it only through a
 pull request, merged by squash, on a branch that is up to date with `main`, and
 only once the required checks pass: `build`, `secret-scan`, `docs-current`,
-`conventional-title`, `CodeQL`, `openapi-lint` and `openapi-breaking`.
+`conventional-title`, `CodeQL`, `openapi-lint`, `openapi-breaking`, `web` and
+`sdk-typescript`.
 Force-pushes and deletion are refused.
 
 The local hook still catches mistakes before they reach GitHub. Wire it once

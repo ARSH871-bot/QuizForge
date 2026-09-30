@@ -162,6 +162,12 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- **A flaky test in the required build.** The idempotency purge also runs on a
+  timer, which tests never switched off — unlike the attempt sweep, which they
+  did. When the timer fired between a test ageing a key and calling the purge
+  itself, the test failed against a system that had behaved correctly. It
+  failed CI on an unrelated dependency bump.
+
 - **Every unknown path returned `500`.** Missing routes fell through to the
   catch-all error handler. They are now `404 NOT_FOUND`.
 
@@ -255,6 +261,13 @@ these are milestone markers, and the minor number tracks the milestone.
   no CodeQL job. It has been private since ADR 0013.
 
 ### Changed
+
+- Updated the SpotBugs Maven plugin from 4.10.4.0 to 4.10.4.1. The build
+  retains its existing SpotBugs and FindSecBugs checks.
+- Updated `bcprov-jdk18on` from 1.85.2 to 1.86. Password hashing continues
+  to use Spring Security's Argon2id encoder with the existing parameters.
+- Updated the SDK tooling's `js-yaml` to 4.3.2 and
+  `@redocly/openapi-core` to 1.34.20, including YAML merge-sequence limits.
 
 - `ImportReport`, `TournamentDraft` and every other date-time field lost the
   `maxLength` that the generator was turning into `@Size` on an

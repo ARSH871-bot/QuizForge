@@ -21,7 +21,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-modulith.version>1.4.12</spring-modulith.version>
-        <archunit.version>1.5.0</archunit.version>
+        <archunit.version>1.5.1</archunit.version>
         <openapi-generator.version>7.25.0</openapi-generator.version>
     </properties>
 
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.85.2</version>
+            <version>1.86</version>
         </dependency>
 
         <dependency>
@@ -181,7 +181,7 @@
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>4.10.4.0</version>
+                <version>4.10.4.1</version>
                 <configuration>
                     <effort>Max</effort>
                     <threshold>Medium</threshold>

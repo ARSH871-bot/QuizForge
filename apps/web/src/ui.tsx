@@ -177,6 +177,11 @@ export function AuthForm({ intent, onDone }: { intent: string; onDone?: () => vo
       <Button type="submit" busy={busy}>
         {mode === "new" ? `Create account and ${intent}` : `Sign in and ${intent}`}
       </Button>
+      {mode === "existing" && (
+        <p className="muted auth-forgot">
+          <Link href="/forgot-password">Forgot your password?</Link>
+        </p>
+      )}
     </form>
   );
 }

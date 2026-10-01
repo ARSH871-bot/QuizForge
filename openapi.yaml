@@ -408,22 +408,21 @@ paths:
     post:
       tags: [Authentication]
       operationId: requestPasswordReset
-      summary: Accept a password reset request
+      summary: Email a password reset link
       description: |
         Always returns `202` with the same message, whether or not the address
         has an account. Confirming which addresses are registered would make
-        this an account-enumeration oracle, so it does not.
+        this an account-enumeration oracle, so it does not; the email is sent
+        in the background so the response time does not give it away either.
 
-        This build does not generate or deliver reset tokens yet.
+        If the address has an account, a link to `/reset-password` is emailed.
+        It works once, for one hour, and a newer request replaces it. At most
+        one email is sent per account every two minutes, so this cannot be used
+        to flood someone's inbox. Guests have no address and are never sent one.
 
         A malformed request — no address, a misspelled field, an address that
         is not an address — is `400`. Only the *existence* of the account is
         concealed, not the shape of the request.
-
-        **Delivery is not yet implemented.** Token generation is wired to the
-        `notify` module in a later milestone, so a well-formed request today is
-        accepted and nothing is sent. Documented because the `202` would
-        otherwise read as a promise.
       security: []
       requestBody:
         required: true
@@ -436,6 +435,43 @@ paths:
           description: |
             Accepted, with an empty body. Returned identically for a registered
             and an unregistered address.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/auth/reset-password:
+    post:
+      tags: [Authentication]
+      operationId: resetPassword
+      summary: Choose a new password with a reset link
+      description: |
+        Sets a new password using the token from a reset email, then signs the
+        account out everywhere: a reset is often a response to someone else
+        having got in. It also lifts any lockout from failed sign-ins. Sign in
+        again with the new password afterwards.
+
+        An unknown, used or expired token is `400 INVALID_REQUEST`, with the
+        same message for each, so a token's history is not disclosed.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: The password is changed and every session is signed out.
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimitLimit'
@@ -3259,10 +3295,30 @@ components:
         - email: player@example.com
           password: correct horse battery staple
 
+    ResetPasswordRequest:
+      type: object
+      title: ResetPasswordRequest
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+          minLength: 16
+          maxLength: 128
+          pattern: '^[A-Za-z0-9_-]+$'
+          description: The token from the reset link, exactly as it appears after `token=`.
+        newPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 200
+      examples:
+        - token: 3q2-7wEXAMPLEexampleEXAMPLEexample-_
+          newPassword: correct horse battery staple
+
     PasswordResetRequest:
       type: object
       title: PasswordResetRequest
-      description: The address submitted for future reset handling.
+      description: The address to send the reset link to, if it has an account.
       required: [email]
       properties:
         email:
@@ -3270,7 +3326,7 @@ components:
           format: email
           minLength: 3
           maxLength: 254
-          description: The address submitted for future reset handling.
+          description: The address to send the reset link to, if it has an account.
       examples:
         - email: player@example.com
 

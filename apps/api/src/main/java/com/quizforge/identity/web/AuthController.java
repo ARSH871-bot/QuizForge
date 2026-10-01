@@ -43,13 +43,16 @@ public class AuthController implements AuthenticationApi {
     private final SessionService sessions;
     private final HttpServletRequest http;
     private final com.quizforge.identity.SessionCookies cookies;
+    private final com.quizforge.identity.app.PasswordResetService resets;
 
     public AuthController(AccountService accounts, SessionService sessions,
-                          HttpServletRequest http, com.quizforge.identity.SessionCookies cookies) {
+                          HttpServletRequest http, com.quizforge.identity.SessionCookies cookies,
+                          com.quizforge.identity.app.PasswordResetService resets) {
         this.accounts = accounts;
         this.sessions = sessions;
         this.http = http;
         this.cookies = cookies;
+        this.resets = resets;
     }
 
     @Override
@@ -120,7 +123,14 @@ public class AuthController implements AuthenticationApi {
      */
     @Override
     public ResponseEntity<Void> requestPasswordReset(PasswordResetRequest request) {
+        resets.request(request.getEmail());
         return ResponseEntity.accepted().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> resetPassword(com.quizforge.api.model.ResetPasswordRequest request) {
+        resets.reset(request.getToken(), request.getNewPassword());
+        return ResponseEntity.noContent().build();
     }
 
     /** Never carries the password hash, MFA secret, or lockout state. */

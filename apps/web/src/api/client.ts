@@ -107,6 +107,10 @@ export const api = {
   login: (email: string, password: string) =>
     request<Account>("/v1/auth/login", { method: "POST", body: { email, password }, workspace: false }),
   logout: () => request<void>("/v1/auth/logout", { method: "POST", workspace: false }),
+  requestPasswordReset: (email: string) =>
+    request<void>("/v1/auth/request-password-reset", { method: "POST", body: { email }, workspace: false }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<void>("/v1/auth/reset-password", { method: "POST", body: { token, newPassword }, workspace: false }),
 
   workspaces: () =>
     request<{ data: Workspace[] }>("/v1/workspaces?limit=100", { workspace: false }).then((p) => p.data),

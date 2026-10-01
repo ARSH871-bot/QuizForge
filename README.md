@@ -45,6 +45,22 @@ DB_PASSWORD=local-dev-only ./mvnw spring-boot:run
 
 The API listens on http://localhost:8080.
 
+### Email
+
+Password reset emails need a mail server. Locally, `docker compose up -d` starts
+Mailpit, which catches mail without sending it anywhere:
+
+```bash
+SPRING_MAIL_HOST=localhost SPRING_MAIL_PORT=1025 DB_PASSWORD=local-dev-only ./mvnw spring-boot:run
+```
+
+Read what was sent at http://localhost:8025. In production set
+`SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`,
+`SPRING_MAIL_PASSWORD`, `MAIL_FROM` and `APP_BASE_URL` for your provider. With no
+mail host set the API still runs, warns at startup, and delivers nothing.
+
+### Web app
+
 For the web app, run it alongside the API with hot reload at http://localhost:5173:
 
 ```bash

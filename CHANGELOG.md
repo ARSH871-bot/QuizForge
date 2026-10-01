@@ -16,6 +16,18 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Password reset by email.** `Forgot your password?` on the sign-in form sends
+  a link; `POST /v1/auth/reset-password` sets the new password. The link is
+  treated as a credential: 256 random bits stored only as a digest, good for
+  one hour and one use, replaced by any newer request, and limited to one
+  email per account every two minutes. Mail is sent in the background so a
+  known address is not measurably slower to answer than an unknown one.
+  Completing a reset signs the account out everywhere and lifts any lockout.
+  The link is never logged.
+- **Real email.** A `Mailer` in the `notify` module sends over SMTP when
+  `SPRING_MAIL_HOST` is set, and otherwise says so at startup. Mailpit is back
+  in `docker-compose.yml` for local development.
+
 - **Guest play.** A player opens a share link, types a name and plays, with no
   account. A guest is a real account with a name and nothing else, so attempts,
   standings, row-level security and attempt limits apply unchanged, and the
@@ -177,6 +189,13 @@ these are milestone markers, and the minor number tracks the milestone.
   addition stays additive.
 
 ### Fixed
+
+- **The sign-in lockout never engaged.** A wrong password recorded the failure
+  and then threw, and the throw rolled the transaction back, so the count was
+  never saved: password guessing was unlimited on the one endpoint deliberately
+  left out of rate limiting because the lockout was meant to cover it. Failures
+  now commit. A new test proves ten wrong passwords lock the account against
+  the right one, and fails without the fix.
 
 - The contract said `RATE_LIMITED` was "not yet emitted — rate limiting arrives
   with M4". It has been emitted since M4.

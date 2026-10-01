@@ -16,5 +16,18 @@ services:
       timeout: 5s
       retries: 5
 
+  # A local mail server that accepts everything and delivers nothing. Password
+  # reset emails land here; read them at http://localhost:8025. Start the API
+  # with SPRING_MAIL_HOST=localhost SPRING_MAIL_PORT=1025 to use it.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: quizforge-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
 volumes:
   quizforge-pgdata:

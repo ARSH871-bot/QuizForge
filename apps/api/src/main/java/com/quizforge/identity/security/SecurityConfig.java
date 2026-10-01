@@ -98,7 +98,8 @@ public class SecurityConfig {
                 // they show comes from /v1, which stays authenticated.
                 .requestMatchers(org.springframework.http.HttpMethod.GET,
                         "/", "/index.html", "/favicon.svg", "/assets/**",
-                        "/sign-in", "/app", "/app/**", "/t/*").permitAll()
+                        "/sign-in", "/forgot-password", "/reset-password",
+                        "/app", "/app/**", "/t/*").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((request, response, ex) -> {
                 // Serialised by Jackson rather than composed as a string.

@@ -6,6 +6,7 @@ import { Home } from "./pages/Home";
 import { NewTournament } from "./pages/NewTournament";
 import { Organiser, SignIn, TournamentAdmin } from "./pages/Organiser";
 import { Play } from "./pages/Play";
+import { ForgotPassword, ResetPassword } from "./pages/Password";
 import { Shell } from "./ui";
 import { Link } from "./router";
 import "./styles.css";
@@ -15,6 +16,8 @@ function App() {
   let params: Record<string, string> | null;
   if (path === "/") return <Home />;
   if (path === "/sign-in") return <SignIn />;
+  if (path === "/forgot-password") return <ForgotPassword />;
+  if (path === "/reset-password") return <ResetPassword />;
   if (path === "/app") return <Organiser />;
   if (path === "/app/new") return <NewTournament />;
   if ((params = match("/app/t/:id", path))) return <TournamentAdmin key={params.id} id={params.id!} />;

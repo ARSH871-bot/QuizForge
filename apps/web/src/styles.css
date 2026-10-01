@@ -380,3 +380,5 @@ input:focus, textarea:focus, select:focus { border-color: var(--fairway); outlin
 .check input { width: 1.3rem; height: 1.3rem; margin-top: 0.15rem; accent-color: var(--fairway); flex: none; }
 .check > span { display: grid; gap: 0.2rem; }
 .check-label { font-weight: 600; }
+
+.auth-forgot { text-align: center; margin: 1rem 0 0; }

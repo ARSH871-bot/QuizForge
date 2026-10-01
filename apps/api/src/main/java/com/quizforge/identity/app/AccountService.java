@@ -14,7 +14,7 @@ import java.util.UUID;
 @Service
 public class AccountService {
 
-    private static final int MIN_PASSWORD_LENGTH = 12;
+    static final int MIN_PASSWORD_LENGTH = 12;
 
     /**
      * A precomputed hash of a value nobody will ever submit. Verified when the
@@ -55,7 +55,16 @@ public class AccountService {
         return accounts.save(account);
     }
 
-    @Transactional
+    /**
+     * Signs in, and counts a wrong password toward a lockout.
+     *
+     * <p>{@code noRollbackFor} is the whole point of the annotation. A wrong
+     * password records the failure and then throws; without it the throw rolled
+     * the transaction back, the count was never committed, and the lockout never
+     * engaged - unlimited password guessing, on the one endpoint deliberately
+     * left out of rate limiting because the lockout was meant to cover it.
+     */
+    @Transactional(noRollbackFor = ApiException.class)
     public Account authenticate(String email, String password) {
         var found = accounts.findByEmailIgnoreCase(email);
 

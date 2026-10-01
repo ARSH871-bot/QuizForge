@@ -132,23 +132,48 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Accept a password reset request
+         * Email a password reset link
          * @description Always returns `202` with the same message, whether or not the address
          *     has an account. Confirming which addresses are registered would make
-         *     this an account-enumeration oracle, so it does not.
+         *     this an account-enumeration oracle, so it does not; the email is sent
+         *     in the background so the response time does not give it away either.
          *
-         *     This build does not generate or deliver reset tokens yet.
+         *     If the address has an account, a link to `/reset-password` is emailed.
+         *     It works once, for one hour, and a newer request replaces it. At most
+         *     one email is sent per account every two minutes, so this cannot be used
+         *     to flood someone's inbox. Guests have no address and are never sent one.
          *
          *     A malformed request — no address, a misspelled field, an address that
          *     is not an address — is `400`. Only the *existence* of the account is
          *     concealed, not the shape of the request.
-         *
-         *     **Delivery is not yet implemented.** Token generation is wired to the
-         *     `notify` module in a later milestone, so a well-formed request today is
-         *     accepted and nothing is sent. Documented because the `202` would
-         *     otherwise read as a promise.
          */
         post: operations["requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose a new password with a reset link
+         * @description Sets a new password using the token from a reset email, then signs the
+         *     account out everywhere: a reset is often a response to someone else
+         *     having got in. It also lifts any lockout from failed sign-ins. Sign in
+         *     again with the new password afterwards.
+         *
+         *     An unknown, used or expired token is `400 INVALID_REQUEST`, with the
+         *     same message for each, so a token's history is not disclosed.
+         */
+        post: operations["resetPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1202,8 +1227,21 @@ export interface components {
             password: string;
         };
         /**
+         * ResetPasswordRequest
+         * @example {
+         *       "token": "3q2-7wEXAMPLEexampleEXAMPLEexample-_",
+         *       "newPassword": "correct horse battery staple"
+         *     }
+         */
+        ResetPasswordRequest: {
+            /** @description The token from the reset link, exactly as it appears after `token=`. */
+            token: string;
+            /** Format: password */
+            newPassword: string;
+        };
+        /**
          * PasswordResetRequest
-         * @description The address submitted for future reset handling.
+         * @description The address to send the reset link to, if it has an account.
          * @example {
          *       "email": "player@example.com"
          *     }
@@ -1211,7 +1249,7 @@ export interface components {
         PasswordResetRequest: {
             /**
              * Format: email
-             * @description The address submitted for future reset handling.
+             * @description The address to send the reset link to, if it has an account.
              */
             email: string;
         };
@@ -2685,6 +2723,34 @@ export interface operations {
              *     and an unregistered address.
              */
             202: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["InvalidRequest"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description The password is changed and every session is signed out. */
+            204: {
                 headers: {
                     "RateLimit-Limit": components["headers"]["RateLimitLimit"];
                     "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];

@@ -9,10 +9,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** Implements the published content API over the internal services. */
 @Service
@@ -66,6 +69,16 @@ public class QuestionAccessAdapter implements QuestionAccess {
     public int optionCount(UUID questionId) {
         Question question = questions.requireById(questionId);
         return question.payload() instanceof ChoicePayload choice ? choice.options().size() : 0;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, QuestionSummary> describe(Collection<UUID> questionIds) {
+        if (questionIds.isEmpty()) {
+            return Map.of();
+        }
+        return questions.findAll(questionIds).stream().collect(Collectors.toMap(
+                Question::getId, q -> new QuestionSummary(q.getType().name(), q.getPrompt())));
     }
 
     @Override

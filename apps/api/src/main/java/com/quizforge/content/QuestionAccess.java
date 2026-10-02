@@ -1,6 +1,8 @@
 package com.quizforge.content;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -25,6 +27,13 @@ public interface QuestionAccess {
      * is rejected at creation rather than discovered by the first player.
      */
     int currentQuestionCount(UUID bankId);
+
+    /** What an organiser needs to recognise a question in a report. Never the answer. */
+    record QuestionSummary(String type, String prompt) {
+    }
+
+    /** Summaries by question id. Questions not visible in the caller's workspace are absent. */
+    Map<UUID, QuestionSummary> describe(Collection<UUID> questionIds);
 
     /** Whether the bank exists and belongs to the given workspace. */
     boolean bankBelongsTo(UUID bankId, UUID workspaceId);

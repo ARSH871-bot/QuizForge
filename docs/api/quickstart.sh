@@ -137,4 +137,8 @@ echo
 say "standings"
 curl -s -b "$JAR" "$QF/v1/tournaments/$TID/standings" -H "X-QuizForge-Workspace: $WSP"
 echo
+
+say "how each question went"
+curl -s -b "$JAR" "$QF/v1/tournaments/$TID/question-stats" -H "X-QuizForge-Workspace: $WSP"
+echo
 rm -f "$JAR"

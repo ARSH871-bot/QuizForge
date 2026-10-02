@@ -16,6 +16,16 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **How each question went.** An organiser's tournament page now lists every
+  question the tournament drew, hardest first: how often it was drawn,
+  answered and got right, with the share right as a bar. It names each
+  question by its prompt and never shows the answer.
+  `GET /v1/tournaments/{tournamentId}/question-stats`, and `questionStats()`
+  in the TypeScript SDK. Only finished attempts count, so a player halfway
+  through does not make their remaining questions look skipped. Requires
+  `VIEW`: a `PLAYER` is refused, since the report shows how everyone else
+  answered, and another workspace is told the tournament does not exist.
+
 - **Password reset by email.** `Forgot your password?` on the sign-in form sends
   a link; `POST /v1/auth/reset-password` sets the new password. The link is
   treated as a credential: 256 random bits stored only as a digest, good for

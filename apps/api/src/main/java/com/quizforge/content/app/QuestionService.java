@@ -12,6 +12,7 @@ import com.quizforge.platform.web.PageWindow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -80,6 +81,12 @@ public class QuestionService {
         questions.save(current);
 
         return next;
+    }
+
+    /** Any versions among the given ids; ids that do not resolve are absent. */
+    @Transactional(readOnly = true)
+    public List<Question> findAll(Collection<UUID> questionIds) {
+        return questions.findAllById(questionIds);
     }
 
     @Transactional(readOnly = true)

@@ -4,7 +4,7 @@ The single place that says where this product actually stands. Updated in the
 same commit as any change that moves a milestone, opens a known gap, or alters
 what is safe to do with the code.
 
-**Last updated:** 2026-09-30 (repository public again; web app merged)
+**Last updated:** 2026-10-02 (per-question results for organisers)
 
 ## Milestones
 
@@ -15,7 +15,7 @@ what is safe to do with the code.
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
 | M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 10 of 10 tasks; `v0.5.0` not yet cut |
-| M5 | Web dashboard | **In progress** | first slice in `apps/web`: sign up, write a tournament, share the link, watch the board |
+| M5 | Web dashboard | **In progress** | `apps/web`: sign up, write a tournament, share the link, watch the board, see how each question went |
 | M6 | Player experience & widget | **In progress** | first slice: open a share link, sign up, play against the clock, see your rank |
 | M7 | Commercial & launch readiness | Not started | no plan written |
 
@@ -35,9 +35,11 @@ Remaining caveats before a real deployment — none of them security holes, all
 of them missing polish:
 
 - The TypeScript SDK is not published; the npm name is the owner's call ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83))
-- No web interface (M5)
+- The web app cannot yet edit or delete a tournament once made (the API can),
+  writes three of the five question types, and has no CSV import (M5)
 - No billing, observability, backups or runbooks (M7)
-- Password-reset delivery is not implemented; no mail provider is wired
+- Password reset sends real email over SMTP, but production needs a mail
+  provider account; see Known gaps
 
 Tenant isolation is now enforced by PostgreSQL itself (#23, ADR 0008), so a
 missing `WHERE workspace_id = ?` returns nothing rather than another
@@ -95,10 +97,10 @@ first version number that means something to a consumer.
 | — | Never deployed. `Dockerfile` builds one image serving the API and web app; the database login must be able to bypass row-level security, and the app refuses to start if it cannot | **repo owner** (host account) | anyone outside this machine using it |
 | [#67](https://github.com/ARSH871-bot/QuizForge/issues/67) | 4 pre-rewrite commits still exist behind `refs/pull/*/head` | **repo owner** | nothing — publicly readable again, but the credential in them is revoked |
 
-The exposure in #67 is closed for now by the repository being private:
-unauthenticated requests for those SHAs return `404`. The objects have not gone
-away, so the issue stays open — it would become readable again the moment the
-repository is made public without a Support-side garbage collection first.
+The repository is public again (ADR 0014), so those SHAs are readable to
+anyone who has them. The credential they contain is revoked, which is why this
+blocks nothing; the issue stays open because only a Support-side garbage
+collection removes the objects.
 
 Nothing else is open. The mail credential, the unrelated 1.1 MB binary and the
 tooling trailers are gone from every ref, verified by cloning the remote fresh
@@ -116,7 +118,7 @@ source is not a licence to use it: `LICENSE` is proprietary.
 | Control | Mechanism | Where |
 |---|---|---|
 | Pull request required, squash only, branch up to date, no force-push | ruleset `main protection` | GitHub |
-| Build, 304 tests, SpotBugs + FindSecBugs | CI job `build`, required | Actions |
+| Build, 312 tests, SpotBugs + FindSecBugs | CI job `build`, required | Actions |
 | Static analysis | CodeQL default setup, Java; required | GitHub |
 | Secret scanning | gitleaks (`secret-scan`, required) and GitHub push protection | Actions, GitHub |
 | Contract lint and breaking changes | `openapi-lint`, `openapi-breaking` (oasdiff pinned by digest), required | Actions |
@@ -162,9 +164,9 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 304, all passing
+- **Tests:** 312, all passing
 - **Migrations:** V1–V18
-- **Modules:** 8 declared, 6 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`)
+- **Modules:** 9 declared, 7 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`, `notify`); `api` holds the generated contract and `billing` is empty until M7
 - **ADRs:** 14 (0007, 0009 and 0013 superseded)
 - **Monthly cost:** $0
 

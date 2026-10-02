@@ -45,4 +45,7 @@ public interface TournamentAccess {
      * changing a tournament's policy takes effect without recomputing history.
      */
     ScoringPolicy scoringPolicyOf(UUID tournamentId);
+
+    /** Throws {@code NOT_FOUND} unless the tournament exists in the caller's workspace. */
+    void requireVisible(UUID tournamentId);
 }

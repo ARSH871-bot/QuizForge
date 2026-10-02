@@ -25,6 +25,7 @@ this document as a script.
 - [8. Schedule a tournament](#8-schedule-a-tournament)
 - [9. Play it](#9-play-it)
 - [10. Read the standings](#10-read-the-standings)
+- [11. See how each question went](#11-see-how-each-question-went)
 - [Things that apply everywhere](#things-that-apply-everywhere)
 - [Where to go next](#where-to-go-next)
 
@@ -432,7 +433,28 @@ Ranking is resolved when the standings are read. `firstGradedAt` breaks ties,
 so the player who got there first is ahead — and a tie is never broken
 arbitrarily or by identifier.
 
-That is the whole loop. Everything above ran against a database that was empty
+## 11. See how each question went
+
+```bash
+curl -s -b $JAR $QF/v1/tournaments/$TRN/question-stats -H "X-QuizForge-Workspace: $WSP"
+```
+
+This output is from a run of [`quickstart.sh`](quickstart.sh), which picks
+the first option it is shown, so your rows will follow your own answers:
+
+```json
+{"data":[{"questionId":"qst_01a0fc3403da71868d461f7d2f8be756","type":"SINGLE_CHOICE","prompt":"Capital of Japan?","shown":1,"answered":1,"correct":0,"correctRate":0.0},{"questionId":"qst_01a0fc3403cc7b46bb109475c31c7841","type":"SINGLE_CHOICE","prompt":"Capital of France?","shown":1,"answered":1,"correct":1,"correctRate":1.0},{"questionId":"qst_01a0fc3403e376d49bd1dd1ed9a38ca4","type":"SHORT_TEXT","prompt":"Longest river in Africa?","shown":1,"answered":1,"correct":1,"correctRate":1.0}]}
+```
+
+One row per question the tournament drew, hardest first. `shown` counts finished
+attempts that drew it, `answered` those that answered it, and `correctRate` is
+`correct` over `answered`, or `null` when nobody answered. An attempt still in
+progress is left out, or its unanswered questions would read as skipped.
+
+The prompt is there so you can tell the questions apart; the answer never is. A
+`PLAYER` is refused, since this shows how everyone else answered.
+
+That is the whole loop. Steps 1 to 10 ran against a database that was empty
 ten minutes ago.
 
 ## Things that apply everywhere

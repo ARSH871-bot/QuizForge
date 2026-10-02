@@ -3,7 +3,7 @@ import { api, selectWorkspace, type Tournament } from "../api/client";
 import { Link, navigate } from "../router";
 import { useSession } from "../session";
 import { AuthForm, Board, Button, ErrorNote, Shell, useWindow } from "../ui";
-import type { Standing } from "../api/client";
+import type { QuestionStat, Standing } from "../api/client";
 
 const ORGANISING = new Set(["OWNER", "ADMIN", "EDITOR"]);
 
@@ -102,6 +102,7 @@ export function TournamentAdmin({ id }: { id: string }) {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [plays, setPlays] = useState<number | null>(null);
+  const [stats, setStats] = useState<QuestionStat[] | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -111,6 +112,7 @@ export function TournamentAdmin({ id }: { id: string }) {
     const refresh = () => {
       api.standings(id).then(setStandings, () => undefined);
       api.playCount(id).then(setPlays, () => undefined);
+      api.questionStats(id).then(setStats, () => undefined);
     };
     refresh();
     // The board fills in while people play, so keep it current while it is open.
@@ -150,6 +152,7 @@ export function TournamentAdmin({ id }: { id: string }) {
             </div>
           </section>
           <Board rows={standings} you={account?.id} />
+          {stats && <QuestionStats rows={stats} />}
         </>
       )}
     </Shell>
@@ -164,5 +167,55 @@ function AdminWindow({ t, plays }: { t: Tournament; plays: number | null }) {
       {timing.text}. {t.questions} questions per attempt
       {t.timeLimitSeconds ? `, ${Math.round(t.timeLimitSeconds / 60)} minutes to answer them` : ""}.{played}
     </p>
+  );
+}
+
+function times(n: number): string {
+  return n === 1 ? "once" : `${n} times`;
+}
+
+/** "3 of 5 right, 1 left it blank": the counts behind the percentage, said plainly. */
+function statDetail(s: QuestionStat): string {
+  if (s.answered === 0) return `Drawn ${times(s.shown)}, never answered`;
+  const blank = s.shown - s.answered;
+  return `${s.correct} of ${s.answered} right${blank > 0 ? `, ${blank} left it blank` : ""}`;
+}
+
+/**
+ * Which questions caught players out. Quiet on purpose: the board above is the
+ * page's one bold element, and this is the report you read after it.
+ */
+function QuestionStats({ rows }: { rows: QuestionStat[] }) {
+  return (
+    <section className="insight" aria-labelledby="insight-title">
+      <h2 className="subtitle" id="insight-title">
+        How each question went
+      </h2>
+      {rows.length === 0 ? (
+        <p className="muted">Once players finish, this shows which questions caught them out.</p>
+      ) : (
+        <>
+          <p className="muted">Hardest first, from finished attempts.</p>
+          <ol className="insight-rows">
+            {rows.map((s) => {
+              const percent = s.correctRate == null ? null : Math.round(s.correctRate * 100);
+              return (
+                <li key={s.questionId} className="insight-row">
+                  <p className="insight-prompt">{s.prompt}</p>
+                  <div className="insight-line">
+                    {/* The text beside it carries the value; the bar is for scanning. */}
+                    <span className="insight-meter" aria-hidden="true">
+                      <span style={{ width: `${percent ?? 0}%` }} />
+                    </span>
+                    <span className="insight-rate">{percent === null ? "–" : `${percent}%`}</span>
+                  </div>
+                  <p className="insight-detail">{statDetail(s)}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </>
+      )}
+    </section>
   );
 }

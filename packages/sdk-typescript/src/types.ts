@@ -388,6 +388,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tournaments/{tournamentId}/question-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How each question went
+         * @description For every question that finished attempts drew, how many players saw
+         *     it, answered it and got it right. Hardest first, so the questions that
+         *     tripped people up are at the top.
+         *
+         *     Counts finished attempts only: an attempt in progress would show its
+         *     unanswered questions as skipped. Carries the prompt so a question can be
+         *     recognised, and never the answer.
+         *
+         *     Requires `VIEW`; a `PLAYER` is refused.
+         */
+        get: operations["getQuestionStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tournaments/{tournamentId}/standings": {
         parameters: {
             query?: never;
@@ -1556,6 +1584,36 @@ export interface components {
             workspace: components["schemas"]["Workspace"];
             /** @description True if this call made the caller a member; false if it already was one. */
             joined: boolean;
+        };
+        /** QuestionStatList */
+        QuestionStatList: {
+            data: components["schemas"]["QuestionStat"][];
+        };
+        /**
+         * QuestionStat
+         * @description How one question went across a tournament's finished attempts.
+         */
+        QuestionStat: {
+            questionId: components["schemas"]["QuestionId"];
+            type: components["schemas"]["QuestionType"];
+            prompt: string;
+            /**
+             * Format: int32
+             * @description Finished attempts that drew this question.
+             */
+            shown: number;
+            /**
+             * Format: int32
+             * @description Of those, how many answered it before submitting or running out of time.
+             */
+            answered: number;
+            /** Format: int32 */
+            correct: number;
+            /**
+             * Format: double
+             * @description Correct as a share of answered. Null when nobody answered.
+             */
+            correctRate?: number | null;
         };
         /**
          * GuestJoinRequest
@@ -3295,6 +3353,54 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getQuestionStats: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description The workspace to operate on, as a `wsp_…` identifier.
+                 *
+                 *     Required for every endpoint outside `/v1/auth` when authenticating with
+                 *     a session cookie; omitting it fails with `400 INVALID_REQUEST`. With an
+                 *     API key the workspace comes from the key and this header is ignored.
+                 *
+                 *     Documented as `required: false` because it is genuinely optional for
+                 *     key-authenticated callers, not because it is safe to leave out.
+                 *
+                 *     Naming a workspace you are not a member of returns
+                 *     **`403 PERMISSION_DENIED`**: the credential is valid, the workspace is
+                 *     not yours. A malformed value is `400 INVALID_REQUEST`.
+                 */
+                "X-QuizForge-Workspace"?: components["parameters"]["WorkspaceHeader"];
+            };
+            path: {
+                /** @description The tournament, as a prefixed identifier. */
+                tournamentId: components["schemas"]["TournamentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One row per question, hardest first. */
+            200: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionStatList"];
+                };
+            };
+            400: components["responses"]["InvalidRequest"];
+            401: components["responses"]["AuthenticationRequired"];
+            403: components["responses"]["WorkspaceForbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             500: components["responses"]["Internal"];
         };

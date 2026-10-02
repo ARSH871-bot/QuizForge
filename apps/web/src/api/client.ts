@@ -11,6 +11,7 @@ export type PlayableQuestion = S["PlayableQuestion"];
 export type AnswerFeedback = S["AnswerFeedback"];
 export type AttemptResult = S["AttemptResult"];
 export type Standing = S["LeaderboardEntry"];
+export type QuestionStat = S["QuestionStat"];
 export type QuestionType = S["QuestionType"];
 export type QuestionPayload = S["QuestionPayload"];
 export type Problem = S["Problem"];
@@ -139,6 +140,8 @@ export const api = {
     request<{ data: unknown[] }>(`/v1/tournaments/${tournamentId}/attempts-summary?limit=100`).then(
       (p) => p.data.length,
     ),
+  questionStats: (tournamentId: string) =>
+    request<{ data: QuestionStat[] }>(`/v1/tournaments/${tournamentId}/question-stats`).then((p) => p.data),
 
   publicTournament: (id: string) => request<PublicTournament>(`/v1/join/${id}`, { workspace: false }),
   join: (id: string) => request<Enrolment>(`/v1/join/${id}`, { method: "POST", workspace: false }),

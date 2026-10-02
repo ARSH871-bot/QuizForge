@@ -41,4 +41,9 @@ public class TournamentAccessAdapter implements TournamentAccess {
     public ScoringPolicy scoringPolicyOf(UUID tournamentId) {
         return tournaments.requireById(tournamentId).getScoringPolicy();
     }
+
+    @Override
+    public void requireVisible(UUID tournamentId) {
+        tournaments.requireById(tournamentId);
+    }
 }

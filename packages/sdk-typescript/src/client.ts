@@ -18,6 +18,7 @@ export type TournamentSummary = S["TournamentSummary"];
 export type TournamentDraft = S["TournamentDraft"];
 export type AttemptSummary = S["AttemptSummary"];
 export type LeaderboardEntry = S["LeaderboardEntry"];
+export type QuestionStat = S["QuestionStat"];
 export type Account = S["Account"];
 
 /** Options every list method accepts. */
@@ -268,6 +269,20 @@ export class QuizForge {
     standings: async (tournamentId: string, limit = 20): Promise<LeaderboardEntry[]> => {
       const page = await this.http.request<{ data: LeaderboardEntry[] }>({
         method: "GET", path: `/v1/tournaments/${tournamentId}/standings`, query: { limit },
+      });
+      return page.data;
+    },
+
+    /**
+     * How each question went across finished attempts, hardest first.
+     *
+     * One row per question the tournament drew, so the whole report fits in
+     * one response; returns an array, as {@link standings} does. Carries each
+     * prompt but never the answer, and a `PLAYER` is refused.
+     */
+    questionStats: async (tournamentId: string): Promise<QuestionStat[]> => {
+      const page = await this.http.request<{ data: QuestionStat[] }>({
+        method: "GET", path: `/v1/tournaments/${tournamentId}/question-stats`,
       });
       return page.data;
     },

@@ -22,6 +22,7 @@ export type {
   Question,
   QuestionBank,
   QuestionPayload,
+  QuestionStat,
   QuestionType,
   Role,
   TournamentDraft,

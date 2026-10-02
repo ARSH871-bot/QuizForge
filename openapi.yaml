@@ -193,6 +193,8 @@ tags:
     description: Bulk loading questions into a bank.
   - name: Join
     description: Joining a tournament from a shared link, as a player.
+  - name: Insights
+    description: What a tournament's results say about its questions.
 
 security:
   - sessionCookie: []
@@ -1021,6 +1023,56 @@ paths:
               $ref: '#/components/headers/RateLimitRemaining'
             RateLimit-Reset:
               $ref: '#/components/headers/RateLimitReset'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tournaments/{tournamentId}/question-stats:
+    get:
+      tags: [Insights]
+      operationId: getQuestionStats
+      summary: How each question went
+      description: |
+        For every question that finished attempts drew, how many players saw
+        it, answered it and got it right. Hardest first, so the questions that
+        tripped people up are at the top.
+
+        Counts finished attempts only: an attempt in progress would show its
+        unanswered questions as skipped. Carries the prompt so a question can be
+        recognised, and never the answer.
+
+        Requires `VIEW`; a `PLAYER` is refused.
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceHeader'
+        - name: tournamentId
+          in: path
+          required: true
+          description: The tournament, as a prefixed identifier.
+          schema:
+            $ref: '#/components/schemas/TournamentId'
+      responses:
+        '200':
+          description: One row per question, hardest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionStatList'
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/WorkspaceForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
         '500':
@@ -3719,6 +3771,54 @@ components:
         joined:
           type: boolean
           description: True if this call made the caller a member; false if it already was one.
+
+    QuestionStatList:
+      type: object
+      title: QuestionStatList
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/QuestionStat'
+
+    QuestionStat:
+      type: object
+      title: QuestionStat
+      description: How one question went across a tournament's finished attempts.
+      required: [questionId, type, prompt, shown, answered, correct]
+      properties:
+        questionId:
+          $ref: '#/components/schemas/QuestionId'
+        type:
+          $ref: '#/components/schemas/QuestionType'
+        prompt:
+          type: string
+          maxLength: 4000
+        shown:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 10000000
+          description: Finished attempts that drew this question.
+        answered:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 10000000
+          description: Of those, how many answered it before submitting or running out of time.
+        correct:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 10000000
+        correctRate:
+          type: [number, 'null']
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Correct as a share of answered. Null when nobody answered.
 
     GuestJoinRequest:
       type: object

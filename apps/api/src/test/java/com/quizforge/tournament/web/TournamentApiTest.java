@@ -239,40 +239,105 @@ class TournamentApiTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void anOpenTournamentCannotBeAmended() throws Exception {
-        // Players have started under the current rules. Changing them now would
-        // mean two players played different games and were ranked together.
+    void anOpenTournamentNobodyHasPlayedCanBeAmended() throws Exception {
+        // The common case, not an edge: a tournament made in the web app opens
+        // the moment it is created. Until someone plays it, nobody has started
+        // under its rules, so fixing a typo or a wrong answer costs nothing.
         var o = organiser();
         String id = create(o, draft(o, Duration.ofMinutes(-1), Duration.ofDays(1)))
                 .get("id").asText();
 
-        mvc.perform(patch("/v1/tournaments/" + id)
-                        .cookie(o.cookie())
-                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(
-                                draft(o, Duration.ofHours(1), Duration.ofDays(2)))))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("open")));
+        var amended = draft(o, Duration.ofMinutes(-1), Duration.ofDays(2));
+        amended.put("name", "Fixed the typo");
+        amended.put("questions", 3);
+
+        amend(o, id, amended)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Fixed the typo"))
+                .andExpect(jsonPath("$.questions").value(3))
+                .andExpect(jsonPath("$.state").value("OPEN"));
     }
 
     @Test
-    void aClosedTournamentCannotBeAmended() throws Exception {
+    void aClosedTournamentNobodyPlayedCanBeReopened() throws Exception {
+        // Nobody played, so there are no results its rules have to explain.
         var o = organiser();
         String id = create(o, draft(o, Duration.ofDays(-2), Duration.ofDays(-1)))
                 .get("id").asText();
 
-        mvc.perform(patch("/v1/tournaments/" + id)
+        amend(o, id, draft(o, Duration.ofMinutes(-1), Duration.ofDays(2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("OPEN"));
+    }
+
+    @Test
+    void amendingTheBankMovesTheTournamentOntoIt() throws Exception {
+        // The draft names a bank, and the contract says the whole draft is
+        // applied. The bank was validated and then ignored: the count was
+        // checked against the new bank while play kept drawing from the old.
+        var o = organiser();
+        String id = create(o, draft(o, Duration.ofMinutes(-1), Duration.ofDays(1)))
+                .get("id").asText();
+
+        String replacement = body(mvc.perform(post("/v1/question-banks")
                         .cookie(o.cookie())
                         .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(
-                                draft(o, Duration.ofHours(1), Duration.ofDays(2)))))
+                        .content(json.writeValueAsString(Map.of("name", "Fixed " + UUID.randomUUID()))))
+                .andExpect(status().isCreated())).get("id").asText();
+        mvc.perform(post("/v1/question-banks/" + replacement + "/questions")
+                        .cookie(o.cookie())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of(
+                                "type", "SINGLE_CHOICE", "prompt", "The corrected question?",
+                                "payload", Map.of("kind", "choice", "options", List.of(
+                                        Map.of("text", "alpha", "correct", true),
+                                        Map.of("text", "beta", "correct", false)))))))
+                .andExpect(status().isCreated());
+
+        var amended = draft(o, Duration.ofMinutes(-1), Duration.ofDays(1));
+        amended.put("bankId", replacement);
+        amended.put("questions", 1);
+        amend(o, id, amended)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bankId").value(replacement));
+
+        // And play draws from it, which is the point.
+        String attemptId = body(mvc.perform(post("/v1/tournaments/" + id + "/attempts")
+                        .cookie(o.cookie())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
+                        .with(csrf()))
+                .andExpect(status().isCreated())).get("id").asText();
+        mvc.perform(get("/v1/attempts/" + attemptId + "/questions/1")
+                        .cookie(o.cookie())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId()))
+                .andExpect(jsonPath("$.prompt").value("The corrected question?"));
+    }
+
+    @Test
+    void aPlayedTournamentCannotBeAmended() throws Exception {
+        // Someone started under the current rules. Changing them now would mean
+        // two players played different games and were ranked together.
+        var o = organiser();
+        String id = create(o, draft(o, Duration.ofMinutes(-1), Duration.ofDays(1)))
+                .get("id").asText();
+        startAttempt(o, id);
+
+        var amended = draft(o, Duration.ofMinutes(-1), Duration.ofDays(2));
+        amended.put("name", "Renamed");
+        amend(o, id, amended)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("closed")));
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("attempt")));
+
+        // Including the name: one rule, not a per-field matrix.
+        mvc.perform(get("/v1/tournaments/" + id)
+                        .cookie(o.cookie())
+                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId()))
+                .andExpect(jsonPath("$.name").value(org.hamcrest.Matchers.startsWith("Weekly ")));
     }
 
     // --------------------------------------------------------------- delete
@@ -285,11 +350,7 @@ class TournamentApiTest extends AbstractIntegrationTest {
         String id = create(o, draft(o, Duration.ofHours(1), Duration.ofDays(1)))
                 .get("id").asText();
 
-        mvc.perform(delete("/v1/tournaments/" + id)
-                        .cookie(o.cookie())
-                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
-                        .with(csrf()))
-                .andExpect(status().isNoContent());
+        remove(o, id).andExpect(status().isNoContent());
 
         mvc.perform(get("/v1/tournaments/" + id)
                         .cookie(o.cookie())
@@ -298,75 +359,70 @@ class TournamentApiTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void anOpenTournamentCannotBeDeleted() throws Exception {
+    void anOpenTournamentNobodyHasPlayedCanBeDeleted() throws Exception {
+        // A link shared and never used is still only a plan.
         var o = organiser();
         String id = create(o, draft(o, Duration.ofMinutes(-1), Duration.ofDays(1)))
                 .get("id").asText();
 
-        mvc.perform(delete("/v1/tournaments/" + id)
-                        .cookie(o.cookie())
-                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
-                        .with(csrf()))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        remove(o, id).andExpect(status().isNoContent());
     }
 
     @Test
-    void aPlayedTournamentIsRefusedByTheOpenRuleBeforeTheAttemptRuleIsReached() throws Exception {
-        // Named for what it actually proves. A tournament with attempts is
-        // always OPEN or CLOSED - attempts can only start while it is open, and
-        // an open tournament can no longer be amended back to scheduled - so the
-        // open rule refuses this first and the attempt rule is never consulted.
+    void aPlayedTournamentCannotBeDeleted() throws Exception {
+        // Somebody's record. Removing it would leave a score nothing explains.
         var o = organiser();
         String id = create(o, draft(o, Duration.ofMinutes(-1), Duration.ofDays(1)))
                 .get("id").asText();
+        startAttempt(o, id);
 
-        mvc.perform(post("/v1/tournaments/" + id + "/attempts")
-                        .cookie(o.cookie())
-                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
-                        .with(csrf()))
-                .andExpect(status().isCreated());
-
-        mvc.perform(delete("/v1/tournaments/" + id)
-                        .cookie(o.cookie())
-                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
-                        .with(csrf()))
+        remove(o, id)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("open")));
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("attempt")));
     }
 
     @Test
-    void theAttemptGuardStillRefusesADeleteIfTheWindowIsMovedUnderIt() throws Exception {
-        // The attempt guard is unreachable through the API today: nothing can
-        // put a played tournament back into SCHEDULED. It is defence in depth,
-        // and defence in depth that has never been executed is an assumption.
-        //
-        // So the window is moved directly in the database - the one state the
-        // guard exists to survive, and the state any future admin tool or data
-        // fix could produce. This is also what proves the TournamentUsage port
-        // is wired: the count crosses from `play` back to `tournament`, which
-        // cannot depend on it.
+    void anAttemptThatRanOutOfTimeStillCountsAsPlayed() throws Exception {
+        // Someone whose attempt expired still played it; it settled the board.
+        // The state is set directly, because waiting out a real time limit in a
+        // test would take minutes.
         var o = organiser();
         String id = create(o, draft(o, Duration.ofMinutes(-1), Duration.ofDays(1)))
                 .get("id").asText();
-
-        mvc.perform(post("/v1/tournaments/" + id + "/attempts")
-                        .cookie(o.cookie())
-                        .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
-                        .with(csrf()))
-                .andExpect(status().isCreated());
-
-        jdbc.update("UPDATE tournament SET opens_at = now() + interval '1 day', "
-                        + "closes_at = now() + interval '2 days' WHERE id = ?",
+        startAttempt(o, id);
+        jdbc.update("UPDATE attempt SET state = 'EXPIRED' WHERE tournament_id = ?",
                 com.quizforge.platform.id.TypeId.parse("trn", id));
 
-        mvc.perform(delete("/v1/tournaments/" + id)
+        remove(o, id)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("attempt")));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions amend(
+            Organiser o, String id, Map<String, Object> draft) throws Exception {
+        return mvc.perform(patch("/v1/tournaments/" + id)
+                .cookie(o.cookie())
+                .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(draft)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions remove(Organiser o, String id)
+            throws Exception {
+        return mvc.perform(delete("/v1/tournaments/" + id)
+                .cookie(o.cookie())
+                .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
+                .with(csrf()));
+    }
+
+    private void startAttempt(Organiser o, String id) throws Exception {
+        mvc.perform(post("/v1/tournaments/" + id + "/attempts")
                         .cookie(o.cookie())
                         .header(SessionAuthFilter.WORKSPACE_HEADER, o.workspaceId())
                         .with(csrf()))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail")
-                        .value(org.hamcrest.Matchers.containsString("attempt")));
+                .andExpect(status().isCreated());
     }
 
     // ------------------------------------------------------ organiser's view

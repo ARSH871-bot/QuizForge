@@ -35,6 +35,11 @@ public interface TournamentAccess {
      * <p>Throws when it is scheduled or closed. The open/closed decision lives
      * here rather than in the caller, because it is derived from this module's
      * own scheduling fields and callers should not re-derive it.
+     *
+     * <p>Holds a shared lock on the tournament until the caller's transaction
+     * ends, so call it in the transaction that creates the attempt. An
+     * organiser's change waits for that lock and then sees the attempt, rather
+     * than amending or deleting a tournament someone has just started.
      */
     PlayableTournament requireOpen(UUID tournamentId);
 

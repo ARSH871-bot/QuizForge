@@ -327,7 +327,8 @@ TRN=trn_01a05499b902799dba7ef4e7e8dfca9f   # yours will differ
 `state` is computed from the window and the clock, never stored, so a
 tournament goes `SCHEDULED` → `OPEN` → `CLOSED` with no job running and no row
 that can disagree with the calendar. Amending or deleting one is refused once
-it is open: its players started under its rules.
+anyone has played it, whether or not it has opened: its players started under
+its rules. Until then it is only a plan.
 
 `questions: 3` is how many each attempt draws, and is refused if the bank holds
 fewer. `scoringPolicy` is applied when standings are read rather than when a

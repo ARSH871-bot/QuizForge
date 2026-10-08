@@ -21,7 +21,8 @@ class WebAppTest extends AbstractIntegrationTest {
     @Test
     void appRoutesServeTheSinglePageWithoutALogin() throws Exception {
         for (String path : new String[]{"/", "/sign-in", "/app", "/app/new",
-                "/app/t/trn_0190c2b4e7a87f4f9b1a2c3d4e5f6a7b", "/t/trn_0190c2b4e7a87f4f9b1a2c3d4e5f6a7b"}) {
+                "/app/t/trn_0190c2b4e7a87f4f9b1a2c3d4e5f6a7b", "/app/t/trn_0190c2b4e7a87f4f9b1a2c3d4e5f6a7b/edit",
+                "/t/trn_0190c2b4e7a87f4f9b1a2c3d4e5f6a7b"}) {
             mvc.perform(get(path))
                     .andExpect(status().isOk())
                     .andExpect(forwardedUrl("/index.html"));

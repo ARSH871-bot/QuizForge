@@ -395,3 +395,19 @@ input:focus, textarea:focus, select:focus { border-color: var(--fairway); outlin
 .insight-meter span { display: block; height: 100%; background: var(--fairway); border-radius: 0 4px 4px 0; }
 .insight-rate { font: 700 1.3rem/1 var(--display); text-align: right; font-variant-numeric: tabular-nums; }
 .insight-detail { margin: 0.35rem 0 0; color: var(--ink-soft); font-size: 0.95rem; }
+
+/* ---------------------------------------------------------------- managing a tournament */
+
+.manage { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: -0.75rem 0 1.75rem; }
+.confirm .manage { margin: 0.75rem 0 0; }
+.confirm {
+  margin: -0.75rem 0 1.75rem;
+  padding: 1rem 1.1rem;
+  border-left: 4px solid var(--score);
+  background: #fbeef0;
+  border-radius: var(--radius-strip);
+}
+.confirm p { margin: 0; }
+.manage-locked { margin: -1rem 0 1.75rem; }
+.button-danger { background: var(--score); border-color: var(--score); color: var(--strip); }
+.button-danger:hover:not(:disabled) { background: #a00d25; border-color: #a00d25; }

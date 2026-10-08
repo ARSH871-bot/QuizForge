@@ -32,7 +32,7 @@ export function Shell({ children, wide = false }: { children: ReactNode; wide?: 
   );
 }
 
-export function Button({ busy, children, variant = "primary", ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean; variant?: "primary" | "quiet" }) {
+export function Button({ busy, children, variant = "primary", ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean; variant?: "primary" | "quiet" | "danger" }) {
   return (
     <button className={`button button-${variant}`} disabled={busy || rest.disabled} {...rest}>
       {busy ? "Working…" : children}

@@ -21,9 +21,10 @@ public class TournamentAccessAdapter implements TournamentAccess {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PlayableTournament requireOpen(UUID tournamentId) {
-        Tournament tournament = tournaments.requireById(tournamentId);
+        // Locked, not just read: see TournamentService.requireForPlay.
+        Tournament tournament = tournaments.requireForPlay(tournamentId);
         Instant now = Instant.now();
 
         if (!tournament.isOpen(now)) {

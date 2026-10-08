@@ -16,6 +16,14 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Added
 
+- **Edit and delete a tournament** from its page in the web app, until someone
+  plays it. Edit reopens the builder with the tournament's questions and
+  settings; the share link stays the same. Changed questions are written to a
+  fresh bank and the tournament moves onto it in one request, so a failure part
+  way never leaves a half-edited quiz. A bank no tournament uses any more is
+  archived. Once someone has played, the page says the tournament is fixed
+  rather than offering buttons the API would refuse.
+
 - **How each question went.** An organiser's tournament page now lists every
   question the tournament drew, hardest first: how often it was drawn,
   answered and got right, with the share right as a bar. It names each
@@ -200,6 +208,16 @@ these are milestone markers, and the minor number tracks the milestone.
 
 ### Fixed
 
+- **Amending a tournament's bank was ignored.** `PATCH /v1/tournaments/{id}`
+  validated the draft's `bankId`, checking the question count against it, and
+  then kept drawing from the old bank. The whole draft is now applied, as the
+  contract always said.
+- **A first attempt could race a change to its tournament.** Starting an
+  attempt now holds a shared lock on the tournament and an amendment or delete
+  an exclusive one, taken before it counts attempts. Without them, a delete at
+  that moment removed the tournament under the starting player, and an
+  amendment changed the rules under them; `FirstAttemptRaceTest` shows both.
+
 - **The sign-in lockout never engaged.** A wrong password recorded the failure
   and then threw, and the throw rolled the transaction back, so the count was
   never saved: password guessing was unlimited on the one endpoint deliberately
@@ -325,6 +343,13 @@ these are milestone markers, and the minor number tracks the milestone.
   no CodeQL job. It has been private since ADR 0013.
 
 ### Changed
+
+- **A tournament can be amended or deleted until anyone plays it**, rather than
+  only until it opens (ADR 0015). A tournament made in the web app opens the
+  moment it is created, so under the old rule it could never be corrected, even
+  before its link was shared. One attempt in any state still ends it, and a
+  closed tournament nobody played can be given a new window. Requests the old
+  rule refused are now accepted; nothing that was accepted is refused.
 
 - **Error codes are extensible.** `ErrorCode` was declared exhaustive, so any
   new code was a breaking change to every error response of every operation:

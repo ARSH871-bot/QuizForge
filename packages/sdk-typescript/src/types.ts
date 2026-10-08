@@ -241,17 +241,21 @@ export interface paths {
         post?: never;
         /**
          * Delete a tournament nobody has played
-         * @description A real delete, and deliberately a narrow one: only while `SCHEDULED`,
-         *     and only with **zero attempts**.
+         * @description A real delete, and deliberately a narrow one: only with **zero
+         *     attempts**, whether or not the tournament has opened.
          *
          *     A tournament with attempts is somebody's record. Removing it would leave
          *     scores and standings that nothing explains, which is why banks and
-         *     questions are archived and retired rather than deleted. A scheduled
-         *     tournament with no attempts is just a plan, and deleting a plan loses
-         *     nothing — so this one is a real delete rather than another tombstone.
+         *     questions are archived and retired rather than deleted. A tournament
+         *     nobody has played is just a plan, even once its link has been shared,
+         *     and deleting a plan loses nothing — so this one is a real delete rather
+         *     than another tombstone.
          *
          *     Attempts in **any** state count, including expired and abandoned ones.
-         *     Someone whose attempt ran out of time still played it.
+         *     Someone whose attempt ran out of time still played it. An attempt
+         *     starting at the same moment is serialised against the delete, so the
+         *     delete either sees it and is refused or removes the tournament before it
+         *     can start.
          *
          *     Requires `EDITOR` or above.
          *
@@ -263,20 +267,27 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Amend a tournament that has not opened
-         * @description **Refused once the tournament is `OPEN` or `CLOSED`**, with
-         *     `code: INVALID_REQUEST` and a detail naming the state. An open
-         *     tournament has players who started under its current rules; a closed one
-         *     has results those rules explain. Editing either makes the record
-         *     dishonest.
+         * Amend a tournament nobody has played
+         * @description **Refused once anyone has played it**: one attempt, in any state, with
+         *     `code: INVALID_REQUEST`. A player who has started did so under the
+         *     current rules, and a finished attempt is a result those rules explain.
+         *     Editing either makes the record dishonest.
+         *
+         *     Until then the tournament is only a plan, whether or not it has opened,
+         *     so a mistake found before anyone plays can be fixed. A closed tournament
+         *     nobody played can be given a new window and so reopened.
          *
          *     That includes the name, which is only cosmetic — the rule is one rule
          *     rather than a per-field matrix, because a per-field matrix is what
          *     nobody remembers correctly.
          *
-         *     The whole draft is replaced and revalidated, including the bank's
-         *     question count: retirements between scheduling and amending can leave a
-         *     tournament asking for more questions than remain.
+         *     The whole draft is replaced and revalidated, including the bank it draws
+         *     from and that bank's question count: retirements between scheduling and
+         *     amending can leave a tournament asking for more questions than remain.
+         *
+         *     An attempt starting at the same moment is serialised against the
+         *     amendment: either the attempt starts first and the amendment is refused,
+         *     or the amendment commits first and the attempt plays under it.
          *
          *     Requires `EDITOR` or above.
          *
@@ -3070,8 +3081,8 @@ export interface operations {
                 content?: never;
             };
             /**
-             * @description The tournament has opened, or has attempts against it. Carries
-             *     `code: INVALID_REQUEST` and a detail saying which.
+             * @description The tournament has attempts against it. Carries
+             *     `code: INVALID_REQUEST`.
              */
             400: {
                 headers: {
@@ -3147,9 +3158,8 @@ export interface operations {
                 };
             };
             /**
-             * @description The tournament has already opened, the window is invalid, or the
-             *     bank no longer holds enough questions. Carries
-             *     `code: INVALID_REQUEST`.
+             * @description The tournament has been played, the window is invalid, or the bank
+             *     does not hold enough questions. Carries `code: INVALID_REQUEST`.
              */
             400: {
                 headers: {

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class WebAppController {
 
     @GetMapping({"/", "/sign-in", "/forgot-password", "/reset-password",
-            "/app", "/app/new", "/app/t/{id}", "/t/{id}"})
+            "/app", "/app/new", "/app/t/{id}", "/app/t/{id}/edit", "/t/{id}"})
     public String app() {
         return "forward:/index.html";
     }

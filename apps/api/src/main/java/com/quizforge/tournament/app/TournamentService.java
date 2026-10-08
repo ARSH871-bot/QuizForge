@@ -9,12 +9,10 @@ import com.quizforge.platform.web.PageWindow;
 import com.quizforge.tournament.ScoringPolicy;
 import com.quizforge.tournament.TournamentUsage;
 import com.quizforge.tournament.domain.Tournament;
-import com.quizforge.tournament.domain.TournamentState;
 import com.quizforge.tournament.repo.TournamentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -63,13 +61,16 @@ public class TournamentService {
     }
 
     /**
-     * Amends a tournament that has not opened yet.
+     * Amends a tournament nobody has played.
      *
-     * <p>Refused once it is {@code OPEN} or {@code CLOSED}. A tournament in
-     * progress has players who started under its current rules, and one that
-     * has closed has results those rules explain. Neither can be edited without
-     * making the record dishonest.
+     * <p>Refused once it has any attempt, in any state. A player who has
+     * started did so under the current rules, and a finished attempt is a
+     * result those rules explain; editing either makes the record dishonest.
+     * Until then the tournament is only a plan, open or not: a tournament made
+     * in the web app opens the moment it is created, and a typo found before
+     * anyone plays must be fixable.
      *
+     * <p>The whole draft is applied, including the bank it draws from.
      * <p>The draft is validated exactly as it is at creation, including the
      * check that the bank holds enough questions - a bank can lose questions to
      * retirement between scheduling and amending.
@@ -83,23 +84,18 @@ public class TournamentService {
     @Transactional
     public Tournament update(UUID tournamentId, UUID actorId, TournamentDraft draft,
                              Boolean allowGuests) {
-        Tournament tournament = requireById(tournamentId);
+        Tournament tournament = requireForChange(tournamentId);
         requirePermission(tournament.getWorkspaceId(), actorId);
-
-        Instant now = Instant.now();
-        if (tournament.state(now) != TournamentState.SCHEDULED) {
-            throw ApiException.invalid("a tournament can only be changed before it opens; this one is "
-                    + tournament.state(now).name().toLowerCase(Locale.ROOT));
-        }
+        requireUnplayed(tournamentId, "changed");
 
         validate(tournament.getWorkspaceId(), draft);
 
         tournament.rename(draft.name());
-        tournament.reschedule(draft.opensAt(), draft.closesAt(), now);
+        tournament.drawFrom(draft.bankId());
+        tournament.reschedule(draft.opensAt(), draft.closesAt());
         tournament.amendRules(draft.questionCount(), draft.timeLimitSeconds(),
                 draft.maxAttempts(),
-                draft.scoringPolicy() == null ? ScoringPolicy.FIRST : draft.scoringPolicy(),
-                now);
+                draft.scoringPolicy() == null ? ScoringPolicy.FIRST : draft.scoringPolicy());
         if (allowGuests != null) {
             tournament.openToGuests(allowGuests);
         }
@@ -112,8 +108,8 @@ public class TournamentService {
      *
      * <p>Deliberately a real delete rather than an archive, and deliberately
      * narrow. A tournament with attempts is somebody's record; removing it would
-     * leave scores and standings that nothing explains. A scheduled tournament
-     * with no attempts is just a plan, and deleting a plan loses nothing.
+     * leave scores and standings that nothing explains. A tournament with no
+     * attempts is just a plan, open or not, and deleting a plan loses nothing.
      *
      * <p>The attempt count comes through {@link TournamentUsage}, an outbound
      * port implemented in {@code play} - this module cannot depend on
@@ -121,22 +117,46 @@ public class TournamentService {
      */
     @Transactional
     public void delete(UUID tournamentId, UUID actorId) {
-        Tournament tournament = requireById(tournamentId);
+        Tournament tournament = requireForChange(tournamentId);
         requirePermission(tournament.getWorkspaceId(), actorId);
-
-        Instant now = Instant.now();
-        if (tournament.state(now) != TournamentState.SCHEDULED) {
-            throw ApiException.invalid("only a scheduled tournament can be deleted; this one is "
-                    + tournament.state(now).name().toLowerCase(Locale.ROOT));
-        }
-
-        long attempts = usage.attemptCount(tournamentId);
-        if (attempts > 0) {
-            throw ApiException.invalid("this tournament has " + attempts
-                    + " attempt(s) and cannot be deleted");
-        }
+        requireUnplayed(tournamentId, "deleted");
 
         tournaments.delete(tournament);
+    }
+
+    /**
+     * Loads a tournament for an attempt to start against, holding a shared
+     * lock until the caller's transaction ends.
+     *
+     * <p>The other half of {@link #requireUnplayed}. A change locks the row
+     * exclusively before it counts attempts, so a first attempt either commits
+     * before the count, and the change is refused, or starts after the change
+     * commits, under the new rules. Without both locks an attempt still in
+     * flight is invisible to the count: a delete would cascade it away, and an
+     * amendment would change the rules under a player who had started.
+     */
+    @Transactional
+    public Tournament requireForPlay(UUID tournamentId) {
+        return tournaments.findForPlayById(tournamentId)
+                .orElseThrow(() -> ApiException.notFound("tournament"));
+    }
+
+    private Tournament requireForChange(UUID tournamentId) {
+        return tournaments.findForChangeById(tournamentId)
+                .orElseThrow(() -> ApiException.notFound("tournament"));
+    }
+
+    /**
+     * Refuses once anyone has played, counting attempts in every state: an
+     * attempt that ran out of time was still played, and settled the board.
+     * Called with the row held by {@link #requireForChange}.
+     */
+    private void requireUnplayed(UUID tournamentId, String verb) {
+        long attempts = usage.attemptCount(tournamentId);
+        if (attempts > 0) {
+            throw ApiException.invalid("this tournament has " + (attempts == 1 ? "an attempt"
+                    : attempts + " attempts") + " against it and can no longer be " + verb);
+        }
     }
 
     @Transactional(readOnly = true)

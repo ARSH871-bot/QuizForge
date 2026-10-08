@@ -238,7 +238,10 @@ export class QuizForge {
     create: (draft: TournamentDraft, options: WriteOptions = {}): Promise<TournamentSummary> =>
       this.http.request({ method: "POST", path: "/v1/tournaments", body: draft, ...options }),
 
-    /** Refused once the tournament is open; its players started under its rules. */
+    /**
+     * Refused once anyone has played it; a player started under its rules.
+     * Until then it can be changed, open or not, including the bank it draws from.
+     */
     update: (
       tournamentId: string,
       draft: TournamentDraft,
@@ -248,7 +251,7 @@ export class QuizForge {
         method: "PATCH", path: `/v1/tournaments/${tournamentId}`, body: draft, ...options,
       }),
 
-    /** Only while scheduled, and only with no attempts against it. */
+    /** Only while nobody has played it, open or not. */
     delete: (tournamentId: string, options: WriteOptions = {}): Promise<void> =>
       this.http.request({ method: "DELETE", path: `/v1/tournaments/${tournamentId}`, ...options }),
 

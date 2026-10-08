@@ -4,7 +4,7 @@ The single place that says where this product actually stands. Updated in the
 same commit as any change that moves a milestone, opens a known gap, or alters
 what is safe to do with the code.
 
-**Last updated:** 2026-10-02 (per-question results for organisers)
+**Last updated:** 2026-10-08 (edit and delete a tournament until someone plays it)
 
 ## Milestones
 
@@ -15,7 +15,7 @@ what is safe to do with the code.
 | M2 | Content & authoring | **Complete** | 6 of 6 tasks, 99 tests green |
 | M3 | Tournament & play engine | **Complete** | [plan](docs/superpowers/plans/2026-08-12-m3-tournament-and-play-engine.md), 7 of 7; legacy package deleted |
 | M4 | Public API & SDKs | **In progress** | [plan](docs/superpowers/plans/2026-08-18-m4-public-api-and-sdks.md), 10 of 10 tasks; `v0.5.0` not yet cut |
-| M5 | Web dashboard | **In progress** | `apps/web`: sign up, write a tournament, share the link, watch the board, see how each question went |
+| M5 | Web dashboard | **In progress** | `apps/web`: sign up, write a tournament, share the link, watch the board, see how each question went, edit or delete it until someone plays |
 | M6 | Player experience & widget | **In progress** | first slice: open a share link, sign up, play against the clock, see your rank |
 | M7 | Commercial & launch readiness | Not started | no plan written |
 
@@ -35,8 +35,7 @@ Remaining caveats before a real deployment — none of them security holes, all
 of them missing polish:
 
 - The TypeScript SDK is not published; the npm name is the owner's call ([#83](https://github.com/ARSH871-bot/QuizForge/issues/83))
-- The web app cannot yet edit or delete a tournament once made (the API can),
-  writes three of the five question types, and has no CSV import (M5)
+- The web app writes three of the five question types, and has no CSV import (M5)
 - No billing, observability, backups or runbooks (M7)
 - Password reset sends real email over SMTP, but production needs a mail
   provider account; see Known gaps
@@ -118,7 +117,7 @@ source is not a licence to use it: `LICENSE` is proprietary.
 | Control | Mechanism | Where |
 |---|---|---|
 | Pull request required, squash only, branch up to date, no force-push | ruleset `main protection` | GitHub |
-| Build, 312 tests, SpotBugs + FindSecBugs | CI job `build`, required | Actions |
+| Build, 316 tests, SpotBugs + FindSecBugs | CI job `build`, required | Actions |
 | Static analysis | CodeQL default setup, Java; required | GitHub |
 | Secret scanning | gitleaks (`secret-scan`, required) and GitHub push protection | Actions, GitHub |
 | Contract lint and breaking changes | `openapi-lint`, `openapi-breaking` (oasdiff pinned by digest), required | Actions |
@@ -164,10 +163,10 @@ Semantic versioning of the public API begins at M4 (`0.5.0`). `1.0.0` is launch.
 
 ## Numbers
 
-- **Tests:** 312, all passing
+- **Tests:** 316, all passing
 - **Migrations:** V1–V18
 - **Modules:** 9 declared, 7 populated (`platform`, `identity`, `content`, `tournament`, `play`, `leaderboard`, `notify`); `api` holds the generated contract and `billing` is empty until M7
-- **ADRs:** 14 (0007, 0009 and 0013 superseded)
+- **ADRs:** 15 (0007, 0009 and 0013 superseded)
 - **Monthly cost:** $0
 
 ## Where to look

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { match, usePath } from "./router";
 import { SessionProvider } from "./session";
 import { Home } from "./pages/Home";
-import { NewTournament } from "./pages/NewTournament";
+import { EditTournament, NewTournament } from "./pages/NewTournament";
 import { Organiser, SignIn, TournamentAdmin } from "./pages/Organiser";
 import { Play } from "./pages/Play";
 import { ForgotPassword, ResetPassword } from "./pages/Password";
@@ -20,6 +20,7 @@ function App() {
   if (path === "/reset-password") return <ResetPassword />;
   if (path === "/app") return <Organiser />;
   if (path === "/app/new") return <NewTournament />;
+  if ((params = match("/app/t/:id/edit", path))) return <EditTournament key={params.id} id={params.id!} />;
   if ((params = match("/app/t/:id", path))) return <TournamentAdmin key={params.id} id={params.id!} />;
   if ((params = match("/t/:id", path))) return <Play key={params.id} id={params.id!} />;
   return (

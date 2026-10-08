@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, selectWorkspace, type Tournament } from "../api/client";
+import { api, archiveIfUnused, selectWorkspace, type Tournament } from "../api/client";
 import { Link, navigate } from "../router";
 import { useSession } from "../session";
 import { AuthForm, Board, Button, ErrorNote, Shell, useWindow } from "../ui";
@@ -103,6 +103,8 @@ export function TournamentAdmin({ id }: { id: string }) {
   const [standings, setStandings] = useState<Standing[]>([]);
   const [plays, setPlays] = useState<number | null>(null);
   const [stats, setStats] = useState<QuestionStat[] | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -119,6 +121,22 @@ export function TournamentAdmin({ id }: { id: string }) {
     const timer = setInterval(refresh, 15_000);
     return () => clearInterval(timer);
   }, [ready, id]);
+
+  const remove = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.deleteTournament(id);
+      if (tournament?.bankId) await archiveIfUnused(tournament.bankId);
+      navigate("/app");
+    } catch (err) {
+      // Most likely someone started playing since the page last refreshed.
+      setError(err);
+      setDeleting(false);
+      setConfirming(false);
+      api.playCount(id).then(setPlays, () => undefined);
+    }
+  };
 
   const link = `${location.origin}/t/${id}`;
   const copy = async () => {
@@ -137,6 +155,34 @@ export function TournamentAdmin({ id }: { id: string }) {
         <>
           <h1 className="title">{tournament.name}</h1>
           <AdminWindow t={tournament} plays={plays} />
+          {plays === 0 && !confirming && (
+            <div className="manage">
+              <Link href={`/app/t/${id}/edit`} className="button button-quiet">
+                Edit
+              </Link>
+              <Button type="button" variant="quiet" onClick={() => setConfirming(true)}>
+                Delete
+              </Button>
+            </div>
+          )}
+          {plays === 0 && confirming && (
+            <div className="confirm" role="alertdialog" aria-labelledby="confirm-text">
+              <p id="confirm-text">
+                Delete <strong>{tournament.name}</strong>? Its link will stop working, and this can't be undone.
+              </p>
+              <div className="manage">
+                <Button type="button" variant="danger" busy={deleting} onClick={() => void remove()}>
+                  Delete it
+                </Button>
+                <Button type="button" variant="quiet" disabled={deleting} onClick={() => setConfirming(false)}>
+                  Keep it
+                </Button>
+              </div>
+            </div>
+          )}
+          {plays !== null && plays > 0 && (
+            <p className="caption manage-locked">Someone has played it, so its questions and settings are fixed.</p>
+          )}
           <section className="share">
             <h2 className="subtitle">Share this link</h2>
             <p className="muted">
@@ -161,7 +207,8 @@ export function TournamentAdmin({ id }: { id: string }) {
 
 function AdminWindow({ t, plays }: { t: Tournament; plays: number | null }) {
   const timing = useWindow(t.opensAt, t.closesAt);
-  const played = plays === null ? "" : plays === 1 ? " One attempt so far." : ` ${plays} attempts so far.`;
+  const played =
+    plays === null ? "" : plays === 0 ? " Nobody has played yet." : plays === 1 ? " One attempt so far." : ` ${plays} attempts so far.`;
   return (
     <p className="lede">
       {timing.text}. {t.questions} questions per attempt

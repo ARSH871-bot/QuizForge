@@ -137,18 +137,15 @@ public class Tournament {
     }
 
     /**
-     * Changes the rules of a tournament that has not yet opened.
+     * Changes the rules.
      *
-     * <p>Same constraint as {@link #reschedule}: once players can start, the
-     * rules they started under are fixed. Changing the question count or the
-     * attempt allowance mid-tournament would mean two players played different
-     * games and were ranked against each other anyway.
+     * <p>Only while nobody has played, which the service decides: whether
+     * anyone has is a count of attempts, and attempts belong to {@code play}.
+     * Once someone has started, the rules they started under are fixed, or two
+     * players would play different games and be ranked against each other.
      */
     public void amendRules(int questionCount, Integer timeLimitSeconds, int maxAttempts,
-                           ScoringPolicy scoringPolicy, Instant now) {
-        if (state(now) != TournamentState.SCHEDULED) {
-            throw new IllegalStateException("only a scheduled tournament can be amended");
-        }
+                           ScoringPolicy scoringPolicy) {
         this.questionCount = questionCount;
         this.timeLimitSeconds = timeLimitSeconds;
         this.maxAttempts = maxAttempts;
@@ -156,17 +153,16 @@ public class Tournament {
         this.updatedAt = Instant.now();
     }
 
-    /**
-     * Reschedules a tournament that has not yet opened. Moving the window of a
-     * tournament already in progress would change the rules under players who
-     * have started.
-     */
-    public void reschedule(Instant opensAt, Instant closesAt, Instant now) {
-        if (state(now) != TournamentState.SCHEDULED) {
-            throw new IllegalStateException("only a scheduled tournament can be rescheduled");
-        }
+    /** Moves the window. Only while nobody has played, as {@link #amendRules}. */
+    public void reschedule(Instant opensAt, Instant closesAt) {
         this.opensAt = opensAt;
         this.closesAt = closesAt;
+        this.updatedAt = Instant.now();
+    }
+
+    /** Draws from another bank. Only while nobody has played, as {@link #amendRules}. */
+    public void drawFrom(UUID bankId) {
+        this.bankId = bankId;
         this.updatedAt = Instant.now();
     }
 }

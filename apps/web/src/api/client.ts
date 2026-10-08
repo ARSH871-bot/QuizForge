@@ -13,6 +13,7 @@ export type AttemptResult = S["AttemptResult"];
 export type Standing = S["LeaderboardEntry"];
 export type QuestionStat = S["QuestionStat"];
 export type QuestionType = S["QuestionType"];
+export type Question = S["Question"];
 export type QuestionPayload = S["QuestionPayload"];
 export type Problem = S["Problem"];
 
@@ -97,6 +98,32 @@ async function request<T>(path: string, options: Options = {}): Promise<T> {
   return data as T;
 }
 
+type TournamentDraft = {
+  name: string;
+  bankId: string;
+  opensAt: string;
+  closesAt: string;
+  questions: number;
+  maxAttempts: number;
+  timeLimitSeconds?: number;
+  scoringPolicy: "BEST" | "FIRST" | "LAST" | "AVERAGE";
+  allowGuests: boolean;
+};
+
+/** Every item of a cursor-paged list, following `nextCursor` to the end. */
+async function all<T>(path: string): Promise<T[]> {
+  const items: T[] = [];
+  let cursor: string | null | undefined;
+  do {
+    const separator = path.includes("?") ? "&" : "?";
+    const query = `limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+    const page = await request<{ data: T[]; nextCursor?: string | null }>(`${path}${separator}${query}`);
+    items.push(...page.data);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return items;
+}
+
 export const api = {
   me: () => request<Account>("/v1/auth/me", { workspace: false }),
   register: (email: string, password: string, displayName: string) =>
@@ -120,22 +147,19 @@ export const api = {
 
   tournaments: () =>
     request<{ data: Tournament[] }>("/v1/tournaments?limit=100").then((p) => p.data),
+  allTournaments: () => all<Tournament>("/v1/tournaments"),
   tournament: (id: string) => request<Tournament>(`/v1/tournaments/${id}`),
   createBank: (name: string) =>
     request<{ id: string }>("/v1/question-banks", { method: "POST", body: { name } }),
   authorQuestion: (bankId: string, question: { type: QuestionType; prompt: string; payload: QuestionPayload }) =>
     request<{ id: string }>(`/v1/question-banks/${bankId}/questions`, { method: "POST", body: question }),
-  createTournament: (draft: {
-    name: string;
-    bankId: string;
-    opensAt: string;
-    closesAt: string;
-    questions: number;
-    maxAttempts: number;
-    timeLimitSeconds?: number;
-    scoringPolicy: "BEST" | "FIRST" | "LAST" | "AVERAGE";
-    allowGuests: boolean;
-  }) => request<Tournament>("/v1/tournaments", { method: "POST", body: draft }),
+  createTournament: (draft: TournamentDraft) =>
+    request<Tournament>("/v1/tournaments", { method: "POST", body: draft }),
+  updateTournament: (id: string, draft: TournamentDraft) =>
+    request<Tournament>(`/v1/tournaments/${id}`, { method: "PATCH", body: draft }),
+  deleteTournament: (id: string) => request<void>(`/v1/tournaments/${id}`, { method: "DELETE" }),
+  questions: (bankId: string) => all<Question>(`/v1/question-banks/${bankId}/questions`),
+  archiveBank: (bankId: string) => request<void>(`/v1/question-banks/${bankId}`, { method: "DELETE" }),
   playCount: (tournamentId: string) =>
     request<{ data: unknown[] }>(`/v1/tournaments/${tournamentId}/attempts-summary?limit=100`).then(
       (p) => p.data.length,
@@ -161,3 +185,18 @@ export const api = {
   standings: (tournamentId: string) =>
     request<{ data: Standing[] }>(`/v1/tournaments/${tournamentId}/standings?limit=50`).then((p) => p.data),
 };
+
+/**
+ * Archives a bank once no tournament draws from it, so editing or deleting a
+ * tournament does not leave its old questions behind. Tidying, not part of the
+ * change: a failure here is not the organiser's problem.
+ */
+export async function archiveIfUnused(bankId: string): Promise<void> {
+  try {
+    const tournaments = await api.allTournaments();
+    if (tournaments.some((t) => !t.bankId || t.bankId === bankId)) return;
+    await api.archiveBank(bankId);
+  } catch {
+    // Left active; harmless.
+  }
+}
